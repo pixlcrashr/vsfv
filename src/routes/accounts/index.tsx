@@ -1,24 +1,22 @@
 import { component$, Signal, useComputed$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";
+import EditAccountMenu from "~/components/accounts/EditAccountMenu";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
-import styles from "./index.scss?inline";
 import MainContent from "~/components/layout/MainContent";
 import MainContentMenu from "~/components/layout/MainContentMenu";
 import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
-import { accounts } from "@prisma/client";
-import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";
 import { Prisma } from "~/lib/prisma";
-import { Prisma as P } from '@prisma/client';
-import EditAccountMenu from "~/components/accounts/EditAccountMenu";
-
-
+import { accountsModel } from "~/lib/prisma/generated/models";
+import { Prisma as P } from "../../lib/prisma/generated/client";
+import styles from "./index.scss?inline";
 
 export const CreateAccountActionSchema = {
   name: z.string().min(1),
   code: z.string().min(1),
-  parentAccountId: z.string().uuid().optional()
+  parentAccountId: z.string().optional()
 };
 
 async function createAccount(parentAccountId: string | null, name: string, code: string, description: string = ''): Promise<void> {
@@ -34,7 +32,7 @@ async function createAccount(parentAccountId: string | null, name: string, code:
 
 export const useCreateAccountAction = routeAction$(async (values) => {
   await createAccount(
-    values.parentAccountId ?? null,
+    (values.parentAccountId === '' || !values.parentAccountId) ? null : values.parentAccountId,
     values.name,
     values.code
   );
@@ -63,9 +61,9 @@ async function saveAccount(id: string, name: string, code: string, parentAccount
   JOIN ancestors an ON a.id = an.parent_id
 )
 SELECT EXISTS (SELECT 1 FROM ancestors WHERE id = $2::uuid) AS has_cycle`;
-    q.values = [parentAccountId, id];
+    q.values.push(parentAccountId, id);
 
-    const hasCycle = await Prisma.$queryRaw<{ has_cycle: boolean }[]>(q);
+    const hasCycle = await Prisma.$queryRaw<{ has_cycle: boolean; }[]>(q);
 
     if (hasCycle[0].has_cycle) {
       throw new Error('Konto kann nicht als obergeordnetes Konto verwendet werden, da es einen Zyklus erzeugt.');
@@ -121,7 +119,7 @@ async function getAccounts(): Promise<Account[]> {
     }
   });
 
-  const traverseChildren: (children: accounts[], depth: number) => Account[] = (children: accounts[], depth: number) => {
+  const traverseChildren: (children: accountsModel[], depth: number) => Account[] = (children: accountsModel[], depth: number) => {
     return children.map(x => {
       const cs = traverseChildren(as.filter(y => y.parent_account_id === x.id), depth + 1);
       cs.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
@@ -154,8 +152,8 @@ export const AccountRow = component$<AccountRowProps>((props) => {
     <>
       <tr key={props.account.id}>
         {Array.from({ length: props.maxDepth + 1 }).map((_, index) => <td class="is-vcentered" key={index}>
-            {index === props.account.depth ? props.account.code : ''}
-          </td>)}
+          {index === props.account.depth ? props.account.code : ''}
+        </td>)}
         <td class="is-vcentered">{props.account.name}</td>
         <td class="is-vcentered">{props.account.description}</td>
         <td class="is-vcentered">
@@ -206,7 +204,7 @@ export default component$(() => {
     return res;
   });
 
-  const lastRootAccount = useComputed$(() => {
+  /*const lastRootAccount = useComputed$(() => {
     const as = accounts.value.filter(a => a.depth === 0);
 
     if (as.length === 0) {
@@ -214,7 +212,7 @@ export default component$(() => {
     }
 
     return as[as.length - 1];
-  })
+  });*/
 
   return (
     <>

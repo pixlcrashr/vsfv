@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client"
   output = "../src/lib/prisma/generated"
+  previewFeatures = ["driverAdapters", "queryCompiler"]
 }
 
 datasource db {
@@ -123,15 +124,17 @@ model transactions {
   description                                                                           String               @default("")
   reference                                                                             String               @default("")
   assigned_account_id                                                                   String?              @db.Uuid
-  booked_at                                                                             DateTime             @default(now()) @db.Timestamp(6)
-  document_date                                                                         DateTime             @default(now()) @db.Timestamp(6)
+  booked_at                                                                             DateTime             @db.Date @default(now())
+  document_date                                                                         DateTime             @db.Date @default(now())
   updated_at                                                                            DateTime             @default(now()) @db.Timestamp(6)
   created_at                                                                            DateTime             @default(now()) @db.Timestamp(6)
+  custom_id                                                                             String               @default("")
   accounts                                                                              accounts?            @relation(fields: [assigned_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts transaction_accounts @relation("transactions_credit_transaction_account_idTotransaction_accounts", fields: [credit_transaction_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts  transaction_accounts @relation("transactions_debit_transaction_account_idTotransaction_accounts", fields: [debit_transaction_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([credit_transaction_account_id, debit_transaction_account_id, amount, description, reference, booked_at])
+  @@unique([custom_id])
+  @@unique([credit_transaction_account_id, debit_transaction_account_id, amount, description, reference, booked_at, document_date])
 }
 
 model view_account_assignments {

@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 
 /*export class BudgetNewService implements Service {
   public constructor(

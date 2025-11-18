@@ -1,6 +1,5 @@
-import Decimal from "decimal.js";
 import { parse } from "csv-parse/browser/esm";
-import { transform } from "stream-transform/browser/esm";
+import Decimal from "decimal.js";
 import { parseGermanDate } from "../format";
 
 export interface Transaction {
@@ -22,7 +21,7 @@ export async function parseTransactions(d: Blob): Promise<Transaction[]> {
   // Lexware buchhaltung's exports use windows-1252 encoding
   const t = new TextDecoder('windows-1252').decode(
     await d.bytes()
-  )
+  );
 
   const records: Record<string, string>[] = await new Promise((resolve, reject) => {
     parse(
@@ -42,9 +41,6 @@ export async function parseTransactions(d: Blob): Promise<Transaction[]> {
   });
 
   const ts: Transaction[] = records.map((record) => {
-
-    console.log(record);
-
     return {
       receiptFrom: new Date(parseGermanDate(record['Belegdatum']) ?? new Date()),
       bookedAt: new Date(parseGermanDate(record['Buchungsdatum']) ?? new Date()),
@@ -128,5 +124,3 @@ export async function parseTransactions(d: Blob): Promise<Transaction[]> {
 
   return results;
 }
-
-

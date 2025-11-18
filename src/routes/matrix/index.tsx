@@ -1,11 +1,11 @@
-import { $, component$, QRL, Resource, Signal, useComputed$, useOn, useOnDocument, useResource$, useSignal, useStore, useStylesScoped$, useTask$, useVisibleTask$ } from "@builder.io/qwik";
-import styles from "./index.scss?inline";
+import { $, component$, QRL, Resource, Signal, useComputed$, useOnDocument, useResource$, useSignal, useStore, useStylesScoped$, useTask$, useVisibleTask$ } from "@builder.io/qwik";
 import { routeLoader$, server$ } from "@builder.io/qwik-city";
-import { formatDateShort, formatCurrency } from "~/lib/format";
-import { Prisma } from "~/lib/prisma";
-import { accounts } from "@prisma/client";
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { Decimal } from 'decimal.js/decimal';
+import { formatCurrency, formatDateShort } from "~/lib/format";
+import { Prisma } from "~/lib/prisma";
+import { type accountsModel } from "../../lib/prisma/generated/models";
+import styles from "./index.scss?inline";
 
 
 
@@ -35,11 +35,11 @@ export type Matrix = {
       id: string;
       description: string;
       date: Date;
-    }[]
+    }[];
   }[];
   maxDepth: number;
   items: Item[];
-}
+};
 
 async function getMatrix(
   budgetIds: string[],
@@ -77,13 +77,13 @@ async function getMatrix(
   });
 
   interface Node {
-    account: accounts;
+    account: accountsModel;
     parentNode: Node | null;
     depth: number;
     children: Node[];
   }
 
-  const dfsTree = (parentNode: Node | null, account: accounts, depth: number): Node => {
+  const dfsTree = (parentNode: Node | null, account: accountsModel, depth: number): Node => {
     const n: Node = {
       account: account,
       parentNode: parentNode,
@@ -99,7 +99,7 @@ async function getMatrix(
     return n;
   };
 
-  const tmp: accounts[] = as.filter(x => x.parent_account_id === null);
+  const tmp: accountsModel[] = as.filter(x => x.parent_account_id === null);
   tmp.sort((a, b) => a.display_code.localeCompare(b.display_code, undefined, { numeric: true }));
 
   const asTree: Node[] = tmp.map(x => dfsTree(null, x, 0));
@@ -140,7 +140,7 @@ async function getMatrix(
       values: bs.map(b => {
         return {
           actualValue: '0',
-          revisions: b.budget_revisions.map((r, i) => {
+          revisions: b.budget_revisions.map((r) => {
             let tV: Decimal = new Decimal(0);
             if (isGroup) {
               tV = sumChildren(node, r.id);
@@ -183,7 +183,7 @@ async function getMatrix(
     }),
     maxDepth: items.reduce((max, item) => Math.max(max, item.depth), 0),
     items: items
-  }
+  };
 }
 
 export interface Budget {
@@ -229,18 +229,6 @@ export interface Account {
   parentAccountId: string | null;
 }
 
-function traverseAccountDepth(accounts: accounts[], account: accounts): number {
-  let depth = 0;
-  let parentAccountId = account.parent_account_id;
-
-  while (parentAccountId !== null) {
-    depth++;
-    parentAccountId = accounts.find(x => x.id === parentAccountId)?.parent_account_id ?? null;
-  }
-
-  return depth;
-}
-
 async function getAccounts(): Promise<Account[]> {
   const as = await Prisma.accounts.findMany({
     orderBy: {
@@ -252,7 +240,7 @@ async function getAccounts(): Promise<Account[]> {
 
   const flatAccounts: Account[] = [];
 
-  const dfs = (account: accounts, depth: number) => {
+  const dfs = (account: accountsModel, depth: number) => {
     flatAccounts.push({
       id: account.id,
       code: account.display_code,
@@ -287,7 +275,7 @@ async function saveBudgetRevisionAccountValue(
   value: string
 ) {
   const c = await Prisma.accounts.count({
-    where:  {
+    where: {
       parent_account_id: accountId
     }
   });
@@ -321,7 +309,7 @@ async function saveBudgetRevisionAccountValue(
   }
 }
 
-export const saveBudgetRevisionAccountValueServer = server$(async function(
+export const saveBudgetRevisionAccountValueServer = server$(async function (
   budgetRevisionId: string,
   accountId: string,
   value: string
@@ -397,12 +385,12 @@ p {
           oldValue.value = v.toString();
 
           onSaved$(diff.toString());
-        })}/>}
+        })} />}
     </>
   );
 });
 
-function propagateTargetValue(store: { [key: string]: { value: string } }, accounts: Account[], revisionId: string, parentAccountId: string | null, v: string) {
+function propagateTargetValue(store: { [key: string]: { value: string; }; }, accounts: Account[], revisionId: string, parentAccountId: string | null, v: string) {
   if (parentAccountId === null) {
     return;
   }
@@ -452,7 +440,7 @@ export default component$(() => {
     return m;
   });
 
-  const matrixValues = useStore<{ [key: string]: { value: string } }>({}, {
+  const matrixValues = useStore<{ [key: string]: { value: string; }; }>({}, {
     deep: true,
   });
 
@@ -520,7 +508,7 @@ export default component$(() => {
           <div class="dropdown-content">
             <table class="table is-narrow is-hoverable">
               <tbody>
-                {allBudgets.value.map(b => <tr>
+                {allBudgets.value.map(b => <tr key={b.id}>
                   <td>{b.name}</td>
                   <td><input type="checkbox" checked={selectedBudgetIds.value.includes(b.id)} onInput$={() => {
                     if (selectedBudgetIds.value.includes(b.id)) {
@@ -551,7 +539,7 @@ export default component$(() => {
           <div class="dropdown-content">
             <table class="table is-narrow is-hoverable">
               <tbody>
-                {allAccounts.value.map(a => <tr>
+                {allAccounts.value.map(a => <tr key={a.id}>
                   <td>{`${"\u00A0".repeat(a.depth * 6)}${a.depth === 0 ? '' : '└─ '}${a.code} | ${a.name}`}</td>
                   <td><input type="checkbox" checked={selectedAccountIds.value.includes(a.id)} onInput$={() => {
                     if (selectedAccountIds.value.includes(a.id)) {
@@ -574,7 +562,7 @@ export default component$(() => {
             value.revisions.forEach(revision => {
               matrixValues[`${row.accountId}:${revision.revisionId}`] = { value: new Decimal(revision.targetValue).toString() };
             });
-          })
+          });
         });
 
         return <table class="table is-bordered">
@@ -584,7 +572,7 @@ export default component$(() => {
               <th rowSpan={2}>Titel</th>
               {showDescription.value && <th rowSpan={2}>Beschreibung</th>}
               {(showTarget.value || showActual.value || showDiff.value) && <>
-                {matrix.headers.map((h) => <th key={h.budgetId} colSpan={budgetColSpan.value + (h.budgetRevisions.length-1) * ((showTarget.value ? 1 : 0) + (showDiff.value ? 1 : 0))}>{h.budgetName}</th>)}
+                {matrix.headers.map((h) => <th key={h.budgetId} colSpan={budgetColSpan.value + (h.budgetRevisions.length - 1) * ((showTarget.value ? 1 : 0) + (showDiff.value ? 1 : 0))}>{h.budgetName}</th>)}
               </>}
             </tr>
             <tr>
@@ -597,24 +585,24 @@ export default component$(() => {
           </thead>
           <tbody>
             {matrix.items.map((row) => <tr key={row.accountId}>
-                {Array.from({ length: matrix.maxDepth + 1 }).map((_, index) => <td class="is-vcentered" key={index}>
-                  {index === row.depth ? row.accountCode : ''}
+              {Array.from({ length: matrix.maxDepth + 1 }).map((_, index) => <td class="is-vcentered" key={index}>
+                {index === row.depth ? row.accountCode : ''}
+              </td>)}
+              <td>{row.accountName}</td>
+              {showDescription.value && <td>{row.accountDescription}</td>}
+              {row.values.map((value) => <>
+                {showTarget.value && value.revisions.map((revision) => <td class="p-0 is-vcentered" key={revision.revisionId}>
+                  <MatrixInput budgetRevisionId={revision.revisionId} accountId={row.accountId} value={matrixValues[`${row.accountId}:${revision.revisionId}`]} isDisabled={row.isGroup} onSaved$={(v) => {
+                    propagateTargetValue(matrixValues, allAccounts.value, revision.revisionId, row.parentAccountId, v);
+                  }} />
                 </td>)}
-                <td>{row.accountName}</td>
-                {showDescription.value && <td>{row.accountDescription}</td>}
-                {row.values.map((value) => <>
-                  {showTarget.value && value.revisions.map((revision) => <td class="p-0 is-vcentered" key={revision.revisionId}>
-                    <MatrixInput budgetRevisionId={revision.revisionId} accountId={row.accountId} value={matrixValues[`${row.accountId}:${revision.revisionId}`]} isDisabled={row.isGroup} onSaved$={(v) => {
-                      propagateTargetValue(matrixValues, allAccounts.value, revision.revisionId, row.parentAccountId, v);
-                    }}/>
-                  </td>)}
-                  {showActual.value && <td>{value.actualValue}</td>}
-                  {showDiff.value && value.revisions.map((revision) => <td key={revision.revisionId}>{revision.diffValue}</td>)}
-                </>)}
-              </tr>)}
+                {showActual.value && <td>{value.actualValue}</td>}
+                {showDiff.value && value.revisions.map((revision) => <td key={revision.revisionId}>{revision.diffValue}</td>)}
+              </>)}
+            </tr>)}
           </tbody>
         </table>;
-      }}/>
+      }} />
     </main>
   </div>);
 });
