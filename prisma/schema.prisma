@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output = "../src/lib/prisma/generated"
+  provider        = "prisma-client"
+  output          = "../src/lib/prisma/generated"
   previewFeatures = ["driverAdapters", "queryCompiler"]
 }
 
@@ -102,16 +102,42 @@ model budgets {
   @@index([display_name], map: "idx_budgets_display_name")
 }
 
-model transaction_accounts {
-  id                                                                            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code                                                                          String         @unique @db.VarChar(64)
-  display_name                                                                  String         @default("")
-  display_description                                                           String         @default("")
-  updated_at                                                                    DateTime       @default(now()) @db.Timestamp(6)
-  created_at                                                                    DateTime       @default(now()) @db.Timestamp(6)
-  transactions_transactions_credit_transaction_account_idTotransaction_accounts transactions[] @relation("transactions_credit_transaction_account_idTotransaction_accounts")
-  transactions_transactions_debit_transaction_account_idTotransaction_accounts  transactions[] @relation("transactions_debit_transaction_account_idTotransaction_accounts")
+model import_sources {
+  id                  String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  display_name        String                  @default("")
+  display_description String                  @default("")
+  period_start        DateTime                @default(now()) @db.Date
+  period_end          DateTime                @default(now()) @db.Date
+  startYear           Int                     @default(0)
+  updated_at          DateTime                @default(now()) @db.Timestamp(6)
+  created_at          DateTime                @default(now()) @db.Timestamp(6)
+  transactionAccounts transaction_accounts[]
+  importSourcePeriods import_source_periods[]
+}
 
+model import_source_periods {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  import_source_id String          @db.Uuid
+  startYear        Int             @default(0)
+  is_closed        Boolean         @default(false)
+  updated_at       DateTime        @default(now()) @db.Timestamp(6)
+  created_at       DateTime        @default(now()) @db.Timestamp(6)
+  import_sources   import_sources? @relation(fields: [import_source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model transaction_accounts {
+  id                                                                            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                                                                          String          @unique @db.VarChar(64)
+  import_source_id                                                              String          @db.Uuid
+  display_name                                                                  String          @default("")
+  display_description                                                           String          @default("")
+  updated_at                                                                    DateTime        @default(now()) @db.Timestamp(6)
+  created_at                                                                    DateTime        @default(now()) @db.Timestamp(6)
+  transactions_transactions_credit_transaction_account_idTotransaction_accounts transactions[]  @relation("transactions_credit_transaction_account_idTotransaction_accounts")
+  transactions_transactions_debit_transaction_account_idTotransaction_accounts  transactions[]  @relation("transactions_debit_transaction_account_idTotransaction_accounts")
+  import_sources                                                                import_sources? @relation(fields: [import_source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([code, import_source_id])
   @@index([code], map: "idx_transaction_accounts_code")
   @@index([display_name], map: "idx_transaction_accounts_display_name")
 }
@@ -124,8 +150,8 @@ model transactions {
   description                                                                           String               @default("")
   reference                                                                             String               @default("")
   assigned_account_id                                                                   String?              @db.Uuid
-  booked_at                                                                             DateTime             @db.Date @default(now())
-  document_date                                                                         DateTime             @db.Date @default(now())
+  booked_at                                                                             DateTime             @default(now()) @db.Date
+  document_date                                                                         DateTime             @default(now()) @db.Date
   updated_at                                                                            DateTime             @default(now()) @db.Timestamp(6)
   created_at                                                                            DateTime             @default(now()) @db.Timestamp(6)
   custom_id                                                                             String               @default("")

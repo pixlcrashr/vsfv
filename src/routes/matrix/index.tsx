@@ -5,6 +5,7 @@ import { Decimal } from 'decimal.js/decimal';
 import { formatCurrency, formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import { type accountsModel } from "../../lib/prisma/generated/models";
+import { Prisma as P } from "../../lib/prisma/generated/client";
 import styles from "./index.scss?inline";
 
 
@@ -75,6 +76,22 @@ async function getMatrix(
       }
     }
   });
+  const q = P.sql`SELECT b.id as budget_id, t.assigned_account_id AS account_id, SUM(t.amount) AS amount
+FROM
+	budgets AS b,
+	transactions AS t
+WHERE
+  b.id IN (${P.join(bs.map(b => P.sql`${b.id}::uuid`))}) AND
+	t.document_date >= b.period_start AND
+	t.document_date <= b.period_end AND
+	t.assigned_account_id IS NOT NULL
+GROUP BY b.id, t.assigned_account_id`;
+
+  const avs = await Prisma.$queryRaw<{
+    budget_id: string;
+    account_id: string;
+    amount: PDecimal;
+  }[]>(q);
 
   interface Node {
     account: accountsModel;
@@ -106,12 +123,31 @@ async function getMatrix(
 
   const items: Item[] = [];
 
-  const sumChildren = (node: Node, revisionId: string): Decimal => {
+  const sumActualChildren = (node: Node, budgetId: string): Decimal => {
     let sum = new Decimal(0);
 
     node.children.forEach(x => {
       if (x.children.length > 0) {
-        sum = sum.add(sumChildren(x, revisionId));
+        sum = sum.add(sumActualChildren(x, budgetId));
+        return;
+      }
+
+      const av = avs.find(av => av.account_id === x.account.id && av.budget_id === budgetId);
+
+      if (av) {
+        sum = sum.add(new Decimal(av.amount));
+      }
+    });
+
+    return sum;
+  };
+
+  const sumTargetChildren = (node: Node, revisionId: string): Decimal => {
+    let sum = new Decimal(0);
+
+    node.children.forEach(x => {
+      if (x.children.length > 0) {
+        sum = sum.add(sumTargetChildren(x, revisionId));
         return;
       }
 
@@ -138,12 +174,20 @@ async function getMatrix(
       parentAccountId: node.account.parent_account_id ?? null,
       isGroup: isGroup,
       values: bs.map(b => {
+        let actualValue = '0';
+
+        if (isGroup) {
+          actualValue = sumActualChildren(node, b.id).toString();
+        } else {
+          actualValue = avs.find(av => av.budget_id === b.id && av.account_id === node.account.id)?.amount.toString() ?? '0';
+        }
+
         return {
-          actualValue: '0',
+          actualValue: actualValue,
           revisions: b.budget_revisions.map((r) => {
             let tV: Decimal = new Decimal(0);
             if (isGroup) {
-              tV = sumChildren(node, r.id);
+              tV = sumTargetChildren(node, r.id);
             } else {
               const brav = bravs.find(br => br.account_id === node.account.id && br.budget_revision_id === r.id);
               if (brav) {
@@ -154,7 +198,7 @@ async function getMatrix(
             return {
               revisionId: r.id,
               targetValue: tV.toString(),
-              diffValue: tV.sub(new Decimal(0)).toString()
+              diffValue: tV.sub(new Decimal(actualValue)).toString()
             };
           })
         };
@@ -490,7 +534,7 @@ export default component$(() => {
       </div>
       <div class="buttons are-small has-addons">
         <button class={["button", { "is-active": showDescription.value }]} onClick$={() => showDescription.value = !showDescription.value}>
-          Beschreibung
+          Kontobeschreibung
         </button>
       </div>
       <div class={["dropdown", "is-small", {
@@ -596,8 +640,8 @@ export default component$(() => {
                     propagateTargetValue(matrixValues, allAccounts.value, revision.revisionId, row.parentAccountId, v);
                   }} />
                 </td>)}
-                {showActual.value && <td>{value.actualValue}</td>}
-                {showDiff.value && value.revisions.map((revision) => <td key={revision.revisionId}>{revision.diffValue}</td>)}
+                {showActual.value && <td class="disabled-cell">{formatCurrency(value.actualValue)}</td>}
+                {showDiff.value && value.revisions.map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(revision.diffValue)}</td>)}
               </>)}
             </tr>)}
           </tbody>

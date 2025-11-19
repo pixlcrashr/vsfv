@@ -20,9 +20,16 @@ const menuItems = [
     name: 'Journal',
     path: '/journal'
   },
+];
+
+const menuItemsAdmin = [
+  {
+    name: 'Importquellen',
+    path: '/admin/importSources'
+  },
   {
     name: 'Einstellungen',
-    path: '/settings'
+    path: '/admin/settings'
   }
 ];
 
@@ -46,6 +53,12 @@ export default component$(() => {
         <aside class="menu p-4">
           <ul class="menu-list">
             {menuItems.map(({ name, path }) => <li key={name}>
+              <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
+            </li>)}
+          </ul>
+          <p class="menu-label">Administration</p>
+          <ul class="menu-list">
+            {menuItemsAdmin.map(({ name, path }) => <li key={name}>
               <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
             </li>)}
           </ul>

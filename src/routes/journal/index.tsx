@@ -1,5 +1,5 @@
-import { component$ } from "@builder.io/qwik";
-import { Link, routeLoader$ } from "@builder.io/qwik-city";
+import { component$, Resource, useResource$, useSignal } from "@builder.io/qwik";
+import { Link, routeLoader$, server$ } from "@builder.io/qwik-city";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -21,7 +21,11 @@ export interface Transaction {
   assignedAccountName: string | null;
 }
 
-async function getTransactions(): Promise<Transaction[]> {
+async function getTotalTransactions(): Promise<number> {
+  return await Prisma.transactions.count();
+}
+
+async function getTransactions(page: number, size: number): Promise<Transaction[]> {
   const ts = await Prisma.transactions.findMany({
     include: {
       accounts: true,
@@ -29,10 +33,10 @@ async function getTransactions(): Promise<Transaction[]> {
       transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts: true
     },
     orderBy: {
-      created_at: 'desc'
+      created_at: 'asc'
     },
-    skip: 0,
-    take: 100
+    skip: (page - 1) * size,
+    take: size
   });
 
   return ts.map(t => {
@@ -51,12 +55,30 @@ async function getTransactions(): Promise<Transaction[]> {
   });
 }
 
-export const useGetTransactions = routeLoader$<Transaction[]>(async () => {
-  return await getTransactions();
+export const getTransactionsServer = server$(async ({ page, size }: { page: number, size: number }) => {
+  return {
+    totalPages: Math.ceil(await getTotalTransactions() / size),
+    transactions: await getTransactions(page, size)
+  };
 });
 
 export default component$(() => {
-  const transactions = useGetTransactions();
+  const page = useSignal<{
+    page: number;
+    size: number;
+  }>({
+    page: 1,
+    size: 100
+  });
+
+  const transactionsResource = useResource$(async ({ track }) => {
+    track(() => page.value);
+
+    return await getTransactionsServer({
+      page: page.value.page,
+      size: page.value.size
+    });
+  });
 
   return (<>
     <MainContent>
@@ -72,55 +94,89 @@ export default component$(() => {
           <Link href="/journal/import" class="button is-primary is-rounded">Importieren...</Link>
         </HeaderButtons>
       </Header>
-      <table class="table is-narrow is-hoverable is-fullwidth is-striped">
-        <thead>
-          <tr>
-            <th>Datum</th>
-            <th>Betrag</th>
-            <th>Sollkonto</th>
-            <th>Habenkonto</th>
-            <th>Buchungstext</th>
-            <th>Haushaltskonto</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {transactions.value.map(x => <tr>
-            <td class="is-vcentered">{formatDateShort(x.date)}</td>
-            <td class="is-vcentered">{formatCurrency(x.amount)}</td>
-            <td class="is-vcentered"><Link href={`/transactionAccounts/${x.debitAccountId}`}>{x.debitAccountCode}</Link></td>
-            <td class="is-vcentered"><Link href={`/transactionAccounts/${x.creditAccountId}`}>{x.creditAccountCode}</Link></td>
-            <td class="is-vcentered">{x.description}</td>
-            <td class="is-vcentered">
-              {x.assignedAccountId === null ? '-' : <Link href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName}</Link>}
-            </td>
-            <td class="is-vcentered">
-              <div class="buttons are-small is-right">
-                <button class="button is-danger is-outlined">Stornieren</button>
-              </div>
-            </td>
-          </tr>)}
-        </tbody>
-      </table>
-      <nav class="pagination is-small is-centered" role="navigation" aria-label="pagination">
-        <a href="#" class="pagination-previous">Previous</a>
-        <a href="#" class="pagination-next">Next page</a>
-        <ul class="pagination-list">
-          <li><a href="#" class="pagination-link" aria-label="Goto page 1">1</a></li>
-          <li><span class="pagination-ellipsis">&hellip;</span></li>
-          <li><a href="#" class="pagination-link" aria-label="Goto page 45">45</a></li>
-          <li>
-            <a
-              class="pagination-link is-current"
-              aria-label="Page 46"
-              aria-current="page"
-              >46</a>
-          </li>
-          <li><a href="#" class="pagination-link" aria-label="Goto page 47">47</a></li>
-          <li><span class="pagination-ellipsis">&hellip;</span></li>
-          <li><a href="#" class="pagination-link" aria-label="Goto page 86">86</a></li>
-        </ul>
-      </nav>
+      <Resource value={transactionsResource} onResolved={(res) => {
+        const pages = [];
+
+        if (page.value.page - 2 > 0) {
+          pages.push(page.value.page - 2);
+        }
+
+        if (page.value.page - 1 > 0) {
+          pages.push(page.value.page - 1);
+        }
+
+        pages.push(page.value.page);
+
+        if (page.value.page + 1 <= res.totalPages) {
+          pages.push(page.value.page + 1);
+        }
+
+        if (page.value.page + 2 <= res.totalPages) {
+          pages.push(page.value.page + 2);
+        }
+
+        return <>
+          <table class="table is-narrow is-hoverable is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Betrag</th>
+                <th>Sollkonto</th>
+                <th>Habenkonto</th>
+                <th>Buchungstext</th>
+                <th>Haushaltskonto</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {res.transactions.map(x => <tr>
+                <td class="is-vcentered">{formatDateShort(x.date)}</td>
+                <td class="is-vcentered">{formatCurrency(x.amount)}</td>
+                <td class="is-vcentered"><Link href={`/transactionAccounts/${x.debitAccountId}`}>{x.debitAccountCode}</Link></td>
+                <td class="is-vcentered"><Link href={`/transactionAccounts/${x.creditAccountId}`}>{x.creditAccountCode}</Link></td>
+                <td class="is-vcentered">{x.description}</td>
+                <td class="is-vcentered">
+                  {x.assignedAccountId === null ? '-' : <Link href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName}</Link>}
+                </td>
+                <td class="is-vcentered">
+                  <div class="buttons are-small is-right">
+                    <button class="button is-danger is-outlined">Stornieren</button>
+                  </div>
+                </td>
+              </tr>)}
+            </tbody>
+          </table>
+
+          <nav class="pagination is-small is-centered" role="navigation" aria-label="pagination">
+            {page.value.page > 1 && <button class="pagination-previous" onClick$={() => {
+                page.value = {
+                  page: page.value.page - 1,
+                  size: page.value.size
+                };
+              }}>Vorherige</button>}
+            {page.value.page < res.totalPages && <button class="pagination-next" onClick$={() => {
+                page.value = {
+                  page: page.value.page + 1,
+                  size: page.value.size
+                };
+              }}>Nächste</button>}
+            <ul class="pagination-list">
+              {pages.map(x => <li><a class={["pagination-link", {
+                'is-current': x === page.value.page
+              }]} aria-label={`Goto page ${x}`} onClick$={() => {
+                if (x === page.value.page) {
+                  return;
+                }
+
+                page.value = {
+                  page: x,
+                  size: page.value.size
+                };
+              }}>{x}</a></li>)}
+            </ul>
+          </nav>
+        </>;
+      }} />
     </MainContent>
   </>);
 })

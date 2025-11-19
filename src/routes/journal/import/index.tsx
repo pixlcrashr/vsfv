@@ -1,5 +1,5 @@
 import { component$, useSignal } from "@builder.io/qwik";
-import { Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import { Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$ } from "@builder.io/qwik-city";
 import Decimal from "decimal.js";
 import { createHash } from 'node:crypto';
 import Header from "~/components/layout/Header";
@@ -9,10 +9,12 @@ import MainContentLarge from "~/components/layout/MainContentLarge";
 import { formatCurrency, formatDateInputField, formatDateShort } from "~/lib/format";
 import { parseTransactions, Transaction } from "~/lib/lexware/parser";
 import { Prisma } from "~/lib/prisma";
+import { Prisma as P } from "~/lib/prisma/generated/client";
 
 
 
 export const UploadTransactionsSchema = {
+  sourceId: z.string().uuid(),
   type: z.string().regex(/lexware/),
   file: z.any()
 };
@@ -21,12 +23,31 @@ function escapeCustomIdDelimiter(s: string): string {
   return s.replace(/:/g, '\\:');
 }
 
-function transactionToCustomId(t: Transaction): string {
-  return `v1:${t.bookedAt.toISOString().slice(0, 10)}:${t.receiptFrom.toISOString().slice(0, 10)}:${escapeCustomIdDelimiter(t.creditAccount)}:${escapeCustomIdDelimiter(t.debitAccount)}:${t.amount.toString()}:${escapeCustomIdDelimiter(`${t.receiptNumberGroup}:${t.receiptNumber}`)}:${escapeCustomIdDelimiter(t.description)}`;
+function transactionToCustomId(
+  bookedAt: Date,
+  receiptFrom: Date,
+  creditAccount: string,
+  debitAccount: string,
+  amount: Decimal,
+  reference: string,
+  description: string
+): string {
+  return `v1:${bookedAt.toISOString().slice(0, 10)}:${receiptFrom.toISOString().slice(0, 10)}:${escapeCustomIdDelimiter(creditAccount)}:${escapeCustomIdDelimiter(debitAccount)}:${amount.toString()}:${escapeCustomIdDelimiter(`${reference}`)}:${escapeCustomIdDelimiter(description)}`;
 }
 
 export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
   if (args.file) {
+    const source = await Prisma.import_sources.findFirst({
+      where: {
+        id: args.sourceId
+      }
+    });
+    if (source === null) {
+      return {
+        success: false,
+      }
+    }
+
     const f = args.file as File;
 
     const ts = await parseTransactions(f);
@@ -34,17 +55,31 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
     const matchingTransactions = await Prisma.transactions.findMany({
       where: {
         custom_id: {
-          in: ts.map(x => transactionToCustomId(x))
+          in: ts.map(x => transactionToCustomId(
+            x.bookedAt,
+            x.receiptFrom,
+            x.creditAccount,
+            x.debitAccount,
+            x.amount,
+            `${x.receiptNumberGroup}${x.receiptNumber}`,
+            x.description
+          ))
         }
       }
     });
 
-    console.log(matchingTransactions);
-
-    const res = ts.filter(t => matchingTransactions.every(x => x.custom_id !== transactionToCustomId(t))).map(t => ({
+    const res = ts.filter(t => matchingTransactions.every(x => x.custom_id !== transactionToCustomId(
+        t.bookedAt,
+        t.receiptFrom,
+        t.creditAccount,
+        t.debitAccount,
+        t.amount,
+        `${t.receiptNumberGroup}${t.receiptNumber}`,
+        t.description
+      ))).map(t => ({
       receiptFrom: t.receiptFrom,
       bookedAt: t.bookedAt,
-      reference: `${t.receiptNumberGroup}:${t.receiptNumber}`,
+      reference: `${t.receiptNumberGroup}${t.receiptNumber}`,
       description: t.description,
       amount: t.amount.toString(),
       debitAccount: t.debitAccount,
@@ -54,7 +89,8 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
 
     return {
       success: true,
-      result: res
+      result: res,
+      sourceId: source.id
     };
   }
 
@@ -65,38 +101,36 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
 }, zod$(UploadTransactionsSchema));
 
 export const ImportTransactionsSchema = {
-  type: z.string(),
+  sourceId: z.string().uuid(),
   transactions: z.array(z.object({
-    date: z.string().date(),
+    receiptFrom: z.string().date(),
+    bookedAt: z.string().date(),
     amount: z.string(),
     description: z.string(),
+    reference: z.string(),
     debitAccount: z.string().min(1),
     creditAccount: z.string().min(1),
     accountId: z.string().optional()
   }))
 };
 
-function escapeHashDelimiter(s: string): string {
-  return s.replace(/:/g, '\\:');
-}
-
 export const useImportTransactionsRouteAction = routeAction$(async (args) => {
-  const transactionAccountCodes = new Set<string>();
+  if (args.sourceId === '') {
+    return {
+      success: false
+    };
+  }
 
-  const hashes: string[] = [];
+  const transactionAccountCodes = new Set<string>();
 
   args.transactions.forEach(t => {
     transactionAccountCodes.add(t.debitAccount);
     transactionAccountCodes.add(t.creditAccount);
-
-    // hashing is done for the following string:
-    // date:amount:description:creditAccount:debitAccount
-    // this represents a unique transaction
-    hashes.push(createHash('sha256').update(`${escapeHashDelimiter(t.date)}:${escapeHashDelimiter(new Decimal(t.amount).toString())}:${escapeHashDelimiter(t.description)}:${escapeHashDelimiter(t.creditAccount)}:${escapeHashDelimiter(t.debitAccount)}`).digest('hex'));
   });
 
   const tas = await Prisma.transaction_accounts.findMany({
     where: {
+      import_source_id: args.sourceId,
       code: {
         in: Array.from(transactionAccountCodes)
       }
@@ -113,14 +147,46 @@ export const useImportTransactionsRouteAction = routeAction$(async (args) => {
     } else {
       const ta = await Prisma.transaction_accounts.create({
         data: {
+          import_source_id: args.sourceId,
           code: c,
           display_name: '',
           display_description: '',
         }
       });
       tas.push(ta);
+      m.set(c, ta.id);
     }
   }
+
+  for (const t of args.transactions) {
+    const accountId = t.accountId === undefined || t.accountId === 'ignore' ? null : t.accountId;
+
+    await Prisma.transactions.create({
+      data: {
+        amount: P.Decimal(t.amount),
+        booked_at: new Date(t.bookedAt),
+        document_date: new Date(t.receiptFrom),
+        reference: t.reference,
+        description: t.description,
+        credit_transaction_account_id: m.get(t.creditAccount) ?? '',
+        debit_transaction_account_id: m.get(t.debitAccount) ?? '',
+        custom_id: transactionToCustomId(
+          new Date(t.bookedAt),
+          new Date(t.receiptFrom),
+          t.creditAccount,
+          t.debitAccount,
+          new Decimal(t.amount),
+          t.reference,
+          t.description
+        ),
+        assigned_account_id: accountId
+      }
+    });
+  }
+
+  return {
+    success: true
+  };
 }, zod$(ImportTransactionsSchema));
 
 export interface Account {
@@ -151,15 +217,36 @@ export const useGetAllAccountsLoader = routeLoader$<Account[]>(() => {
   return getAllAccounts();
 });
 
+export interface ImportSource {
+  id: string;
+  name: string;
+}
+
+async function getAllImportSources(): Promise<ImportSource[]> {
+  return (await Prisma.import_sources.findMany()).map(x => ({
+    id: x.id,
+    name: x.display_name
+  }));
+}
+
+export const useGetAllImportSourcesLoader = routeLoader$<ImportSource[]>(() => {
+  return getAllImportSources();
+})
+
 export default component$(() => {
   const filename = useSignal<string>('');
   const fileRef = useSignal<HTMLInputElement | undefined>(undefined);
+  const nav = useNavigate();
 
   const importType = useSignal<string>('');
+  const selectedSourceId = useSignal<string>('');
 
   const accounts = useGetAllAccountsLoader();
+  const importSources = useGetAllImportSourcesLoader();
   const uploadTransactionsAction = useUploadTransactionsRouteAction();
-  // const importTransactionsAction = useImportTransactionsRouteAction();
+  const importTransactionsAction = useImportTransactionsRouteAction();
+
+  const uploadLoading = useSignal<boolean>(false);
 
   const transactions = useSignal<{
     receiptFrom: Date;
@@ -169,7 +256,7 @@ export default component$(() => {
     amount: string;
     debitAccount: string;
     creditAccount: string;
-  }[]>([]);
+  }[] | null>(null);
 
   return (
     <MainContentLarge>
@@ -199,6 +286,19 @@ export default component$(() => {
         </div>
         {importType.value === 'lexware' && <p class="help">Das Lexware Journal muss als CSV und mit dem Trennzeichen ";" exportiert werden. Andernfalls kann das Journal nicht automatisch ausgelesen werden.</p>}
       </div>
+      <div class="field">
+        <label class="label">Importquelle</label>
+        <div class="control">
+          <div class="select is-fullwidth">
+            <select name="sourceId" onChange$={(event, elem) => {
+              selectedSourceId.value = elem.value;
+            }}>
+              <option disabled selected>- bitte auswahlen -</option>
+              {importSources.value.map(x => <option value={x.id} key={x.id}>{x.name}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
       <div class="pt-5 file has-name is-fullwidth">
         <label class="file-label">
           <input class="file-input" type="file" onChange$={(event, elem) => {
@@ -215,7 +315,9 @@ export default component$(() => {
       </div>
 
       <div class="buttons is-right is-fullwidth">
-        <button type="submit" disabled={filename.value === ''} class="button is-primary" onClick$={async () => {
+        <button type="submit" disabled={filename.value === ''} class={["button", "is-primary", {
+          'is-loading': uploadLoading.value
+        }]} onClick$={async () => {
           const file = fileRef.value?.files?.[0];
 
           if (file) {
@@ -223,14 +325,24 @@ export default component$(() => {
 
             formData.append('type', importType.value);
             formData.append('file', file);
+            formData.append('sourceId', selectedSourceId.value);
 
+            uploadLoading.value = true;
+            transactions.value = null;
             const { value } = await uploadTransactionsAction.submit(formData);
             transactions.value = value.result ?? [];
+            selectedSourceId.value = value.sourceId ?? '';
+            uploadLoading.value = false;
           }
         }}>Hochladen</button>
       </div>
 
-      {transactions.value.length > 0 && <>
+      {transactions.value !== null && transactions.value.length === 0 && <p class="has-text-centered is-size-5">Es wurden keine Transaktionen gefunden.</p>}
+
+      {transactions.value !== null && transactions.value.length > 0 && <Form action={importTransactionsAction} onSubmitCompleted$={async () => {
+        await nav('/journal');
+      }}>
+        <input hidden name="sourceId" value={selectedSourceId.value} />
         <table class="table is-narrow is-fullwidth">
           <thead>
             <tr>
@@ -239,16 +351,38 @@ export default component$(() => {
               <th>Sollkonto</th>
               <th>Habenkonto</th>
               <th>Buchungstext</th>
+              <th>Referenz</th>
               <th>Haushaltskonto</th>
             </tr>
           </thead>
           <tbody>
             {transactions.value.map((x, i) => <tr key={i}>
-              <td class="is-vcentered"><input hidden name={`transactions.${i}.date`} type="date" value={formatDateInputField(x.bookedAt)} />{formatDateShort(x.bookedAt)}</td>
-              <td class="is-vcentered has-text-right"><input hidden name={`transactions.${i}.amount`} value={x.amount.toString()} />{formatCurrency(x.amount.toString())}</td>
-              <td class="is-vcentered has-text-right"><input hidden name={`transactions.${i}.debitAccount`} value={x.debitAccount} />{x.debitAccount}</td>
-              <td class="is-vcentered has-text-right"><input hidden name={`transactions.${i}.creditAccount`} value={x.creditAccount} />{x.creditAccount}</td>
-              <td class="is-vcentered"><input hidden name={`transactions.${i}.description`} value={x.description} />{x.description}</td>
+              <td class="is-vcentered">
+                <input hidden name={`transactions.${i}.bookedAt`} type="date" value={formatDateInputField(x.bookedAt)} />
+                <input hidden name={`transactions.${i}.receiptFrom`} type="data" value={formatDateInputField(x.receiptFrom)} />
+
+                {formatDateShort(x.bookedAt)}
+              </td>
+              <td class="is-vcentered has-text-right">
+                <input hidden name={`transactions.${i}.amount`} value={x.amount.toString()} />
+                {formatCurrency(x.amount.toString())}
+              </td>
+              <td class="is-vcentered has-text-right">
+                <input hidden name={`transactions.${i}.debitAccount`} value={x.debitAccount} />
+                {x.debitAccount}
+              </td>
+              <td class="is-vcentered has-text-right">
+                <input hidden name={`transactions.${i}.creditAccount`} value={x.creditAccount} />
+                {x.creditAccount}
+              </td>
+              <td class="is-vcentered">
+                <input hidden name={`transactions.${i}.description`} value={x.description} />
+                {x.description}
+              </td>
+              <td class="is-vcentered">
+                <input hidden name={`transactions.${i}.reference`} value={x.reference} />
+                {x.reference}
+              </td>
               <td class="is-vcentered">
                 <div class="select is-small">
                   <select name={`transactions.${i}.accountId`}>
@@ -260,19 +394,12 @@ export default component$(() => {
                 </div>
               </td>
             </tr>)}
-            {transactions.value.length === 0 && (
-              <tr>
-                <td colSpan={6} class="has-text-centered">
-                  <p class="is-size-6">Dokument hochladen</p>
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
         <div class="buttons is-right is-fullwidth">
-          <button type="submit" disabled={transactions.value.length === 0} class="button is-primary">Importieren</button>
+          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning} class="button is-primary">Importieren</button>
         </div>
-      </>}
+      </Form>}
     </MainContentLarge >
   );
 });

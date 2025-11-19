@@ -25,6 +25,8 @@
 
         .dropdown-content {
             text-wrap: nowrap;
+            max-height: 600px;
+            overflow-y: scroll;
             
             .tags {
                 margin-left: 0.5rem;
@@ -49,6 +51,11 @@
         table {
             margin: 0.5rem;
             font-size: 9pt;
+
+            .disabled-cell {
+                text-align: right;
+                color: #696969;
+            }
         }
     }
 }
