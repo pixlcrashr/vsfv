@@ -8,8 +8,8 @@ export default component$(() => {
 
   return (
     <>
-      <div class="main-content-wrapper">
-        <div class="main-content">
+      <div class="main-content-large-wrapper">
+        <div class="main-content-large">
           <Slot />
         </div>
       </div>

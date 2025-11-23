@@ -215,3 +215,18 @@ model views {
   @@index([display_description], map: "idx_views_display_description")
   @@index([display_name], map: "idx_views_display_name")
 }
+
+model report_templates {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  display_name String   @default("")
+  template     String   @default("")
+  updated_at   DateTime @default(now()) @db.Timestamp(6)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model reports {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  display_name String   @default("")
+  data         Bytes
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}

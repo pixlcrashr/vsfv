@@ -1,0 +1,2393 @@
+<html>
+    <head>
+        <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* Physical page size */
+@page {
+  size: A4 landscape;
+  margin: 10mm; /* real print margins – do NOT set 0, let browser paginate */
+}
+
+/* TABLE LAYOUT */
+table {
+  width: 100%;                 /* let it fill the printable width */
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8pt;
+  margin: 0;                   /* no extra margin that would cause overflow */
+}
+
+/* Header appearance */
+table thead {
+  background: #f0f0f0;
+}
+
+/* Cells */
+table th,
+table td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+  vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Striping */
+tbody tr:nth-child(odd) {
+  background-color: #f8f9fa;
+}
+
+/* Special cells */
+.prefix-cell {
+  width: 20px !important;
+  min-width: 20px !important;
+}
+
+.description-cell {
+  max-width: 200px;
+}
+
+.empty-row {
+  height: 18px;
+}
+
+/* PRINT RULES */
+@media print {
+  /* Make thead behave as repeating header */
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Do NOT forbid page-breaks inside the whole row:
+     that can force the entire wide row to stay on a single page and be clipped.
+     We only avoid breaking inside the header/footer blocks themselves. */
+  thead, tfoot {
+    page-break-inside: avoid;
+  }
+
+  /* Allow table rows/cells to break horizontally onto the next page if needed */
+  tr, th, td {
+    page-break-inside: auto;
+  }
+
+  /* Remove any scaling: scaling keeps everything on the same page width
+     and will never create an extra page for the rightmost columns. */
+  body {
+    transform: none;
+  }
+}
+        </style>
+    </head>
+    <body>
+        
+<table class="border border-black">
+  <thead class="border-bottom border-black">
+    <tr>
+      <th colspan="4" rowspan="2" class="fw-bold align-bottom">
+        Konto / Titel
+      </th>
+
+      <th rowspan="2" class="border-start border-black align-bottom description-cell">
+        Anmerkung / Beschreibung
+      </th>
+
+        <th
+          colspan="2"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          Rippin, McDermott and Koelpin
+        </th>
+        <th
+          colspan="1"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          Abbott, Dooley and Runte
+        </th>
+        <th
+          colspan="1"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          Langworth LLC
+        </th>
+        <th
+          colspan="3"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          Schmidt, Rice and Cummings
+        </th>
+        <th
+          colspan="1"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          Abbott Group
+        </th>
+        <th
+          colspan="1"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          Jakubowski Inc
+        </th>
+    </tr>
+
+    <tr>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Sun Aug 03 2025 08:12:28 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Sat Sep 13 2025 10:30:40 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Mon Apr 21 2025 00:56:42 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Wed May 07 2025 08:41:06 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Sun Nov 23 2025 02:24:41 GMT+0100 (Mitteleuropäische Normalzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Thu Oct 02 2025 01:12:52 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Thu Apr 03 2025 08:24:21 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Thu Apr 03 2025 11:00:21 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Wed Apr 30 2025 08:12:28 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+    </tr>
+  </thead>
+
+  <tbody>
+        <tr>
+      
+          <td colspan="1" class="align-bottom">
+            <span class="fw-bold">
+              5461 – Kris - Koepp
+            </span>
+          </td>
+      
+          <td class="border-start border-black description-cell align-bottom">
+            Centralized incremental array
+          </td>
+      
+        </tr>
+      
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="fw-bold">
+                    6886 – Nitzsche - Terry
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  Seamless uniform monitoring
+                </td>
+            
+              </tr>
+            
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          4123 – Bartoletti Inc
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Virtual encompassing challenge
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                6590 – Yundt LLC
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Seamless high-level encoding
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9561 – Yost and Sons
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Expanded national artificial intelligence
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8581 – Schaden - Prohaska
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Business-focused zero trust focus group
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (6590 – Yundt LLC)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                3238 – King - Reinger
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Customizable zero administration protocol
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      2283 – Bins and Sons
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Reactive asymmetric service-desk
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9528 – Pagac - Kuhic
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Persistent tangible challenge
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (3238 – King - Reinger)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (4123 – Bartoletti Inc)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          9519 – Olson, Gleichner and Sanford
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Sustainable fresh-thinking challenge
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                2880 – Wyman Inc
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Face to face context-sensitive concept
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      4644 – Weber Group
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Horizontal systemic website
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      6884 – Erdman - Koch
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Compatible 24 hour flexibility
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8068 – Goyette, Jerde and Mann
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Versatile scalable structure
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (2880 – Wyman Inc)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (9519 – Olson, Gleichner and Sanford)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="">
+                          4106 – Botsford Inc
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Implemented demand-driven capability
+                      </td>
+                  
+                    </tr>
+                  
+            
+                <tr>
+                    <td class="prefix-cell"></td>
+            
+                  <td colspan="1" class="fw-bold align-bottom">
+                    Summe Σ (6886 – Nitzsche - Terry)
+                  </td>
+            
+                  <td class="border-start border-black"></td>
+            
+                </tr>
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="fw-bold">
+                    7288 – Oberbrunner Group
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  AI-driven client-server middleware
+                </td>
+            
+              </tr>
+            
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          7154 – Hintz and Sons
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Automated maximized infrastructure
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                4022 – Green, Jaskolski and Wilkinson
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Adaptive 24 hour collaboration
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      6235 – Mann LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Integrated resilient analyzer
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (4022 – Green, Jaskolski and Wilkinson)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (7154 – Hintz and Sons)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          2685 – Schimmel, Adams and Mohr
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Synchronised discrete toolset
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                7522 – Armstrong - Hoeger
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Upgradable cloud-native analyzer
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      0206 – Harris and Sons
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Extended coherent neural-net
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (7522 – Armstrong - Hoeger)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (2685 – Schimmel, Adams and Mohr)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          9133 – Kessler, Frami and Spencer
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Fully-configurable modular functionalities
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                8847 – Beer - Bradtke
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Enhanced dynamic complexity
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      1260 – Schaden, Cruickshank and Bednar
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Future-proofed cohesive function
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      5713 – O&#x27;Hara - Stroman
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Secured directional complexity
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      4902 – Kulas - Will
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Immersive zero trust firmware
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (8847 – Beer - Bradtke)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                1731 – Jones - Beatty
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Compatible next generation challenge
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                8064 – Rohan, Durgan and Quitzon
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Business-focused cohesive access
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      6801 – Shanahan Inc
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Sustainable interactive functionalities
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      0197 – Hirthe LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Future-proofed demand-driven solution
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      4781 – Gerlach - Altenwerth
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Business-focused maximized framework
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (8064 – Rohan, Durgan and Quitzon)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                0822 – Kirlin - Schinner
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Optimized intermediate functionalities
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      7712 – Cartwright LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Optimized executive protocol
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      1069 – Smith LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Upgradable hybrid initiative
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      4815 – Torphy - Kub
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Future-proofed content-based parallelism
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (0822 – Kirlin - Schinner)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (9133 – Kessler, Frami and Spencer)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          1535 – Goodwin, Swift and Cruickshank
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Persistent value-added analyzer
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                5929 – Auer, Rau and Schamberger
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Managed executive moratorium
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8875 – Stehr LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Innovative coherent middleware
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      5556 – Langosh - Pollich
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Future-proofed user-facing definition
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8412 – Hickle - Schiller
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Enhanced scalable collaboration
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      3204 – Stiedemann and Sons
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Versatile attitude-oriented microservice
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (5929 – Auer, Rau and Schamberger)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                2222 – Gutkowski and Sons
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Sharable optimal utilisation
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8070 – Murphy and Sons
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Sharable modular help-desk
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8507 – Heaney, Sipes and Beahan
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Seamless cohesive contingency
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (2222 – Gutkowski and Sons)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                2662 – Marquardt - Kovacek
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Universal 24/7 flexibility
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      5512 – Collins Group
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Optimized motivating generative AI
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      1669 – Raynor, Labadie and Baumbach
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Business-focused national customer loyalty
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (2662 – Marquardt - Kovacek)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                4875 – Greenholt Group
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Virtual neutral open architecture
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      5532 – Langosh, Kunze and Schowalter
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Optional executive process improvement
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9635 – Kassulke - Hodkiewicz
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Diverse context-sensitive service-desk
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      0310 – Stiedemann, Christiansen and Kuhlman
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Exclusive zero tolerance productivity
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (4875 – Greenholt Group)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (1535 – Goodwin, Swift and Cruickshank)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+            
+                <tr>
+                    <td class="prefix-cell"></td>
+            
+                  <td colspan="1" class="fw-bold align-bottom">
+                    Summe Σ (7288 – Oberbrunner Group)
+                  </td>
+            
+                  <td class="border-start border-black"></td>
+            
+                </tr>
+      
+          <tr>
+      
+            <td colspan="1" class="fw-bold align-bottom">
+              Summe Σ (5461 – Kris - Koepp)
+            </td>
+      
+            <td class="border-start border-black"></td>
+      
+          </tr>
+        <tr>
+      
+          <td colspan="1" class="align-bottom">
+            <span class="fw-bold">
+              4020 – Corkery - Sauer
+            </span>
+          </td>
+      
+          <td class="border-start border-black description-cell align-bottom">
+            Self-enabling fault-tolerant methodology
+          </td>
+      
+        </tr>
+      
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="">
+                    8463 – Kulas Group
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  Integrated radical access
+                </td>
+            
+              </tr>
+            
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="">
+                    8621 – Reinger - Batz
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  AI-driven bottom-line function
+                </td>
+            
+              </tr>
+            
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="fw-bold">
+                    0411 – Johnson - O&#x27;Reilly
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  Diverse composite system engine
+                </td>
+            
+              </tr>
+            
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          3113 – Hammes, Doyle and Kassulke
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Horizontal heuristic time-frame
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                6348 – Rogahn Group
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Intuitive uniform protocol
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                6790 – Orn Group
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Seamless hybrid task-force
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      6714 – Crist, Volkman and Greenholt
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Reactive well-modulated emulation
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      6540 – Muller - Klocko
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Customer-focused radical middleware
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      8220 – Hoeger - Hagenes
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Organized explicit open architecture
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      1169 – Effertz - Jenkins
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Managed well-modulated analyzer
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (6790 – Orn Group)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (3113 – Hammes, Doyle and Kassulke)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          0682 – Jast, Schulist and Kemmer
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Centralized transitional strategy
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                0460 – Mertz, Ratke and Graham
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Extended leading edge algorithm
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9366 – Corwin Group
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Compatible national internet solution
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (0460 – Mertz, Ratke and Graham)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                6764 – Harber - Hickle
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Seamless intangible ability
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      5306 – Fay Group
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    AI-driven bottom-line emulation
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9803 – Hackett - Wehner
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Persistent value-added pricing structure
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (6764 – Harber - Hickle)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                2001 – Lynch - Baumbach
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Advanced well-modulated function
+                            </td>
+                        
+                          </tr>
+                        
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (0682 – Jast, Schulist and Kemmer)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          7128 – Shanahan, Turner and Sporer
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Digitized attitude-oriented contingency
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                9094 – Hilll - Kuvalis
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Virtual fresh-thinking local area network
+                            </td>
+                        
+                          </tr>
+                        
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (7128 – Shanahan, Turner and Sporer)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+            
+                <tr>
+                    <td class="prefix-cell"></td>
+            
+                  <td colspan="1" class="fw-bold align-bottom">
+                    Summe Σ (0411 – Johnson - O&#x27;Reilly)
+                  </td>
+            
+                  <td class="border-start border-black"></td>
+            
+                </tr>
+      
+          <tr>
+      
+            <td colspan="1" class="fw-bold align-bottom">
+              Summe Σ (4020 – Corkery - Sauer)
+            </td>
+      
+            <td class="border-start border-black"></td>
+      
+          </tr>
+        <tr>
+      
+          <td colspan="1" class="align-bottom">
+            <span class="fw-bold">
+              7298 – Zboncak Group
+            </span>
+          </td>
+      
+          <td class="border-start border-black description-cell align-bottom">
+            Horizontal tangible matrices
+          </td>
+      
+        </tr>
+      
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="fw-bold">
+                    6616 – Osinski Group
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  Operative cohesive forecast
+                </td>
+            
+              </tr>
+            
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          3130 – Gislason, Mills and Parisian
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Devolved immersive paradigm
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                8068 – Marquardt - Bayer
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Triple-buffered zero trust moratorium
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      2996 – Daniel - Miller
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Public-key zero defect budgetary management
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9417 – Becker LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Synchronised local focus group
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (8068 – Marquardt - Bayer)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                5266 – Schmeler - Waelchi
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Proactive sustainable help-desk
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      9692 – Spinka, Wuckert and Dare
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Persevering demand-driven knowledge user
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      1931 – Schaden, Macejkovic and Kilback
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Immersive well-modulated alliance
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      7544 – Medhurst, Auer and Wisozk
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Organized fault-tolerant forecast
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      5260 – Harris Group
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Robust methodical task-force
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (5266 – Schmeler - Waelchi)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (3130 – Gislason, Mills and Parisian)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          2231 – Marquardt, Feest and Ledner
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        User-friendly zero defect framework
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                6160 – Dooley Inc
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Profound discrete project
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      6732 – Prosacco LLC
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Persevering maximized definition
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (6160 – Dooley Inc)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                2380 – Hagenes - Swift
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Fully-configurable data-driven matrix
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                7224 – Beahan, Simonis and Schimmel
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Expanded transitional utilisation
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      4413 – Cummings, Franecki and Quigley
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Implemented national infrastructure
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (7224 – Beahan, Simonis and Schimmel)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                9994 – Witting Inc
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Compatible well-modulated definition
+                            </td>
+                        
+                          </tr>
+                        
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (2231 – Marquardt, Feest and Ledner)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="">
+                          0738 – Klein - Christiansen
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Cross-platform uniform circuit
+                      </td>
+                  
+                    </tr>
+                  
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          4398 – Koelpin Group
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        Multi-tiered sustainable workforce
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="fw-bold">
+                                9703 – Nader - Stracke
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              Grass-roots regional solution
+                            </td>
+                        
+                          </tr>
+                        
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      0981 – Emard - Towne
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Digitized disintermediate instruction set
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      7784 – Mayer - Durgan
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Enhanced dynamic customer loyalty
+                                  </td>
+                              
+                                </tr>
+                              
+                                <tr>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                                    <td class="prefix-cell"></td>
+                              
+                                  <td colspan="1" class="align-bottom">
+                                    <span class="">
+                                      4419 – Bauch, Cummerata and Koepp
+                                    </span>
+                                  </td>
+                              
+                                  <td class="border-start border-black description-cell align-bottom">
+                                    Virtual asynchronous toolset
+                                  </td>
+                              
+                                </tr>
+                              
+                        
+                            <tr>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                                <td class="prefix-cell"></td>
+                        
+                              <td colspan="1" class="fw-bold align-bottom">
+                                Summe Σ (9703 – Nader - Stracke)
+                              </td>
+                        
+                              <td class="border-start border-black"></td>
+                        
+                            </tr>
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (4398 – Koelpin Group)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+            
+                <tr>
+                    <td class="prefix-cell"></td>
+            
+                  <td colspan="1" class="fw-bold align-bottom">
+                    Summe Σ (6616 – Osinski Group)
+                  </td>
+            
+                  <td class="border-start border-black"></td>
+            
+                </tr>
+      
+          <tr>
+      
+            <td colspan="1" class="fw-bold align-bottom">
+              Summe Σ (7298 – Zboncak Group)
+            </td>
+      
+            <td class="border-start border-black"></td>
+      
+          </tr>
+        <tr>
+      
+          <td colspan="1" class="align-bottom">
+            <span class="fw-bold">
+              4038 – Klocko Inc
+            </span>
+          </td>
+      
+          <td class="border-start border-black description-cell align-bottom">
+            Programmable scalable encoding
+          </td>
+      
+        </tr>
+      
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="">
+                    8735 – Bailey Inc
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  Ergonomic discrete intranet
+                </td>
+            
+              </tr>
+            
+      
+          <tr>
+      
+            <td colspan="1" class="fw-bold align-bottom">
+              Summe Σ (4038 – Klocko Inc)
+            </td>
+      
+            <td class="border-start border-black"></td>
+      
+          </tr>
+  </tbody>
+</table>
+
+
+    </body>
+</html>
+

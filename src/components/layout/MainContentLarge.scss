@@ -1,6 +1,6 @@
 @use "bulma/sass/utilities/mixins";
 
-.main-content-wrapper {
+.main-content-large-wrapper {
     flex: 1;
     height: 100%;
     width: 100%;
@@ -10,7 +10,7 @@
     align-items: center;
     overflow-y: auto;
 
-    .main-content {
+    .main-content-large {
         padding: 2rem;
 
         @include mixins.tablet {

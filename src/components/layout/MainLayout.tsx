@@ -20,6 +20,14 @@ const menuItems = [
     name: 'Journal',
     path: '/journal'
   },
+  {
+    name: 'Berichte',
+    path: '/reports'
+  },
+  {
+    name: 'Berichtsvorlagen',
+    path: '/reportTemplates'
+  }
 ];
 
 const menuItemsAdmin = [

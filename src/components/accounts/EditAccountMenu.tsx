@@ -56,7 +56,7 @@ export const fetchAccount = server$(async (accountId: string) => {
   return a;
 });
 
-export type EditAccountMenuProps = {
+export interface EditAccountMenuProps {
   accountId: Signal<string>;
   accounts: Signal<Account[]>;
 }

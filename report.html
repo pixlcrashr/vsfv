@@ -1,0 +1,576 @@
+<html>
+    <head>
+        <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* Physical page size */
+@page {
+  size: A4 landscape;
+  margin: 10mm; /* real print margins – do NOT set 0, let browser paginate */
+}
+
+/* TABLE LAYOUT */
+table {
+  width: 100%;                 /* let it fill the printable width */
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8pt;
+  margin: 0;                   /* no extra margin that would cause overflow */
+}
+
+/* Header appearance */
+table thead {
+  background: #f0f0f0;
+}
+
+/* Cells */
+table th,
+table td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+  vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Striping */
+tbody tr:nth-child(odd) {
+  background-color: #f8f9fa;
+}
+
+/* Special cells */
+.prefix-cell {
+  width: 20px !important;
+  min-width: 20px !important;
+}
+
+.description-cell {
+  max-width: 200px;
+}
+
+.empty-row {
+  height: 18px;
+}
+
+/* PRINT RULES */
+@media print {
+  /* Make thead behave as repeating header */
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Do NOT forbid page-breaks inside the whole row:
+     that can force the entire wide row to stay on a single page and be clipped.
+     We only avoid breaking inside the header/footer blocks themselves. */
+  thead, tfoot {
+    page-break-inside: avoid;
+  }
+
+  /* Allow table rows/cells to break horizontally onto the next page if needed */
+  tr, th, td {
+    page-break-inside: auto;
+  }
+
+  /* Remove any scaling: scaling keeps everything on the same page width
+     and will never create an extra page for the rightmost columns. */
+  body {
+    transform: none;
+  }
+}
+        </style>
+    </head>
+    <body>
+        
+<table class="border border-black">
+  <thead class="border-bottom border-black">
+    <tr>
+      <th colspan="3" rowspan="2" class="fw-bold align-bottom">
+        Konto / Titel
+      </th>
+
+      <th rowspan="2" class="border-start border-black align-bottom description-cell">
+        Anmerkung / Beschreibung
+      </th>
+
+        <th
+          colspan="1"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          HH 25/26
+        </th>
+    </tr>
+
+    <tr>
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>Wed Oct 01 2025 02:00:00 GMT+0200 (Mitteleuropäische Sommerzeit)</i>
+              </span>
+            </p>
+          </th>
+    </tr>
+  </thead>
+
+  <tbody>
+        <tr>
+      
+          <td colspan="1" class="align-bottom">
+            <span class="fw-bold">
+              A – Ausgaben
+            </span>
+          </td>
+      
+          <td class="border-start border-black description-cell align-bottom">
+            
+          </td>
+      
+        </tr>
+      
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="fw-bold">
+                    A – Ausgaben
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  
+                </td>
+            
+              </tr>
+            
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="fw-bold">
+                          1 – AStA
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        
+                      </td>
+                  
+                    </tr>
+                  
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                10 – Referat für Öffentliches
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                101 – Übergreifende Sachkosten
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                102 – Rückstellungen
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                103 – Darlehen
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                104 – Kapitaleinlagen
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                105 – Zuführungen zu Rücklagen und Sonderposten
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                11 – Referat für Soziales und Gesundheit
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                2 – Finanzreferat
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                3 – Referat für Gleichstellung
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                4 – Referat für Hochschulpolitik
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                5 – Referat für Infrastruktur
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                6 – Referat für Internationales
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                7 – Referat für IT
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                8 – Kultur und Veranstaltungen
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                          <tr>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                              <td class="prefix-cell"></td>
+                        
+                            <td colspan="1" class="align-bottom">
+                              <span class="">
+                                9 – Referat für Nachhaltigkeit
+                              </span>
+                            </td>
+                        
+                            <td class="border-start border-black description-cell align-bottom">
+                              
+                            </td>
+                        
+                          </tr>
+                        
+                  
+                      <tr>
+                          <td class="prefix-cell"></td>
+                          <td class="prefix-cell"></td>
+                  
+                        <td colspan="1" class="fw-bold align-bottom">
+                          Summe Σ (1 – AStA)
+                        </td>
+                  
+                        <td class="border-start border-black"></td>
+                  
+                      </tr>
+            
+                <tr>
+                    <td class="prefix-cell"></td>
+            
+                  <td colspan="1" class="fw-bold align-bottom">
+                    Summe Σ (A – Ausgaben)
+                  </td>
+            
+                  <td class="border-start border-black"></td>
+            
+                </tr>
+      
+          <tr>
+      
+            <td colspan="1" class="fw-bold align-bottom">
+              Summe Σ (A – Ausgaben)
+            </td>
+      
+            <td class="border-start border-black"></td>
+      
+          </tr>
+        <tr>
+      
+          <td colspan="1" class="align-bottom">
+            <span class="fw-bold">
+              E – Einnahmen
+            </span>
+          </td>
+      
+          <td class="border-start border-black description-cell align-bottom">
+            
+          </td>
+      
+        </tr>
+      
+              <tr>
+                  <td class="prefix-cell"></td>
+            
+                <td colspan="1" class="align-bottom">
+                  <span class="fw-bold">
+                    E – Einnahmen
+                  </span>
+                </td>
+            
+                <td class="border-start border-black description-cell align-bottom">
+                  
+                </td>
+            
+              </tr>
+            
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="">
+                          11 – test
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        
+                      </td>
+                  
+                    </tr>
+                  
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="">
+                          123 – Testkonto
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        
+                      </td>
+                  
+                    </tr>
+                  
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="">
+                          2 – Teilautonome AStA-Referate
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        
+                      </td>
+                  
+                    </tr>
+                  
+                    <tr>
+                        <td class="prefix-cell"></td>
+                        <td class="prefix-cell"></td>
+                  
+                      <td colspan="1" class="align-bottom">
+                        <span class="">
+                          300 – Semesterbeiträge
+                        </span>
+                      </td>
+                  
+                      <td class="border-start border-black description-cell align-bottom">
+                        
+                      </td>
+                  
+                    </tr>
+                  
+            
+                <tr>
+                    <td class="prefix-cell"></td>
+            
+                  <td colspan="1" class="fw-bold align-bottom">
+                    Summe Σ (E – Einnahmen)
+                  </td>
+            
+                  <td class="border-start border-black"></td>
+            
+                </tr>
+      
+          <tr>
+      
+            <td colspan="1" class="fw-bold align-bottom">
+              Summe Σ (E – Einnahmen)
+            </td>
+      
+            <td class="border-start border-black"></td>
+      
+          </tr>
+  </tbody>
+</table>
+
+
+    </body>
+</html>

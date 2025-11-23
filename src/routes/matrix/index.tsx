@@ -1,4 +1,4 @@
-import { $, component$, QRL, Resource, Signal, useComputed$, useOnDocument, useResource$, useSignal, useStore, useStylesScoped$, useTask$, useVisibleTask$ } from "@builder.io/qwik";
+import { $, component$, createContextId, QRL, Resource, Signal, useComputed$, useContext, useContextProvider, useOnDocument, useResource$, useSignal, useStore, useStylesScoped$, useTask$, useVisibleTask$ } from "@builder.io/qwik";
 import { routeLoader$, server$ } from "@builder.io/qwik-city";
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { Decimal } from 'decimal.js/decimal';
@@ -28,7 +28,7 @@ export interface Item {
   }[];
 }
 
-export type Matrix = {
+export interface Matrix {
   headers: {
     budgetId: string;
     budgetName: string;
@@ -363,13 +363,12 @@ export const saveBudgetRevisionAccountValueServer = server$(async function (
 
 export interface MatrixInputProps {
   isDisabled: boolean;
-  value: Signal<string>;
-  onSaved$: QRL<(value: string) => void>;
   budgetRevisionId: string;
   accountId: string;
+  onSaved$?: QRL<(diff: Decimal) => void>
 }
 
-export const MatrixInput = component$<MatrixInputProps>(({ isDisabled, value, onSaved$, budgetRevisionId, accountId }) => {
+export const MatrixInput = component$<MatrixInputProps>(({ isDisabled, onSaved$, budgetRevisionId, accountId }) => {
   useStylesScoped$(`.input {
   border-radius: 0;
   border: none;
@@ -383,34 +382,44 @@ p {
   color: #696969;
 }`);
 
+  const targetValues = useContext(TargetValuesContext);
+
+  const value = useSignal<string>('0');
   const oldValue = useSignal<string>(value.value);
 
-  const backgroundValue = useSignal<string>(formatCurrency(value.value));
+  useTask$(({ track }) => {
+    track(() => targetValues[`${accountId}:${budgetRevisionId}`]);
+
+    oldValue.value = value.value;
+    value.value = targetValues[`${accountId}:${budgetRevisionId}`];
+  });
+
+  const formattedValue = useComputed$(() => formatCurrency(value.value));
   const loading = useSignal<boolean>(false);
 
   const inputRef = useSignal<HTMLInputElement | undefined>(undefined);
 
   useVisibleTask$(() => {
     if (inputRef.value) {
-      inputRef.value.value = backgroundValue.value;
+      inputRef.value.value = formattedValue.value;
     }
   });
 
   return (
     <>
-      {isDisabled ? <p class="pl-2 pr-2">{formatCurrency(value.value)}</p> :
+      {isDisabled ? <p class="pl-2 pr-2">{formattedValue}</p> :
         <input ref={inputRef} class={["input", "is-small", {
           "is-loading": loading.value
         }]} onFocus$={() => {
-          backgroundValue.value = new Decimal(oldValue.value).toFixed(2);
+          value.value = new Decimal(oldValue.value).toString();
           if (inputRef.value) {
-            inputRef.value.value = backgroundValue.value;
+            inputRef.value.value = value.value.toString();
             inputRef.value.setSelectionRange(0, inputRef.value.value.length);
           }
         }} onFocusOut$={() => {
-          backgroundValue.value = formatCurrency(oldValue.value);
+          value.value = oldValue.value;
           if (inputRef.value) {
-            inputRef.value.value = backgroundValue.value;
+            inputRef.value.value = formattedValue.value;
           }
         }} onInput$={$(async (event, elem) => {
           const v = new Decimal(elem.value);
@@ -428,13 +437,22 @@ p {
           const diff = v.sub(new Decimal(oldValue.value));
           oldValue.value = v.toString();
 
-          onSaved$(diff.toString());
+          onSaved$?.(diff);
         })} />}
     </>
   );
 });
 
-function propagateTargetValue(store: { [key: string]: { value: string; }; }, accounts: Account[], revisionId: string, parentAccountId: string | null, v: string) {
+function propagateMatrixValues(
+  brbMap: Map<string, string>,
+  targetValues: { [key: string]: string; },
+  actualValues: { [key: string]: string; },
+  diffValues: { [key: string]: string; },
+  accounts: Account[],
+  revisionId: string,
+  parentAccountId: string | null,
+  v: Decimal,
+) {
   if (parentAccountId === null) {
     return;
   }
@@ -444,14 +462,34 @@ function propagateTargetValue(store: { [key: string]: { value: string; }; }, acc
     return;
   }
 
-  if (store[`${a.id}:${revisionId}`] === undefined) {
-    store[`${a.id}:${revisionId}`] = { value: new Decimal(0).toString() };
+  if (targetValues[`${a.id}:${revisionId}`] === undefined) {
+    targetValues[`${a.id}:${revisionId}`] = new Decimal(0).toString();
   }
 
-  store[`${a.id}:${revisionId}`].value = new Decimal(store[`${a.id}:${revisionId}`].value).add(new Decimal(v)).toString();
+  const tV = new Decimal(targetValues[`${a.id}:${revisionId}`]).add(new Decimal(v));
+  targetValues[`${a.id}:${revisionId}`] = tV.toString();
 
-  propagateTargetValue(store, accounts, revisionId, a.parentAccountId, v);
+  const aV = new Decimal(actualValues[`${a.id}:${brbMap.get(revisionId) ?? ''}`] ?? '0');
+  diffValues[`${a.id}:${revisionId}`] = tV.sub(aV).toString();
+
+  propagateMatrixValues(
+    brbMap,
+    targetValues,
+    actualValues,
+    diffValues,
+    accounts,
+    revisionId,
+    a.parentAccountId,
+    v
+  );
 };
+
+export type StringMap = { [key: string]: string };
+
+export const ActualValuesContext = createContextId<StringMap>('actualValues');
+export const TargetValuesContext = createContextId<StringMap>('targetValues');
+export const DiffValuesContext = createContextId<StringMap>('diffValues');
+export const budgetRevisionIdToBudgetIdContext = createContextId<StringMap>('budgetRevisionIdToBudgetId');
 
 export default component$(() => {
   useStylesScoped$(styles);
@@ -484,9 +522,22 @@ export default component$(() => {
     return m;
   });
 
-  const matrixValues = useStore<{ [key: string]: { value: string; }; }>({}, {
-    deep: true,
+  const brbMap = new Map<string, string>();
+  allBudgets.value.forEach(b => {
+    b.revisions.forEach(r => {
+      brbMap.set(r.id, b.id);
+    });
   });
+
+  const actualValues = useStore<StringMap>({}, { deep: true });
+  const targetValues = useStore<StringMap>({}, { deep: true });
+  const diffValues = useStore<StringMap>({}, { deep: true });
+  const budgetRevisionIdToBudgetId = useStore<StringMap>({}, { deep: true });
+
+  useContextProvider(ActualValuesContext, actualValues);
+  useContextProvider(TargetValuesContext, targetValues);
+  useContextProvider(DiffValuesContext, diffValues);
+  useContextProvider(budgetRevisionIdToBudgetIdContext, budgetRevisionIdToBudgetId);
 
   useTask$(({ track }) => {
     track(() => allBudgets.value);
@@ -517,7 +568,6 @@ export default component$(() => {
   const budgetColSpan = useComputed$(() => {
     return (showTarget.value ? 1 : 0) + (showActual.value ? 1 : 0) + (showDiff.value ? 1 : 0);
   });
-
 
   return (<div class="matrix-container">
     <header class="matrix-header">
@@ -602,9 +652,12 @@ export default component$(() => {
     <main class="matrix-content">
       <Resource value={matrixResource} onResolved={(matrix) => {
         matrix.items.forEach(row => {
-          row.values.forEach(value => {
+          row.values.forEach((value, i) => {
+            actualValues[`${row.accountId}:${matrix.headers[i].budgetId}`] = value.actualValue;
+
             value.revisions.forEach(revision => {
-              matrixValues[`${row.accountId}:${revision.revisionId}`] = { value: new Decimal(revision.targetValue).toString() };
+              targetValues[`${row.accountId}:${revision.revisionId}`] = revision.targetValue;
+              diffValues[`${row.accountId}:${revision.revisionId}`] = revision.diffValue;
             });
           });
         });
@@ -634,14 +687,24 @@ export default component$(() => {
               </td>)}
               <td>{row.accountName}</td>
               {showDescription.value && <td>{row.accountDescription}</td>}
-              {row.values.map((value) => <>
+              {row.values.map((value, i) => <>
                 {showTarget.value && value.revisions.map((revision) => <td class="p-0 is-vcentered" key={revision.revisionId}>
-                  <MatrixInput budgetRevisionId={revision.revisionId} accountId={row.accountId} value={matrixValues[`${row.accountId}:${revision.revisionId}`]} isDisabled={row.isGroup} onSaved$={(v) => {
-                    propagateTargetValue(matrixValues, allAccounts.value, revision.revisionId, row.parentAccountId, v);
+                  <MatrixInput budgetRevisionId={revision.revisionId} accountId={row.accountId} isDisabled={row.isGroup} onSaved$={(v) => {
+                    propagateMatrixValues(
+                      brbMap,
+                      targetValues,
+                      actualValues,
+                      diffValues,
+                      allAccounts.value,
+                      revision.revisionId,
+                      row.parentAccountId,
+                      v
+                    );
+                    console.log(targetValues, actualValues, diffValues);
                   }} />
                 </td>)}
-                {showActual.value && <td class="disabled-cell">{formatCurrency(value.actualValue)}</td>}
-                {showDiff.value && value.revisions.map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(revision.diffValue)}</td>)}
+                {showActual.value && <td class="disabled-cell">{formatCurrency(actualValues[`${row.accountId}:${matrix.headers[i].budgetId}`])}</td>}
+                {showDiff.value && value.revisions.map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(diffValues[`${row.accountId}:${revision.revisionId}`])}</td>)}
               </>)}
             </tr>)}
           </tbody>

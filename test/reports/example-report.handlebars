@@ -1,0 +1,225 @@
+<html>
+    <head>
+        <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* Physical page size */
+@page {
+  size: A4 landscape;
+  margin: 10mm; /* real print margins – do NOT set 0, let browser paginate */
+}
+
+/* TABLE LAYOUT */
+table {
+  width: 100%;                 /* let it fill the printable width */
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8pt;
+  margin: 0;                   /* no extra margin that would cause overflow */
+}
+
+/* Header appearance */
+table thead {
+  background: #f0f0f0;
+}
+
+/* Cells */
+table th,
+table td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+  vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Striping */
+tbody tr:nth-child(odd) {
+  background-color: #f8f9fa;
+}
+
+/* Special cells */
+.prefix-cell {
+  width: 20px !important;
+  min-width: 20px !important;
+}
+
+.description-cell {
+  max-width: 200px;
+}
+
+.empty-row {
+  height: 18px;
+}
+
+/* PRINT RULES */
+@media print {
+  /* Make thead behave as repeating header */
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Do NOT forbid page-breaks inside the whole row:
+     that can force the entire wide row to stay on a single page and be clipped.
+     We only avoid breaking inside the header/footer blocks themselves. */
+  thead, tfoot {
+    page-break-inside: avoid;
+  }
+
+  /* Allow table rows/cells to break horizontally onto the next page if needed */
+  tr, th, td {
+    page-break-inside: auto;
+  }
+
+  /* Remove any scaling: scaling keeps everything on the same page width
+     and will never create an extra page for the rightmost columns. */
+  body {
+    transform: none;
+  }
+}
+        </style>
+    </head>
+    <body>
+        
+<table class="border border-black">
+  <thead class="border-bottom border-black">
+    <tr>
+      <th colspan="{{maxAccountDepth}}" rowspan="2" class="fw-bold align-bottom">
+        Konto / Titel
+      </th>
+
+      <th rowspan="2" class="border-start border-black align-bottom description-cell">
+        Anmerkung / Beschreibung
+      </th>
+
+      {{!-- First header row: budgets --}}
+      {{#each budgets}}
+        <th
+          colspan="{{revisions.length}}"
+          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+        >
+          {{name}}
+        </th>
+      {{/each}}
+    </tr>
+
+    <tr>
+      {{!-- Second header row: revisions per budget --}}
+      {{#each budgets}}
+        {{#each revisions}}
+          <th class="fw-bold align-bottom border-start border-end border-black">
+            <p class="m-0 text-nowrap">
+              Soll
+              <span class="font-weight-normal">
+                <br />
+                <i>{{date}}</i>
+              </span>
+            </p>
+          </th>
+        {{/each}}
+      {{/each}}
+    </tr>
+  </thead>
+
+  <tbody>
+    {{!--
+      Top level accounts: start recursion at depth = 1.
+      We ignore Account.depth from the interface for layout and instead drive
+      indentation purely from the recursion depth to mimic the Angular template.
+    --}}
+    {{#each accounts}}
+      {{> rowFragment node=this depth=1 parentChildCount=(lookup ../accounts "length") }}
+    {{/each}}
+  </tbody>
+</table>
+
+{{!--
+  Inline partial for a full logical "row fragment" including:
+  - the main account row
+  - recursive rendering of children
+  - (optionally) a simple Σ row
+
+  NOTE: With only the given interfaces, the very specific Angular rules
+  like "children.length === 1 && depth === accountColSpan - 1" and advanced
+  Σ‑logic cannot be reproduced 1:1 without extra flags from TS.
+  Here we implement a **simplified but structurally similar** variant:
+
+  - One visual row per Account.
+  - Indentation by recursion depth.
+  - One value cell per (budgetRevision, account).
+  - A very simple Σ row that sums children under a non‑leaf account
+    (using the parent account id as the Σ target).
+--}}
+
+{{#*inline "rowFragment"}}
+  {{!-- MAIN ROW FOR THIS NODE --}}
+  <tr>
+    {{!-- depth and maxAccountDepth are numbers, we compute prefix cells --}}
+    {{#times (subtract depth 1)}}
+      <td class="prefix-cell"></td>
+    {{/times}}
+
+    {{!-- colspan = maxAccountDepth - depth + 1 --}}
+    <td colspan="{{add (subtract ../maxAccountDepth depth) 1}}" class="align-bottom">
+      <span class="{{#if node.children.length}}fw-bold{{/if}}">
+        {{node.code}} – {{node.name}}
+      </span>
+    </td>
+
+    <td class="border-start border-black description-cell align-bottom">
+      {{node.description}}
+    </td>
+
+    {{!-- One cell per (budget, revision) with values based on helpers --}}
+    {{#each ../budgets}}
+      {{#with this as |budget|}}
+        {{#each budget.revisions}}
+          <td class="text-end align-bottom border-start border-end border-black">
+            {{!-- choose target value by default --}}
+            {{formatCurrency (getTargetValue id ../node.id)}}
+          </td>
+        {{/each}}
+      {{/with}}
+    {{/each}}
+  </tr>
+
+  {{!-- RECURSE INTO CHILDREN --}}
+  {{#if node.children.length}}
+    {{#each node.children}}
+      {{> rowFragment node=this depth=(add ../depth 1) parentChildCount=(lookup ../node.children "length") }}
+    {{/each}}
+
+    {{!-- OPTIONAL SIMPLE Σ ROW: sum of children for non‑leaf accounts --}}
+    <tr>
+      {{#times (subtract depth 1)}}
+        <td class="prefix-cell"></td>
+      {{/times}}
+
+      <td colspan="{{add (subtract ../maxAccountDepth depth) 1}}" class="fw-bold align-bottom">
+        Summe Σ ({{node.code}} – {{node.name}})
+      </td>
+
+      <td class="border-start border-black"></td>
+
+      {{#each ../budgets}}
+        {{#with this as |budget|}}
+          {{#each budget.revisions}}
+            <td class="text-end fw-bold align-bottom border-start border-end border-black">
+              {{!-- Σ row uses the parent account id as aggregation target --}}
+              {{formatCurrency (getTargetValue id ../node.id)}}
+            </td>
+          {{/each}}
+        {{/with}}
+      {{/each}}
+    </tr>
+  {{/if}}
+{{/inline}}
+    </body>
+</html>
