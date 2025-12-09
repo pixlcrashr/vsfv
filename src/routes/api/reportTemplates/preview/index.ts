@@ -78,7 +78,6 @@ export const onPost: RequestHandler = async ({ send, env, request }) => {
       headers: headers
     }));
   } catch (e) {
-    console.log(e);
 
     send(new Response('', {
       status: 500

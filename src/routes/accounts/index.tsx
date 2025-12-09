@@ -155,7 +155,6 @@ export const AccountRow = component$<AccountRowProps>((props) => {
           {index === props.account.depth ? props.account.code : ''}
         </td>)}
         <td class="is-vcentered">{props.account.name}</td>
-        <td class="is-vcentered">{props.account.description}</td>
         <td class="is-vcentered">
           <div class="buttons are-small is-flex-wrap-nowrap">
             <button class="button" onClick$={() => {
@@ -230,12 +229,11 @@ export default component$(() => {
               onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>Hinzufügen</button>
           </HeaderButtons>
         </Header>
-        <table class="table is-hoverable is-fullwidth is-narrow">
+        <table class="table is-hoverable is-striped is-fullwidth is-narrow">
           <thead>
             <tr>
               <th colSpan={maxDepth.value + 1}>Code</th>
               <th>Name</th>
-              <th class="cell-spaced">Beschreibung</th>
               <th></th>
             </tr>
           </thead>

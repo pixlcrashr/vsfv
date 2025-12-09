@@ -228,7 +228,7 @@ export default component$(() => {
               onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>Hinzufügen</button>
           </HeaderButtons>
         </Header>
-        <table class="table is-narrow is-hoverable">
+        <table class="table is-narrow is-hoverable is-striped">
           <thead>
             <tr>
               <th>Name</th>

@@ -33,7 +33,7 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
       transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts: true
     },
     orderBy: {
-      created_at: 'asc'
+      created_at: 'desc'
     },
     skip: (page - 1) * size,
     take: size
@@ -116,7 +116,7 @@ export default component$(() => {
         }
 
         return <>
-          <table class="table is-narrow is-hoverable is-fullwidth is-striped">
+          <table class="table is-narrow is-hoverable is-striped is-fullwidth">
             <thead>
               <tr>
                 <th>Datum</th>

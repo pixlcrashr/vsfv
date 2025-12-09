@@ -131,7 +131,6 @@ export async function renderReport(
     });
 
     const fp = path.resolve('./report.html');
-    console.log(fp);
 
     writeFile(fp, html, (err) => {
       if (err) {
