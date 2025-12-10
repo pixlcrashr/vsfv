@@ -284,7 +284,7 @@ export default component$(() => {
         </MainContentMenuHeader>
 
         <CreateBudgetMenu />
-      </MainContentMenu >
+      </MainContentMenu>
     </>
   );
 });

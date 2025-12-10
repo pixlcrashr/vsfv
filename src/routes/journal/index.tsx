@@ -132,8 +132,8 @@ export default component$(() => {
               {res.transactions.map(x => <tr>
                 <td class="is-vcentered">{formatDateShort(x.date)}</td>
                 <td class="is-vcentered">{formatCurrency(x.amount)}</td>
-                <td class="is-vcentered"><Link href={`/transactionAccounts/${x.debitAccountId}`}>{x.debitAccountCode}</Link></td>
-                <td class="is-vcentered"><Link href={`/transactionAccounts/${x.creditAccountId}`}>{x.creditAccountCode}</Link></td>
+                <td class="is-vcentered has-text-right">{x.debitAccountCode}</td>
+                <td class="is-vcentered has-text-right">{x.creditAccountCode}</td>
                 <td class="is-vcentered">{x.description}</td>
                 <td class="is-vcentered">
                   {x.assignedAccountId === null ? '-' : <Link href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName}</Link>}

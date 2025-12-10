@@ -1,6 +1,5 @@
 import { component$ } from "@builder.io/qwik";
 import { Form, Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
-import { report } from "process";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -86,7 +85,7 @@ export default component$(() => {
                 <td class="is-vcentered">{reportTemplate.name}</td>
                 <td class="is-vcentered">{formatDateShort(reportTemplate.createdAt)}</td>
                 <td class="is-vcentered">
-                  <p class="buttons are-small">
+                  <p class="buttons are-small is-right">
                     <Link href={`/reportTemplates/${reportTemplate.id}/edit`} class="button">Bearbeiten</Link>
                     <Form action={deleteAction}>
                       <input type="hidden" name="id" value={reportTemplate.id} />

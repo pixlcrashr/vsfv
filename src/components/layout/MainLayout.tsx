@@ -34,10 +34,6 @@ const menuItemsAdmin = [
   {
     name: 'Importquellen',
     path: '/admin/importSources'
-  },
-  {
-    name: 'Einstellungen',
-    path: '/admin/settings'
   }
 ];
 

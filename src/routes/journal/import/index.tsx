@@ -1,13 +1,12 @@
 import { component$, useSignal } from "@builder.io/qwik";
 import { Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$ } from "@builder.io/qwik-city";
 import Decimal from "decimal.js";
-import { createHash } from 'node:crypto';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContentLarge from "~/components/layout/MainContentLarge";
 import { formatCurrency, formatDateInputField, formatDateShort } from "~/lib/format";
-import { parseTransactions, Transaction } from "~/lib/lexware/parser";
+import { parseTransactions } from "~/lib/lexware/parser";
 import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 

@@ -107,8 +107,6 @@ model import_sources {
   display_name        String                  @default("")
   display_description String                  @default("")
   period_start        DateTime                @default(now()) @db.Date
-  period_end          DateTime                @default(now()) @db.Date
-  startYear           Int                     @default(0)
   updated_at          DateTime                @default(now()) @db.Timestamp(6)
   created_at          DateTime                @default(now()) @db.Timestamp(6)
   transactionAccounts transaction_accounts[]
@@ -118,11 +116,13 @@ model import_sources {
 model import_source_periods {
   id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   import_source_id String          @db.Uuid
-  startYear        Int             @default(0)
+  year             Int             @default(0)
   is_closed        Boolean         @default(false)
   updated_at       DateTime        @default(now()) @db.Timestamp(6)
   created_at       DateTime        @default(now()) @db.Timestamp(6)
   import_sources   import_sources? @relation(fields: [import_source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([import_source_id, year])
 }
 
 model transaction_accounts {

@@ -156,7 +156,7 @@ export const AccountRow = component$<AccountRowProps>((props) => {
         </td>)}
         <td class="is-vcentered">{props.account.name}</td>
         <td class="is-vcentered">
-          <div class="buttons are-small is-flex-wrap-nowrap">
+          <div class="buttons are-small is-flex-wrap-nowrap is-right">
             <button class="button" onClick$={() => {
               props.editMenuAccountId.value = props.account.id;
               props.menuStatus.value = MenuStatus.Edit;
@@ -202,16 +202,6 @@ export default component$(() => {
 
     return res;
   });
-
-  /*const lastRootAccount = useComputed$(() => {
-    const as = accounts.value.filter(a => a.depth === 0);
-
-    if (as.length === 0) {
-      return null;
-    }
-
-    return as[as.length - 1];
-  });*/
 
   return (
     <>
