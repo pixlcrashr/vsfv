@@ -5,16 +5,24 @@ import styles from "./MainLayout.scss?inline";
 
 const menuItems = [
   {
-    name: 'Haushaltsmatrix',
+    name: 'Übersicht',
+    path: '/overview'
+  },
+  {
+    name: 'Matrix',
     path: '/matrix'
   },
   {
-    name: 'Haushaltspläne',
+    name: 'Pläne',
     path: '/budgets'
   },
   {
-    name: 'Haushaltskonten',
+    name: 'Konten',
     path: '/accounts'
+  },
+  {
+    name: 'Kontengruppen',
+    path: '/accountGroups'
   },
   {
     name: 'Journal',

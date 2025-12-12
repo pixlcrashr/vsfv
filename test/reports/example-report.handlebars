@@ -7,17 +7,9 @@ html, body {
   font-family: Arial, sans-serif;
 }
 
-/* Physical page size */
-@page {
-  size: A4 landscape;
-  margin: 10mm; /* real print margins – do NOT set 0, let browser paginate */
-}
-
 /* TABLE LAYOUT */
 table {
-  width: 100%;                 /* let it fill the printable width */
   border-collapse: collapse;
-  table-layout: fixed;
   font-size: 8pt;
   margin: 0;                   /* no extra margin that would cause overflow */
 }
@@ -44,7 +36,6 @@ tbody tr:nth-child(odd) {
 
 /* Special cells */
 .prefix-cell {
-  width: 20px !important;
   min-width: 20px !important;
 }
 
@@ -56,8 +47,23 @@ tbody tr:nth-child(odd) {
   height: 18px;
 }
 
+/* Amount cells: keep as small as needed and right-align */
+.amount-cell {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Fallback for Bootstrap-like utility class used in markup */
+.text-end {
+  text-align: right;
+}
+
 /* PRINT RULES */
 @media print {
+  @page {
+    size: A3 landscape;
+  }
+
   /* Make thead behave as repeating header */
   thead {
     display: table-header-group;
@@ -95,47 +101,92 @@ tbody tr:nth-child(odd) {
         Konto / Titel
       </th>
 
-      <th rowspan="2" class="border-start border-black align-bottom description-cell">
-        Anmerkung / Beschreibung
-      </th>
+      {{#if @root.options.accountDescriptionsEnabled}}
+        <th rowspan="2" class="border-start border-black align-bottom description-cell">
+          Anmerkung / Beschreibung
+        </th>
+      {{/if}}
 
       {{!-- First header row: budgets --}}
       {{#each budgets}}
         <th
-          colspan="{{revisions.length}}"
+          colspan="{{budgetColspan revisions.length}}"
           class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
         >
           {{name}}
+          {{#if @root.options.budgetDescriptionsEnabled}}
+            <br />
+            <small>{{description}}</small>
+          {{/if}}
         </th>
       {{/each}}
     </tr>
 
     <tr>
-      {{!-- Second header row: revisions per budget --}}
+      {{!-- Second header row: revisions per budget with Soll/Ist/Diff columns --}}
       {{#each budgets}}
-        {{#each revisions}}
-          <th class="fw-bold align-bottom border-start border-end border-black">
-            <p class="m-0 text-nowrap">
-              Soll
-              <span class="font-weight-normal">
-                <br />
-                <i>{{date}}</i>
-              </span>
-            </p>
-          </th>
-        {{/each}}
+        {{#if @root.options.targetValuesEnabled}}
+          {{#each revisions}}
+            <th class="fw-bold align-bottom border-start border-end border-black">
+              <p class="m-0 text-nowrap">
+                Rev {{add @index 1}} Soll
+                <span class="font-weight-normal">
+                  <br />
+                  <i>{{formatDateShort date}}</i>
+                </span>
+              </p>
+            </th>
+          {{/each}}
+        {{/if}}
+
+        {{#if @root.options.actualValuesEnabled}}
+          {{#each revisions}}
+            <th class="fw-bold align-bottom border-start border-end border-black">
+              <p class="m-0 text-nowrap">
+                Rev {{add @index 1}} Ist
+                <span class="font-weight-normal">
+                  <br />
+                  <i>{{formatDateShort date}}</i>
+                </span>
+              </p>
+            </th>
+          {{/each}}
+        {{/if}}
+
+        {{#if @root.options.differenceValuesEnabled}}
+          {{#each revisions}}
+            <th class="fw-bold align-bottom border-start border-end border-black">
+              <p class="m-0 text-nowrap">
+                Rev {{add @index 1}} Diff
+                <span class="font-weight-normal">
+                  <br />
+                  <i>{{formatDateShort date}}</i>
+                </span>
+              </p>
+            </th>
+          {{/each}}
+        {{/if}}
       {{/each}}
     </tr>
   </thead>
 
   <tbody>
     {{!--
-      Top level accounts: start recursion at depth = 1.
-      We ignore Account.depth from the interface for layout and instead drive
-      indentation purely from the recursion depth to mimic the Angular template.
+      The top-level "accounts" passed to renderReport are wrapper root nodes.
+      We only render their children as visible rows, using Account.depth for
+      indentation:
+
+      - depth 1  -> 0 prefix cells
+      - depth 2  -> 1 prefix cell
+      - ...
+
+      maxAccountDepth is the maximum Account.depth among all visible nodes and
+      equals the number of Konto/Titel columns.
     --}}
     {{#each accounts}}
-      {{> rowFragment node=this depth=1 parentChildCount=(lookup ../accounts "length") }}
+      {{#each children}}
+        {{> rowFragment node=this }}
+      {{/each}}
     {{/each}}
   </tbody>
 </table>
@@ -161,63 +212,103 @@ tbody tr:nth-child(odd) {
 {{#*inline "rowFragment"}}
   {{!-- MAIN ROW FOR THIS NODE --}}
   <tr>
-    {{!-- depth and maxAccountDepth are numbers, we compute prefix cells --}}
-    {{#times (subtract depth 1)}}
+    {{!-- Indent by (depth - 1) prefix cells so depth 1 starts at column 0 --}}
+    {{#times (subtract node.depth 1)}}
       <td class="prefix-cell"></td>
     {{/times}}
 
-    {{!-- colspan = maxAccountDepth - depth + 1 --}}
-    <td colspan="{{add (subtract ../maxAccountDepth depth) 1}}" class="align-bottom">
+    {{!-- Total Konto/Titel columns = maxAccountDepth.
+         Content span = maxAccountDepth - (depth - 1). --}}
+    <td colspan="{{subtract @root.maxAccountDepth (subtract node.depth 1)}}" class="align-bottom">
       <span class="{{#if node.children.length}}fw-bold{{/if}}">
         {{node.code}} – {{node.name}}
       </span>
     </td>
 
-    <td class="border-start border-black description-cell align-bottom">
-      {{node.description}}
-    </td>
+    {{#if @root.options.accountDescriptionsEnabled}}
+      <td class="border-start border-black description-cell align-bottom">
+        {{node.description}}
+      </td>
+    {{/if}}
 
-    {{!-- One cell per (budget, revision) with values based on helpers --}}
-    {{#each ../budgets}}
-      {{#with this as |budget|}}
-        {{#each budget.revisions}}
-          <td class="text-end align-bottom border-start border-end border-black">
-            {{!-- choose target value by default --}}
-            {{formatCurrency (getTargetValue id ../node.id)}}
-          </td>
-        {{/each}}
-      {{/with}}
-    {{/each}}
+    {{!-- Per (budget, revision) we now have up to three separate cells: first all Soll, then all Ist, then all Diff --}}
+    {{#with node.id as |accountId|}}
+      {{#each @root.budgets}}
+        {{#if @root.options.targetValuesEnabled}}
+          {{#each revisions}}
+            <td class="amount-cell text-end align-bottom border-start border-end border-black">
+              {{formatCurrency (getTargetValue id accountId)}}
+            </td>
+          {{/each}}
+        {{/if}}
+
+        {{#if @root.options.actualValuesEnabled}}
+          {{#each revisions}}
+            <td class="amount-cell text-end align-bottom border-start border-end border-black">
+              {{formatCurrency (getActualValue ../id accountId)}}
+            </td>
+          {{/each}}
+        {{/if}}
+
+        {{#if @root.options.differenceValuesEnabled}}
+          {{#each revisions}}
+            <td class="amount-cell text-end align-bottom border-start border-end border-black">
+              {{formatCurrency (getDiffValue id accountId)}}
+            </td>
+          {{/each}}
+        {{/if}}
+      {{/each}}
+    {{/with}}
   </tr>
 
   {{!-- RECURSE INTO CHILDREN --}}
   {{#if node.children.length}}
     {{#each node.children}}
-      {{> rowFragment node=this depth=(add ../depth 1) parentChildCount=(lookup ../node.children "length") }}
+      {{> rowFragment node=this }}
     {{/each}}
 
     {{!-- OPTIONAL SIMPLE Σ ROW: sum of children for non‑leaf accounts --}}
     <tr>
-      {{#times (subtract depth 1)}}
+      {{#times (subtract node.depth 1)}}
         <td class="prefix-cell"></td>
       {{/times}}
 
-      <td colspan="{{add (subtract ../maxAccountDepth depth) 1}}" class="fw-bold align-bottom">
+      <td colspan="{{subtract @root.maxAccountDepth (subtract node.depth 1)}}" class="fw-bold align-bottom">
         Summe Σ ({{node.code}} – {{node.name}})
       </td>
 
-      <td class="border-start border-black"></td>
+      {{#if @root.options.accountDescriptionsEnabled}}
+        <td class="border-start border-black"></td>
+      {{/if}}
 
-      {{#each ../budgets}}
-        {{#with this as |budget|}}
-          {{#each budget.revisions}}
-            <td class="text-end fw-bold align-bottom border-start border-end border-black">
-              {{!-- Σ row uses the parent account id as aggregation target --}}
-              {{formatCurrency (getTargetValue id ../node.id)}}
-            </td>
-          {{/each}}
-        {{/with}}
-      {{/each}}
+      {{#with node.id as |accountId|}}
+        {{#each @root.budgets}}
+          {{!-- Σ row with separate Soll/Ist/Diff blocks, ordered by metric then revision --}}
+          {{#if @root.options.targetValuesEnabled}}
+            {{#each revisions}}
+              <td class="amount-cell text-end fw-bold align-bottom border-start border-end border-black">
+                {{formatCurrency (getTargetValue id accountId)}}
+              </td>
+            {{/each}}
+          {{/if}}
+
+          {{#if @root.options.actualValuesEnabled}}
+            {{#each revisions}}
+              <td class="amount-cell text-end fw-bold align-bottom border-start border-end border-black">
+                {{formatCurrency (getActualValue ../id accountId)}}
+              </td>
+            {{/each}}
+          {{/if}}
+
+          {{#if @root.options.differenceValuesEnabled}}
+            {{#each revisions}}
+              <td class="amount-cell text-end fw-bold align-bottom border-start border-end border-black">
+                {{formatCurrency (getDiffValue id accountId)}}
+              </td>
+            {{/each}}
+          {{/if}}
+        {{/each}}
+      {{/with}}
     </tr>
   {{/if}}
 {{/inline}}

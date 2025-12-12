@@ -1,23 +1,9 @@
 import { parse } from "csv-parse/browser/esm";
 import Decimal from "decimal.js";
 import { parseGermanDate } from "../format";
+import { Transaction } from "../transaction";
 
-export interface Transaction {
-  receiptFrom: Date;
-  bookedAt: Date;
-  receiptNumberGroup?: string;
-  receiptNumber?: string;
-  description: string;
-  amount: Decimal;
-  debitAccount: string;
-  creditAccount: string;
-  taxKey?: string;
-  costCategory1?: string;
-  costCategory2?: string;
-  additional?: string;
-}
-
-export async function parseTransactions(d: Blob): Promise<Transaction[]> {
+export async function parseLexwareTransactions(d: Blob): Promise<Transaction[]> {
   // Lexware buchhaltung's exports use windows-1252 encoding
   const t = new TextDecoder('windows-1252').decode(
     await d.bytes()
@@ -40,19 +26,22 @@ export async function parseTransactions(d: Blob): Promise<Transaction[]> {
     );
   });
 
-  const ts: Transaction[] = records.map((record) => {
+  const ts: Transaction[] = records.map((record): Transaction => {
+    const rawAmount = new Decimal(record['Buchungsbetrag'] ? record['Buchungsbetrag'].replaceAll('.', '').replaceAll(',', '.') : '0');
+    const isNegative = rawAmount.isNeg();
+    const amount = rawAmount.abs();
+    const debitAccount = isNegative ? record['Habenkonto'] : record['Sollkonto'];
+    const creditAccount = isNegative ? record['Sollkonto'] : record['Habenkonto'];
+    
     return {
       receiptFrom: new Date(parseGermanDate(record['Belegdatum']) ?? new Date()),
       bookedAt: new Date(parseGermanDate(record['Buchungsdatum']) ?? new Date()),
       receiptNumberGroup: record['Belegnummernkreis'] || undefined,
       receiptNumber: record['Belegnummer'] || undefined,
       description: record['Buchungstext'],
-      amount: new Decimal(record['Buchungsbetrag'] ? record['Buchungsbetrag'].replaceAll('.', '').replaceAll(
-        ',',
-        '.'
-      ) : '0'),
-      debitAccount: record['Sollkonto'],
-      creditAccount: record['Habenkonto'],
+      amount,
+      debitAccount,
+      creditAccount,
       taxKey: record['Steuerschlüssel'] || undefined,
       costCategory1: record['Kostenstelle 1'] || undefined,
       costCategory2: record['Kostenstelle 2'] || undefined,

@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { formatCurrency } from "../format";
+import { formatCurrency, formatDateShort } from "../format";
 import { createHtm2PdfClient } from "../html2pdf";
 import Handlebars from "handlebars";
 import { writeFile } from "node:fs";
@@ -63,14 +63,12 @@ function calcMaxDepth(accounts: Account[]): number {
   return maxDepth;
 }
 
-export async function renderReport(
+function buildReportHtml(
   template: string,
-  html2PdfUrl: string,
   params?: RenderReportParams
-): Promise<Blob> {
-  const c = createHtm2PdfClient(html2PdfUrl);
-
+): string {
   Handlebars.registerHelper('formatCurrency', formatCurrency);
+  Handlebars.registerHelper('formatDateShort', formatDateShort);
   Handlebars.registerHelper('getTargetValue', function (budgetRevisionId: string, accountId: string): string {
     return (params?.getTargetValueHandler?.(budgetRevisionId, accountId) ?? new Decimal(0)).toFixed(2);
   });
@@ -84,8 +82,6 @@ export async function renderReport(
     const na = Number(a);
     const nb = Number(b);
     if (Number.isNaN(na) || Number.isNaN(nb)) {
-      // Optional: fail loudly or just return empty string
-      // throw new Error(`subtract helper received non-numeric args: ${a}, ${b}`);
       return '';
     }
     return na - nb;
@@ -106,37 +102,74 @@ export async function renderReport(
     const na = Number(a);
     const nb = Number(b);
     if (Number.isNaN(na) || Number.isNaN(nb)) {
-      // Optional: throw or just return empty string
-      // throw new Error(`add helper received non-numeric args: ${a}, ${b}`);
       return '';
     }
     return na + nb;
+  });
+  Handlebars.registerHelper('budgetColspan', function (revisionsLength: any): number {
+    const revs = Number(revisionsLength) || 0;
+
+    let perRevision = 0;
+    if (params?.targetValuesEnabled) {
+      perRevision++;
+    }
+    if (params?.actualValuesEnabled) {
+      perRevision++;
+    }
+    if (params?.differenceValuesEnabled) {
+      perRevision++;
+    }
+
+    if (perRevision === 0) {
+      return revs;
+    }
+
+    return revs * perRevision;
   });
 
   let html = template;
 
   const compiledTemplate = Handlebars.compile(html);
+  html = compiledTemplate({
+    options: {
+      actualValuesEnabled: params?.actualValuesEnabled ?? false,
+      targetValuesEnabled: params?.targetValuesEnabled ?? false,
+      differenceValuesEnabled: params?.differenceValuesEnabled ?? false,
+      accountDescriptionsEnabled: params?.accountDescriptionsEnabled ?? false,
+      budgetDescriptionsEnabled: params?.budgetDescriptionsEnabled ?? false
+    },
+    maxAccountDepth: calcMaxDepth(params?.accounts ?? []),
+    budgets: params?.budgets ?? [],
+    accounts: params?.accounts ?? []
+  });
+
+  const fp = path.resolve('./report.html');
+
+  writeFile(fp, html, (err) => {
+    if (err) {
+      console.error(err);
+    }
+  });
+
+  return html;
+}
+
+export function renderReportHtml(
+  template: string,
+  params?: RenderReportParams
+): string {
+  return buildReportHtml(template, params);
+}
+
+export async function renderReport(
+  template: string,
+  html2PdfUrl: string,
+  params?: RenderReportParams
+): Promise<Blob> {
+  const c = createHtm2PdfClient(html2PdfUrl);
+
   try {
-    html = compiledTemplate({
-      options: {
-        actualValuesEnabled: params?.actualValuesEnabled ?? false,
-        targetValuesEnabled: params?.targetValuesEnabled ?? false,
-        differenceValuesEnabled: params?.differenceValuesEnabled ?? false,
-        accountDescriptionsEnabled: params?.accountDescriptionsEnabled ?? false,
-        budgetDescriptionsEnabled: params?.budgetDescriptionsEnabled ?? false
-      },
-      maxAccountDepth: calcMaxDepth(params?.accounts ?? []),
-      budgets: params?.budgets ?? [],
-      accounts: params?.accounts ?? []
-    });
-
-    const fp = path.resolve('./report.html');
-
-    writeFile(fp, html, (err) => {
-      if (err) {
-        console.error(err);
-      }
-    });
+    const html = buildReportHtml(template, params);
 
     const d = await c.POST('/render', {
       body: html,

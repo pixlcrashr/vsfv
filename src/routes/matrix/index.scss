@@ -46,6 +46,9 @@
 
     .matrix-content {
         flex: 1;
+        display: block;
+        width: calc(100vw - max(250px, 0.1*100vw));
+        overflow-x: auto;
         overflow-y: auto;
     }
 }

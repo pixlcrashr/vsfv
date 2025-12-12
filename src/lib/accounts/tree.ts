@@ -79,6 +79,13 @@ export class RootNode {
 
     return null;
   }
+
+  public maxDepth(): number {
+    if (this.children.length === 0) {
+      return 1;
+    }
+    return Math.max(...this.children.map(c => (c as Node).maxDepth())) + 1;
+  }
 }
 
 export class Node extends RootNode {
@@ -89,6 +96,14 @@ export class Node extends RootNode {
     children: ReadonlyArray<Node>
   ) {
     super(children);
+  }
+
+  public getAccountFullName(): string {
+    return this.parentNode === null ? this.account.name : `${this.parentNode.parentNode!.getAccountFullName()} / ${this.account.name}`;
+  }
+
+  public getAccountFullCode(): string {
+    return this.parentNode === null ? this.account.code : `${this.parentNode.parentNode!.getAccountFullCode()}-${this.account.code}`;
   }
 }
 

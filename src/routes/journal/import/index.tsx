@@ -6,15 +6,17 @@ import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContentLarge from "~/components/layout/MainContentLarge";
 import { formatCurrency, formatDateInputField, formatDateShort } from "~/lib/format";
-import { parseTransactions } from "~/lib/lexware/parser";
+import { parseLexwareTransactions } from "~/lib/lexware/parser";
+import { parseDatevTransactions } from "~/lib/datev/parser";
 import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";
+import { Transaction } from "~/lib/transaction";
 
 
 
 export const UploadTransactionsSchema = {
   sourceId: z.string().uuid(),
-  type: z.string().regex(/lexware/),
+  type: z.string().regex(/^(lexware|datev)$/),
   file: z.any()
 };
 
@@ -49,7 +51,14 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
 
     const f = args.file as File;
 
-    const ts = await parseTransactions(f);
+    let ts: Transaction[];
+    if (args.type === 'lexware') {
+      ts = await parseLexwareTransactions(f);
+    } else if (args.type === 'datev') {
+      ts = await parseDatevTransactions(f);
+    } else {
+      return { success: false };
+    }
 
     const matchingTransactions = await Prisma.transactions.findMany({
       where: {
@@ -67,24 +76,24 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
       }
     });
 
-    const res = ts.filter(t => matchingTransactions.every(x => x.custom_id !== transactionToCustomId(
+    const res = ts.filter((t: any) => matchingTransactions.every((x: any) => x.custom_id !== transactionToCustomId(
         t.bookedAt,
         t.receiptFrom,
         t.creditAccount,
         t.debitAccount,
         t.amount,
-        `${t.receiptNumberGroup}${t.receiptNumber}`,
+        `${t.receiptNumberGroup ?? ''}${t.receiptNumber ?? ''}`,
         t.description
-      ))).map(t => ({
+      ))).map((t: any) => ({
       receiptFrom: t.receiptFrom,
       bookedAt: t.bookedAt,
-      reference: `${t.receiptNumberGroup}${t.receiptNumber}`,
+      reference: `${t.receiptNumberGroup ?? ''}${t.receiptNumber ?? ''}`,
       description: t.description,
       amount: t.amount.toString(),
       debitAccount: t.debitAccount,
       creditAccount: t.creditAccount,
     }));
-    res.sort((a, b) => a.receiptFrom.getTime() - b.receiptFrom.getTime());
+    res.sort((a: any, b: any) => a.receiptFrom.getTime() - b.receiptFrom.getTime());
 
     return {
       success: true,
@@ -280,10 +289,12 @@ export default component$(() => {
             <select name="type" onChange$={(event, elem) => importType.value = elem.value}>
               <option disabled selected>- bitte auswählen -</option>
               <option value="lexware">Lexware Buchhaltung</option>
+              <option value="datev">DATEV Buchungsstapel</option>
             </select>
           </div>
         </div>
         {importType.value === 'lexware' && <p class="help">Das Lexware Journal muss als CSV und mit dem Trennzeichen ";" exportiert werden. Andernfalls kann das Journal nicht automatisch ausgelesen werden.</p>}
+        {importType.value === 'datev' && <p class="help">Der DATEV Buchungsstapel muss als CSV (Standardformat, Trennzeichen ";") exportiert werden. Nur Einzelbuchungen werden unterstützt.</p>}
       </div>
       <div class="field">
         <label class="label">Importquelle</label>
