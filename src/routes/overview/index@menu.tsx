@@ -1,5 +1,6 @@
 import { component$, useSignal, useVisibleTask$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeLoader$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
@@ -127,10 +128,10 @@ export default component$(() => {
   const stats = useOverviewStats();
 
   const budgetsChartData = {
-    labels: ["Offen", "Geschlossen"],
+    labels: [_`Offen`, _`Geschlossen`],
     datasets: [
       {
-        label: "Haushaltspläne",
+        label: _`Haushaltspläne`,
         data: [stats.value.budgets.open, stats.value.budgets.closed],
         backgroundColor: ["#48c78e", "#f14668"],
       },
@@ -138,10 +139,10 @@ export default component$(() => {
   };
 
   const accountsChartData = {
-    labels: ["Aktiv", "Archiviert"],
+    labels: [_`Aktiv`, _`Archiviert`],
     datasets: [
       {
-        label: "Haushaltskonten",
+        label: _`Haushaltskonten`,
         data: [stats.value.accounts.active, stats.value.accounts.archived],
         backgroundColor: ["#3e8ed0", "#b5b5b5"],
       },
@@ -149,10 +150,10 @@ export default component$(() => {
   };
 
   const assignmentsChartData = {
-    labels: ["Zugeordnet", "Nicht zugeordnet"],
+    labels: [_`Zugeordnet`, _`Nicht zugeordnet`],
     datasets: [
       {
-        label: "Journalbuchungen",
+        label: _`Journalbuchungen`,
         data: [stats.value.transactions.assigned, stats.value.transactions.unassigned],
         backgroundColor: ["#00d1b2", "#ffdd57"],
       },
@@ -163,7 +164,7 @@ export default component$(() => {
     labels: stats.value.transactions.last12Months.map((m) => m.label),
     datasets: [
       {
-        label: "Buchungen pro Monat",
+        label: _`Buchungen pro Monat`,
         data: stats.value.transactions.last12Months.map((m) => m.count),
         borderColor: "#7957d5",
         backgroundColor: "rgba(121, 87, 213, 0.25)",
@@ -182,7 +183,7 @@ export default component$(() => {
               <ul>
                 <li class="is-active">
                   <Link href="#" aria-current="page">
-                    Übersicht
+                    {_`Übersicht`}
                   </Link>
                 </li>
               </ul>
@@ -195,22 +196,22 @@ export default component$(() => {
             <div class="columns is-multiline">
               <div class="column is-4">
                 <div class="box">
-                  <p class="title is-6">Haushaltspläne</p>
-                  <p class="subtitle is-7">Gesamt: {stats.value.budgets.total}</p>
+                  <p class="title is-6">{_`Haushaltspläne`}</p>
+                  <p class="subtitle is-7">{_`Gesamt`}: {stats.value.budgets.total}</p>
                   <ChartCanvas type="doughnut" data={budgetsChartData} />
                 </div>
               </div>
               <div class="column is-4">
                 <div class="box">
-                  <p class="title is-6">Haushaltskonten</p>
-                  <p class="subtitle is-7">Gesamt: {stats.value.accounts.total}</p>
+                  <p class="title is-6">{_`Haushaltskonten`}</p>
+                  <p class="subtitle is-7">{_`Gesamt`}: {stats.value.accounts.total}</p>
                   <ChartCanvas type="doughnut" data={accountsChartData} />
                 </div>
               </div>
               <div class="column is-4">
                 <div class="box">
-                  <p class="title is-6">Journal</p>
-                  <p class="subtitle is-7">Gesamt: {stats.value.transactions.total}</p>
+                  <p class="title is-6">{_`Journal`}</p>
+                  <p class="subtitle is-7">{_`Gesamt`}: {stats.value.transactions.total}</p>
                   <ChartCanvas type="pie" data={assignmentsChartData} />
                 </div>
               </div>
@@ -219,8 +220,8 @@ export default component$(() => {
 
           <div class="column is-12">
             <div class="box">
-              <p class="title is-6">Trend</p>
-              <p class="subtitle is-7">Buchungen der letzten 12 Monate</p>
+              <p class="title is-6">{_`Trend`}</p>
+              <p class="subtitle is-7">{_`Buchungen der letzten 12 Monate`}</p>
               <div style="height: 260px">
                 <ChartCanvas
                   type="line"
@@ -253,6 +254,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: "VSFV | Übersicht",
+  title: _`VSFV | Übersicht`,
   meta: [],
 };

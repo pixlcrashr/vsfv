@@ -15,13 +15,22 @@ import {
   type RenderToStreamOptions,
 } from "@builder.io/qwik/server";
 import Root from "./root";
+import {
+  extractBase,
+  setSsrLocaleGetter
+} from 'compiled-i18n/qwik';
+
+setSsrLocaleGetter();
 
 export default function (opts: RenderToStreamOptions) {
   return renderToStream(<Root />, {
     ...opts,
+
+    base: extractBase,
+
     // Use container attributes to set attributes on the html tag.
     containerAttributes: {
-      lang: "en-us",
+      lang: opts.serverData!.locale,
       ...opts.containerAttributes,
     },
     serverData: {

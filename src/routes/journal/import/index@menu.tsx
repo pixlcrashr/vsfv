@@ -1,5 +1,6 @@
 import { component$, useSignal } from "@builder.io/qwik";
 import { Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import Decimal from "decimal.js";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
@@ -272,8 +273,8 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li><Link href="/journal" aria-current="page">Journal</Link></li>
-              <li class="is-active"><Link href="#" aria-current="page">Importieren...</Link></li>
+              <li><Link href="/journal" aria-current="page">{_`Journal`}</Link></li>
+              <li class="is-active"><Link href="#" aria-current="page">{_`Importieren...`}</Link></li>
             </ul>
           </nav>
         </HeaderTitle>
@@ -283,27 +284,27 @@ export default component$(() => {
       </Header>
 
       <div class="field">
-        <label class="label">Importtyp</label>
+        <label class="label">{_`Importtyp`}</label>
         <div class="control">
           <div class="select is-fullwidth">
             <select name="type" onChange$={(event, elem) => importType.value = elem.value}>
-              <option disabled selected>- bitte auswählen -</option>
-              <option value="lexware">Lexware Buchhaltung</option>
-              <option value="datev">DATEV Buchungsstapel</option>
+              <option disabled selected>{_`- bitte auswählen -`}</option>
+              <option value="lexware">{_`Lexware Buchhaltung`}</option>
+              <option value="datev">{_`DATEV Buchungsstapel`}</option>
             </select>
           </div>
         </div>
-        {importType.value === 'lexware' && <p class="help">Das Lexware Journal muss als CSV und mit dem Trennzeichen ";" exportiert werden. Andernfalls kann das Journal nicht automatisch ausgelesen werden.</p>}
-        {importType.value === 'datev' && <p class="help">Der DATEV Buchungsstapel muss als CSV (Standardformat, Trennzeichen ";") exportiert werden. Nur Einzelbuchungen werden unterstützt.</p>}
+        {importType.value === 'lexware' && <p class="help">{_`Das Lexware Journal muss als CSV und mit dem Trennzeichen ';' exportiert werden. Andernfalls kann das Journal nicht automatisch ausgelesen werden.`}</p>}
+        {importType.value === 'datev' && <p class="help">{_`Der DATEV Buchungsstapel muss als CSV (Standardformat, Trennzeichen ';') exportiert werden. Nur Einzelbuchungen werden unterstützt.`}</p>}
       </div>
       <div class="field">
-        <label class="label">Importquelle</label>
+        <label class="label">{_`Importquelle`}</label>
         <div class="control">
           <div class="select is-fullwidth">
             <select name="sourceId" onChange$={(event, elem) => {
               selectedSourceId.value = elem.value;
             }}>
-              <option disabled selected>- bitte auswahlen -</option>
+              <option disabled selected>{_`- bitte auswählen -`}</option>
               {importSources.value.map(x => <option value={x.id} key={x.id}>{x.name}</option>)}
             </select>
           </div>
@@ -318,7 +319,7 @@ export default component$(() => {
             <span class="file-icon">
               <i class="fas fa-upload"></i>
             </span>
-            <span class="file-label"> Datei auswählen… </span>
+            <span class="file-label"> {_`Datei auswählen…`} </span>
           </span>
           <span class="file-name">{filename.value}</span>
         </label>
@@ -344,10 +345,10 @@ export default component$(() => {
             selectedSourceId.value = value.sourceId ?? '';
             uploadLoading.value = false;
           }
-        }}>Hochladen</button>
+        }}>{_`Hochladen`}</button>
       </div>
 
-      {transactions.value !== null && transactions.value.length === 0 && <p class="has-text-centered is-size-5">Es wurden keine Transaktionen gefunden.</p>}
+      {transactions.value !== null && transactions.value.length === 0 && <p class="has-text-centered is-size-5">{_`Es wurden keine Transaktionen gefunden.`}</p>}
 
       {transactions.value !== null && transactions.value.length > 0 && <Form action={importTransactionsAction} onSubmitCompleted$={async () => {
         await nav('/journal');
@@ -356,13 +357,13 @@ export default component$(() => {
         <table class="table is-narrow is-fullwidth">
           <thead>
             <tr>
-              <th>Datum</th>
-              <th>Betrag</th>
-              <th>Sollkonto</th>
-              <th>Habenkonto</th>
-              <th>Buchungstext</th>
-              <th>Referenz</th>
-              <th>Haushaltskonto</th>
+              <th>{_`Datum`}</th>
+              <th>{_`Betrag`}</th>
+              <th>{_`Sollkonto`}</th>
+              <th>{_`Habenkonto`}</th>
+              <th>{_`Buchungstext`}</th>
+              <th>{_`Referenz`}</th>
+              <th>{_`Haushaltskonto`}</th>
             </tr>
           </thead>
           <tbody>
@@ -396,8 +397,8 @@ export default component$(() => {
               <td class="is-vcentered">
                 <div class="select is-small">
                   <select name={`transactions.${i}.accountId`}>
-                    <option selected disabled>- bitte auswählen -</option>
-                    <option value="ignore">Ignorieren</option>
+                    <option selected disabled>{_`- bitte auswählen -`}</option>
+                    <option value="ignore">{_`Ignorieren`}</option>
                     <option disabled>---</option>
                     {accounts.value.map(x => <option value={x.id} key={x.id}>{x.name}</option>)}
                   </select>
@@ -407,7 +408,7 @@ export default component$(() => {
           </tbody>
         </table>
         <div class="buttons is-right is-fullwidth">
-          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning} class="button is-primary">Importieren</button>
+          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning} class="button is-primary">{_`Importieren`}</button>
         </div>
       </Form>}
     </MainContentLarge >

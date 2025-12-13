@@ -1,9 +1,10 @@
 import { component$, QRL, Resource, Signal, useResource$ } from "@builder.io/qwik";
 import { Form, server$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import { delay } from "~/lib/delay";
 import { formatDateInputField } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
-import { useSaveBudgetRouteAction } from "~/routes/budgets";
+import { useSaveBudgetRouteAction } from "~/routes/budgets/index@menu";
 
 interface EditBudgetMenuProps {
   budgetId: Signal<string>;
@@ -121,21 +122,21 @@ export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
             <input hidden name="id" type="hidden" value={budget.id} />
 
             <div class="field">
-              <label class="label">Status</label>
+              <label class="label">{_`Status`}</label>
               <div class="control">
-                <p>{!budget.is_closed ? 'Offen' : 'Geschlossen'}</p>
+                <p>{!budget.is_closed ? _`Offen` : _`Geschlossen`}</p>
               </div>
             </div>
 
             <div class="field">
-              <label class="label">Name</label>
+              <label class="label">{_`Name`}</label>
               <div class="control">
                 <input name="name" class="input is-small" disabled={saveBudgetAction.isRunning} type="text" value={budget.name} />
               </div>
             </div>
 
             <div class="field">
-              <label class="label">Beschreibung</label>
+              <label class="label">{_`Beschreibung`}</label>
               <div class="control">
                 <textarea name="description" class="textarea is-small" disabled={saveBudgetAction.isRunning} rows={10} value={budget.description} />
               </div>
@@ -144,13 +145,13 @@ export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
             <div class="field is-horizontal">
               <div class="field-body">
                 <div class="field">
-                  <label class="label">Start Zeitraum</label>
+                  <label class="label">{_`Start Zeitraum`}</label>
                   <div class="control">
                     <input name="startDate" class="input is-small" disabled={saveBudgetAction.isRunning} type="date" value={formatDateInputField(budget.startDate)} />
                   </div>
                 </div>
                 <div class="field">
-                  <label class="label">Ende Zeitraum</label>
+                  <label class="label">{_`Ende Zeitraum`}</label>
                   <div class="control">
                     <input name="endDate" class="input is-small" disabled={saveBudgetAction.isRunning} type="date" value={formatDateInputField(budget.endDate)} />
                   </div>
@@ -159,13 +160,13 @@ export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
             </div>
 
             <div class="field">
-              <label class="label">Revisionen</label>
+              <label class="label">{_`Revisionen`}</label>
               <table class="table is-narrow is-fullwidth">
                 <thead>
                   <tr>
-                    <th>Nr.</th>
-                    <th>Datum</th>
-                    <th>Beschreibung</th>
+                    <th>{_`Nr.`}</th>
+                    <th>{_`Datum`}</th>
+                    <th>{_`Beschreibung`}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -181,7 +182,7 @@ export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
                                 class="input is-small"
                                 disabled={index !== budget.revisions.length - 1}
                                 type="date"
-                                placeholder="Revisionsdatum"
+                                placeholder={_`Revisionsdatum`}
                                 value={formatDateInputField(revision.date)}
                               />
                             </div>
@@ -191,7 +192,7 @@ export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
                           <textarea
                               class="textarea is-small"
                               disabled={index !== budget.revisions.length - 1}
-                              placeholder="Revisionsbeschreibung"
+                              placeholder={_`Revisionsbeschreibung`}
                               rows={3}
                               name={`revisions.${index}.description`}
                               value={revision.description}
@@ -216,14 +217,14 @@ export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
                     createdAt: r.createdAt,
                     updatedAt: r.updatedAt
                   });
-                }}>Revision hinzufügen</button>
+                }}>{_`Revision hinzufügen`}</button>
               </div>
             </div>
 
             <div class="buttons mt-5 is-right are-small">
               <button type="submit" class={["button", "is-warning", {
                 'is-loading': saveBudgetAction.isRunning
-              }]}>Speichern</button>
+              }]}>{_`Speichern`}</button>
             </div>
           </Form>}
         </>);

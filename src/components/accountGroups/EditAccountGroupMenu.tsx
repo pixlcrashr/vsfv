@@ -1,9 +1,10 @@
 import { component$, Resource, Signal, useResource$ } from "@builder.io/qwik";
 import { Form, server$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import { buildTreeFromDB, sortedFlatAccountIterator } from "~/lib/accounts/tree";
 import { delay } from "~/lib/delay";
 import { Prisma } from "~/lib/prisma";
-import { useSaveAccountGroupRouteAction } from "~/routes/accountGroups";
+import { useSaveAccountGroupRouteAction } from "~/routes/accountGroups/index@menu";
 
 interface EditAccountGroupMenuProps {
   accountGroupId: Signal<string>;
@@ -135,27 +136,27 @@ export default component$<EditAccountGroupMenuProps>(({ accountGroupId }) => {
             <input hidden name="id" type="hidden" value={accountGroup.id} />
 
             <div class="field">
-              <label class="label">Name</label>
+              <label class="label">{_`Name`}</label>
               <div class="control">
                 <input name="name" class="input is-small" disabled={saveAccountGroupAction.isRunning} type="text" value={accountGroup.name} />
               </div>
             </div>
 
             <div class="field">
-              <label class="label">Beschreibung</label>
+              <label class="label">{_`Beschreibung`}</label>
               <div class="control">
                 <textarea name="description" class="textarea is-small" disabled={saveAccountGroupAction.isRunning} rows={5} value={accountGroup.description} />
               </div>
             </div>
 
             <div class="field">
-              <label class="label">Kontenzuweisungen</label>
-              <p class="help mb-2">Wählen Sie für jedes Konto: Positiv (+), Negativ (-) oder Ignorieren.</p>
+              <label class="label">{_`Kontenzuweisungen`}</label>
+              <p class="help mb-2">{_`Wählen Sie für jedes Konto: Positiv (+), Negativ (-) oder Ignorieren.`}</p>
               <table class="table is-striped is-narrow is-hoverable is-fullwidth">
                 <thead>
                   <tr>
-                    <th colSpan={maxDepth}>Konto</th>
-                    <th>Name</th>
+                    <th colSpan={maxDepth}>{_`Konto`}</th>
+                    <th>{_`Name`}</th>
                     <th class="has-text-centered">P</th>
                     <th class="has-text-centered">N</th>
                     <th class="has-text-centered">I</th>
@@ -215,7 +216,7 @@ export default component$<EditAccountGroupMenuProps>(({ accountGroupId }) => {
             <div class="buttons mt-5 is-right are-small">
               <button type="submit" class={["button", "is-warning", {
                 'is-loading': saveAccountGroupAction.isRunning
-              }]}>Speichern</button>
+              }]}>{_`Speichern`}</button>
             </div>
           </Form>
         </>);

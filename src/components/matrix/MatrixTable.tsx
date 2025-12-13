@@ -1,6 +1,6 @@
 import { component$, Signal, useComputed$, useStore, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import { formatCurrency, formatDateShort } from "~/lib/format";
-import { Account, Budget, Matrix } from "~/routes/matrix";
+import { Account, Budget, Matrix } from "~/routes/matrix/index@menu";
 import TargetValueInput from "./TargetValueInput";
 import { Decimal } from 'decimal.js/decimal';
 import styles from "./MatrixTable.scss?inline";

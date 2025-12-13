@@ -1,6 +1,7 @@
 import { component$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
-import { useCreateAccountGroupRouteAction } from "~/routes/accountGroups";
+import { _ } from 'compiled-i18n';
+import { useCreateAccountGroupRouteAction } from "~/routes/accountGroups/index@menu";
 
 export interface CreateAccountGroupMenuFormProps {}
 
@@ -21,7 +22,7 @@ export default component$<CreateAccountGroupMenuFormProps>(() => {
     <>
       <Form action={action} ref={refSig}>
         <div class="field">
-          <label class="label">Name</label>
+          <label class="label">{_`Name`}</label>
           <div class="control">
             <input name="name" class="input is-small" disabled={action.isRunning} type="text" />
           </div>
@@ -30,7 +31,7 @@ export default component$<CreateAccountGroupMenuFormProps>(() => {
         </div>
 
         <div class="field">
-          <label class="label">Beschreibung</label>
+          <label class="label">{_`Beschreibung`}</label>
           <div class="control">
             <textarea name="description" class="textarea is-small" disabled={action.isRunning} rows={10} />
           </div>
@@ -41,7 +42,7 @@ export default component$<CreateAccountGroupMenuFormProps>(() => {
         <div class="buttons mt-5 is-right are-small">
           <button type="submit" class={["button", "is-primary", {
             'is-loading': action.isRunning
-          }]}>Hinzufügen</button>
+          }]}>{_`Hinzufügen`}</button>
         </div>
       </Form>
     </>

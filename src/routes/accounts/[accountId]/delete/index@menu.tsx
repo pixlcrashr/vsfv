@@ -1,5 +1,6 @@
 import { $, component$ } from "@builder.io/qwik";
 import { Form, Link, routeAction$, routeLoader$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -73,8 +74,8 @@ export default component$(() => {
             <HeaderTitle>
               <nav class="breadcrumb" aria-label="breadcrumbs">
                 <ul>
-                  <li><Link href="/accounts">Haushaltskonten</Link></li>
-                  <li class="is-active"><Link href="#" aria-current="page">Haushaltskonto {budget.value.code} | {budget.value.name} entfernen</Link></li>
+                  <li><Link href="/accounts">{_`Haushaltskonten`}</Link></li>
+                  <li class="is-active"><Link href="#" aria-current="page">{_`Haushaltskonto ${budget.value.code} | ${budget.value.name} entfernen`}</Link></li>
                 </ul>
               </nav>
             </HeaderTitle>
@@ -83,7 +84,7 @@ export default component$(() => {
           </Header>
 
           <div>
-            <p class="has-text-centered is-size-5">Möchtest du das Haushaltskonto <strong>{budget.value.code} | {budget.value.name}</strong> wirklich entfernen?</p>
+            <p class="has-text-centered is-size-5">{_`Möchtest du das Haushaltskonto ${budget.value.code} | ${budget.value.name} wirklich entfernen?`}</p>
           </div>
 
           <div class="buttons mt-6 is-centered">
@@ -93,7 +94,7 @@ export default component$(() => {
               {
                 'is-loading': isLoading.value
               }
-            ]}>Entfernen</button>
+            ]}>{_`Entfernen`}</button>
           </div>
         </Form>
       </MainContent>

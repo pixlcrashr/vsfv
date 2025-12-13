@@ -1,6 +1,6 @@
 import { component$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
-import { Account, Budget, ReportTemplate, useCreateReportAction } from "~/routes/reports";
+import { Account, Budget, ReportTemplate, useCreateReportAction } from "~/routes/reports/index@menu";
 
 export interface CreateReportMenuProps {
   reportTemplates: ReportTemplate[];
@@ -32,7 +32,7 @@ export default component$<CreateReportMenuProps>((props) => {
         <div class="control">
           <div class="select is-small">
             <select name="reportTemplateId" required>
-              <option selected disabled>- bitte auswahlen -</option>
+              <option selected disabled>- bitte auswählen -</option>
               {props.reportTemplates.map((reportTemplate, i) => <option key={reportTemplate.id} value={reportTemplate.id}>{reportTemplate.name}</option>)}
             </select>
           </div>

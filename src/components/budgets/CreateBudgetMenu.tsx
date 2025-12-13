@@ -1,6 +1,7 @@
 import { component$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
-import { useCreateBudgetRouteAction } from "~/routes/budgets";
+import { _ } from 'compiled-i18n';
+import { useCreateBudgetRouteAction } from "~/routes/budgets/index@menu";
 
 
 
@@ -23,7 +24,7 @@ export default component$<CreateBudgetMenuFormProps>((props) => {
     <>
       <Form action={action} ref={refSig}>
         <div class="field">
-          <label class="label">Name</label>
+          <label class="label">{_`Name`}</label>
           <div class="control">
             <input name="name" class="input is-small" disabled={action.isRunning} type="text" />
           </div>
@@ -32,7 +33,7 @@ export default component$<CreateBudgetMenuFormProps>((props) => {
         </div>
 
         <div class="field">
-          <label class="label">Beschreibung</label>
+          <label class="label">{_`Beschreibung`}</label>
           <div class="control">
             <textarea name="description" class="textarea is-small" disabled={action.isRunning} rows={10} />
           </div>
@@ -43,7 +44,7 @@ export default component$<CreateBudgetMenuFormProps>((props) => {
         <div class="field is-horizontal">
           <div class="field-body">
             <div class="field">
-              <label class="label">Start Zeitraum</label>
+              <label class="label">{_`Start Zeitraum`}</label>
               <div class="control">
                 <input name="startDate" class="input is-small" disabled={action.isRunning} type="date" />
               </div>
@@ -52,7 +53,7 @@ export default component$<CreateBudgetMenuFormProps>((props) => {
             </div>
 
             <div class="field">
-              <label class="label">Ende Zeitraum</label>
+              <label class="label">{_`Ende Zeitraum`}</label>
               <div class="control">
                 <input name="endDate" class="input is-small" disabled={action.isRunning} type="date" />
               </div>
@@ -65,7 +66,7 @@ export default component$<CreateBudgetMenuFormProps>((props) => {
         <div class="buttons mt-5 is-right are-small">
           <button type="submit" class={["button", "is-primary", {
             'is-loading': action.isRunning
-          }]}>Hinzufügen</button>
+          }]}>{_`Hinzufügen`}</button>
         </div>
       </Form>
 

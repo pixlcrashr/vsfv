@@ -1,5 +1,6 @@
 import { component$, Resource, useResource$, useSignal } from "@builder.io/qwik";
-import { Link, routeLoader$, server$ } from "@builder.io/qwik-city";
+import { Link, server$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -86,12 +87,12 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li class="is-active"><Link href="#" aria-current="page">Journal</Link></li>
+              <li class="is-active"><Link href="#" aria-current="page">{_`Journal`}</Link></li>
             </ul>
           </nav>
         </HeaderTitle>
         <HeaderButtons>
-          <Link href="/journal/import" class="button is-primary is-rounded">Importieren...</Link>
+          <Link href="/journal/import" class="button is-primary is-rounded">{_`Importieren...`}</Link>
         </HeaderButtons>
       </Header>
       <Resource value={transactionsResource} onResolved={(res) => {
@@ -119,12 +120,12 @@ export default component$(() => {
           <table class="table is-narrow is-hoverable is-striped is-fullwidth">
             <thead>
               <tr>
-                <th>Datum</th>
-                <th>Betrag</th>
-                <th>Sollkonto</th>
-                <th>Habenkonto</th>
-                <th>Buchungstext</th>
-                <th>Haushaltskonto</th>
+                <th>{_`Datum`}</th>
+                <th>{_`Betrag`}</th>
+                <th>{_`Sollkonto`}</th>
+                <th>{_`Habenkonto`}</th>
+                <th>{_`Buchungstext`}</th>
+                <th>{_`Haushaltskonto`}</th>
                 <th></th>
               </tr>
             </thead>
@@ -140,7 +141,7 @@ export default component$(() => {
                 </td>
                 <td class="is-vcentered">
                   <div class="buttons are-small is-right">
-                    <button class="button is-danger is-outlined">Stornieren</button>
+                    <button class="button is-danger is-outlined">{_`Stornieren`}</button>
                   </div>
                 </td>
               </tr>)}
@@ -153,13 +154,13 @@ export default component$(() => {
                   page: page.value.page - 1,
                   size: page.value.size
                 };
-              }}>Vorherige</button>}
+              }}>{_`Vorherige`}</button>}
             {page.value.page < res.totalPages && <button class="pagination-next" onClick$={() => {
                 page.value = {
                   page: page.value.page + 1,
                   size: page.value.size
                 };
-              }}>Nächste</button>}
+              }}>{_`Nächste`}</button>}
             <ul class="pagination-list">
               {pages.map(x => <li><a class={["pagination-link", {
                 'is-current': x === page.value.page

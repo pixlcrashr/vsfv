@@ -1,8 +1,9 @@
 import { component$, QRL, Resource, Signal, useResource$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form, server$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import { delay } from "~/lib/delay";
 import { Prisma } from "~/lib/prisma";
-import { useSaveAccountAction } from "~/routes/accounts";
+import { useSaveAccountAction } from "~/routes/accounts/index@menu";
 
 interface AccountDetails {
   id: string;
@@ -126,11 +127,11 @@ export default component$<EditAccountMenuProps>(({ accountId, accounts }) => {
             <input hidden name="id" type="hidden" value={account?.id ?? ''} />
 
             <div class="field">
-              <label class="label">Gruppe</label>
+              <label class="label">{_`Gruppe`}</label>
               <div class="control">
                 <div class="select is-small is-fullwidth">
                   <select value={account?.parentAccountId ?? ''} name="parentAccountId">
-                    <option value="">- keine -</option>
+                    <option value="">{_`- keine -`}</option>
 
                     {selectableAccounts.value.map((account) => (
                       <option key={account.id} value={account.id}>
@@ -147,22 +148,22 @@ export default component$<EditAccountMenuProps>(({ accountId, accounts }) => {
             <div class="field is-grouped">
               <div class="field-body">
                 <div class="field">
-                  <label class="label">Code</label>
+                  <label class="label">{_`Code`}</label>
                   <p class="control">
-                    <input name="code" class="input is-small code-input" value={account?.code} disabled={saveAction.isRunning} type="text" placeholder="Code" />
+                    <input name="code" class="input is-small code-input" value={account?.code} disabled={saveAction.isRunning} type="text" placeholder={_`Code`} />
                   </p>
                 </div>
                 <div class="field">
-                  <label class="label">Name</label>
+                  <label class="label">{_`Name`}</label>
                   <p class="control">
-                    <input name="name" class="input is-small" value={account?.name} disabled={saveAction.isRunning} type="text" placeholder="Name" />
+                    <input name="name" class="input is-small" value={account?.name} disabled={saveAction.isRunning} type="text" placeholder={_`Name`} />
                   </p>
                 </div>
               </div>
             </div>
 
             <div class="field">
-              <label class="label">Beschreibung</label>
+              <label class="label">{_`Beschreibung`}</label>
               <div class="control">
                 <textarea name="description" class="textarea is-small" value={account?.description}></textarea>
               </div>
@@ -171,7 +172,7 @@ export default component$<EditAccountMenuProps>(({ accountId, accounts }) => {
             <div class="buttons mt-5 is-right are-small">
               <button type="submit" class={["button", "is-warning", {
                 'is-loading': saveAction.isRunning
-              }]}>Speichern</button>
+              }]}>{_`Speichern`}</button>
             </div>
           </Form>
         );

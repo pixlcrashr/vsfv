@@ -1,11 +1,12 @@
 import { $, component$, Resource, useOnDocument, useResource$, useSignal, useStore, useStylesScoped$, useTask$, useVisibleTask$ } from "@builder.io/qwik";
 import { routeLoader$, server$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { Decimal } from 'decimal.js/decimal';
 import { Prisma } from "~/lib/prisma";
 import { type accountsModel } from "../../lib/prisma/generated/models";
 import { Prisma as P } from "../../lib/prisma/generated/client";
-import styles from "./index.scss?inline";
+import styles from "./index@menu.scss?inline";
 import MatrixTable from "~/components/matrix/MatrixTable";
 import { buildTreeFromDB, Node as AccountNode, sortedFlatAccountIterator } from "~/lib/accounts/tree";
 
@@ -375,18 +376,18 @@ export default component$(() => {
     <header class="matrix-header">
       <div class="buttons are-small has-addons">
         <button class={["button", { "is-active": showTarget.value }]} onClick$={() => showTarget.value = !showTarget.value}>
-          Soll
+          {_`Soll`}
         </button>
         <button class={["button", { "is-active": showActual.value }]} onClick$={() => showActual.value = !showActual.value}>
-          Ist
+          {_`Ist`}
         </button>
         <button class={["button", { "is-active": showDiff.value }]} onClick$={() => showDiff.value = !showDiff.value}>
-          Diff.
+          {_`Diff.`}
         </button>
       </div>
       <div class="buttons are-small has-addons">
         <button class={["button", { "is-active": showDescription.value }]} onClick$={() => showDescription.value = !showDescription.value}>
-          Kontobeschreibung
+          {_`Kontobeschreibung`}
         </button>
       </div>
       <div class={["dropdown", "is-small", {
@@ -394,7 +395,7 @@ export default component$(() => {
       }]} ref={budgetsDropdownRef}>
         <div class="dropdown-trigger">
           <button class="button is-small" onClick$={() => showBudgetsDropdown.value = !showBudgetsDropdown.value} aria-haspopup="true" aria-controls="dropdown-menu">
-            <span>Budgets</span>
+            <span>{_`Budgets`}</span>
             <span class="icon is-small">
               <i class="fa fa-angle-down" aria-hidden="true"></i>
             </span>
@@ -425,7 +426,7 @@ export default component$(() => {
       }]} ref={accountsDropdownRef}>
         <div class="dropdown-trigger">
           <button class="button is-small" onClick$={() => showAccountsDropdown.value = !showAccountsDropdown.value} aria-haspopup="true" aria-controls="dropdown-menu">
-            <span>Konten</span>
+            <span>{_`Konten`}</span>
             <span class="icon is-small">
               <i class="fa fa-angle-down" aria-hidden="true"></i>
             </span>

@@ -1,6 +1,6 @@
 import { component$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
-import { useCreateImportSourceAction } from "~/routes/admin/importSources";
+import { useCreateImportSourceAction } from "~/routes/admin/importSources/index@menu";
 
 export default component$(() => {
   const createAction = useCreateImportSourceAction();

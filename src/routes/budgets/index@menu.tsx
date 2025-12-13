@@ -1,5 +1,6 @@
 import { component$, useComputed$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, zod$, z } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -8,7 +9,7 @@ import MainContentMenu from "~/components/layout/MainContentMenu";
 import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
-import styles from "./index.scss?inline";
+import styles from "./index@menu.scss?inline";
 import CreateBudgetMenu from "~/components/budgets/CreateBudgetMenu";
 import EditBudgetMenu from "~/components/budgets/EditBudgetMenu";
 
@@ -219,22 +220,22 @@ export default component$(() => {
           <HeaderTitle>
             <nav class="breadcrumb" aria-label="breadcrumbs">
               <ul>
-                <li class="is-active"><Link href="#" aria-current="page">Haushaltspläne</Link></li>
+                <li class="is-active"><Link href="#" aria-current="page">{_`Haushaltspläne`}</Link></li>
               </ul>
             </nav>
           </HeaderTitle>
           <HeaderButtons>
             <button class="button is-primary is-rounded"
-              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>Hinzufügen</button>
+              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
           </HeaderButtons>
         </Header>
         <table class="table is-narrow is-hoverable is-striped">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Beginn</th>
-              <th>Ende</th>
-              <th>Status</th>
+              <th>{_`Name`}</th>
+              <th>{_`Beginn`}</th>
+              <th>{_`Ende`}</th>
+              <th>{_`Status`}</th>
               <th></th>
             </tr>
           </thead>
@@ -247,14 +248,14 @@ export default component$(() => {
                 <td class="is-vcentered"><span class={[
                   'tag',
                   budget.is_closed ? 'is-danger' : 'is-success'
-                ]}>{budget.is_closed ? 'Geschlossen' : 'Offen'}</span></td>
+                ]}>{budget.is_closed ? _`Geschlossen` : _`Offen`}</span></td>
                 <td class="is-vcentered">
                   <p class="buttons are-small is-right">
                     <button class="button" onClick$={() => {
                       editMenuBudgetId.value = budget.id;
                       menuStatus.value = MenuStatus.Edit;
-                    }}>Bearbeiten</button>
-                    <Link class="button is-danger is-outlined" href={`/budgets/${budget.id}/delete`}>Entfernen</Link>
+                    }}>{_`Bearbeiten`}</button>
+                    <Link class="button is-danger is-outlined" href={`/budgets/${budget.id}/delete`}>{_`Entfernen`}</Link>
                   </p>
                 </td>
               </tr>
@@ -262,7 +263,7 @@ export default component$(() => {
             {budgets.value.length === 0 && (
               <tr>
                 <td colSpan={6} class="has-text-centered">
-                  <p class="is-size-6">Keine Haushaltspläne gefunden</p>
+                  <p class="is-size-6">{_`Keine Haushaltspläne gefunden`}</p>
                 </td>
               </tr>
             )}
@@ -272,7 +273,7 @@ export default component$(() => {
 
       <MainContentMenu isShown={editMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          Haushaltsplan bearbeiten
+          {_`Haushaltsplan bearbeiten`}
         </MainContentMenuHeader>
 
         <EditBudgetMenu budgetId={editMenuBudgetId}></EditBudgetMenu>
@@ -280,7 +281,7 @@ export default component$(() => {
 
       <MainContentMenu isShown={createMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          Haushaltsplan erstellen
+          {_`Haushaltsplan erstellen`}
         </MainContentMenuHeader>
 
         <CreateBudgetMenu />
@@ -290,6 +291,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: "VSFV | Haushaltspläne",
+  title: _`VSFV | Haushaltspläne`,
   meta: [],
 };

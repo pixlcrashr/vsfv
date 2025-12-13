@@ -1,6 +1,7 @@
 import { component$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
-import { useCreateAccountAction } from "~/routes/accounts";
+import { _ } from 'compiled-i18n';
+import { useCreateAccountAction } from "~/routes/accounts/index@menu";
 import styles from "./CreateAccountMenu.scss?inline";
 
 
@@ -35,11 +36,11 @@ export default component$<CreateAccountFormProps>((compProps) => {
   return (
     <Form action={createAction} ref={refSig}>
       <div class="field">
-        <label class="label">Gruppe</label>
+        <label class="label">{_`Gruppe`}</label>
         <div class="control">
           <div class="select is-small is-fullwidth">
             <select value="" name="parentAccountId">
-              <option value="">- keine -</option>
+              <option value="">{_`- keine -`}</option>
 
               {compProps.accounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -56,22 +57,22 @@ export default component$<CreateAccountFormProps>((compProps) => {
       <div class="field is-grouped">
         <div class="field-body">
           <div class="field">
-            <label class="label">Code</label>
+            <label class="label">{_`Code`}</label>
             <p class="control">
-              <input name="code" class="input is-small code-input" disabled={createAction.isRunning} type="text" placeholder="Code" />
+              <input name="code" class="input is-small code-input" disabled={createAction.isRunning} type="text" placeholder={_`Code`} />
             </p>
           </div>
           <div class="field">
-            <label class="label">Name</label>
+            <label class="label">{_`Name`}</label>
             <p class="control">
-              <input name="name" class="input is-small" disabled={createAction.isRunning} type="text" placeholder="Name" />
+              <input name="name" class="input is-small" disabled={createAction.isRunning} type="text" placeholder={_`Name`} />
             </p>
           </div>
         </div>
       </div>
 
       <div class="field">
-        <label class="label">Beschreibung</label>
+        <label class="label">{_`Beschreibung`}</label>
         <div class="control">
           <textarea class="textarea is-small"></textarea>
         </div>
@@ -80,7 +81,7 @@ export default component$<CreateAccountFormProps>((compProps) => {
       <div class="buttons mt-5 is-right are-small">
         <button type="submit" class={["button", "is-primary", {
           'is-loading': createAction.isRunning
-        }]}>Hinzufügen</button>
+        }]}>{_`Hinzufügen`}</button>
       </div>
     </Form>
   );

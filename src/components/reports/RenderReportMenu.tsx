@@ -1,5 +1,5 @@
 import { component$, useSignal } from "@builder.io/qwik";
-import type { Account, Budget, ReportTemplate } from "~/routes/reports";
+import type { Account, Budget, ReportTemplate } from "~/routes/reports/index@menu";
 
 
 
@@ -32,7 +32,7 @@ export default component$<RenderReportMenuProps>((props) => {
         <div class="control">
           <div class="select is-small">
             <select name="reportTemplateId" required>
-              <option selected disabled>- bitte auswahlen -</option>
+              <option selected disabled>- bitte auswählen -</option>
               {props.reportTemplates.map((reportTemplate) => <option key={reportTemplate.id} value={reportTemplate.id}>{reportTemplate.name}</option>)}
             </select>
           </div>

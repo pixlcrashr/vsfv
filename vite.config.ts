@@ -8,6 +8,7 @@ import { qwikCity } from "@builder.io/qwik-city/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import pkg from "./package.json";
 import { qwikReact } from "@builder.io/qwik-react/vite";
+import { i18nPlugin } from 'compiled-i18n/vite';
 type PkgDep = Record<string, string>;
 const { dependencies = {}, devDependencies = {} } = pkg as any as {
   dependencies: PkgDep;
@@ -26,6 +27,12 @@ export default defineConfig(({ command, mode }): UserConfig => {
       qwikVite(),
       tsconfigPaths({ root: "." }),
       qwikReact(),
+      i18nPlugin({
+        defaultLocale: 'de-DE',
+        locales: ['de-DE', 'en-GB'],
+        addMissing: true,
+        removeUnusedKeys: true
+      }),
     ],
     assetsInclude: [
       './node_modules/fontawesome-free/webfonts'

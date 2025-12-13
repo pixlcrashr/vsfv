@@ -1,5 +1,6 @@
 import { component$, Signal, useComputed$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import { _ } from 'compiled-i18n';
 import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";
 import EditAccountMenu from "~/components/accounts/EditAccountMenu";
 import Header from "~/components/layout/Header";
@@ -11,7 +12,7 @@ import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { Prisma } from "~/lib/prisma";
 import { accountsModel } from "~/lib/prisma/generated/models";
 import { Prisma as P } from "../../lib/prisma/generated/client";
-import styles from "./index.scss?inline";
+import styles from "./index@menu.scss?inline";
 
 export const CreateAccountActionSchema = {
   name: z.string().min(1),
@@ -66,7 +67,7 @@ SELECT EXISTS (SELECT 1 FROM ancestors WHERE id = $2::uuid) AS has_cycle`;
     const hasCycle = await Prisma.$queryRaw<{ has_cycle: boolean; }[]>(q);
 
     if (hasCycle[0].has_cycle) {
-      throw new Error('Konto kann nicht als obergeordnetes Konto verwendet werden, da es einen Zyklus erzeugt.');
+      throw new Error(_`Konto kann nicht als obergeordnetes Konto verwendet werden, da es einen Zyklus erzeugt.`);
     }
   }
 
@@ -160,9 +161,9 @@ export const AccountRow = component$<AccountRowProps>((props) => {
             <button class="button" onClick$={() => {
               props.editMenuAccountId.value = props.account.id;
               props.menuStatus.value = MenuStatus.Edit;
-            }}>Bearbeiten</button>
-            <button class="button is-warning is-outlined">Archivieren</button>
-            <Link class="button is-danger is-outlined" href={`/accounts/${props.account.id}/delete`}>Entfernen</Link>
+            }}>{_`Bearbeiten`}</button>
+            <button class="button is-warning is-outlined">{_`Archivieren`}</button>
+            <Link class="button is-danger is-outlined" href={`/accounts/${props.account.id}/delete`}>{_`Entfernen`}</Link>
           </div>
         </td>
       </tr>
@@ -210,20 +211,20 @@ export default component$(() => {
           <HeaderTitle>
             <nav class="breadcrumb" aria-label="breadcrumbs">
               <ul>
-                <li class="is-active"><Link href="#" aria-current="page">Haushaltskonten</Link></li>
+                <li class="is-active"><Link href="#" aria-current="page">{_`Haushaltskonten`}</Link></li>
               </ul>
             </nav>
           </HeaderTitle>
           <HeaderButtons>
             <button class="button is-primary is-rounded"
-              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>Hinzufügen</button>
+              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
           </HeaderButtons>
         </Header>
         <table class="table is-hoverable is-striped is-fullwidth is-narrow">
           <thead>
             <tr>
-              <th colSpan={maxDepth.value + 1}>Code</th>
-              <th>Name</th>
+              <th colSpan={maxDepth.value + 1}>{_`Code`}</th>
+              <th>{_`Name`}</th>
               <th></th>
             </tr>
           </thead>
@@ -234,14 +235,14 @@ export default component$(() => {
       </MainContent>
       <MainContentMenu isShown={editMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          Haushaltskonto bearbeiten
+          {_`Haushaltskonto bearbeiten`}
         </MainContentMenuHeader>
 
         <EditAccountMenu accounts={accounts} accountId={editMenuAccountId}></EditAccountMenu>
       </MainContentMenu>
       <MainContentMenu isShown={createMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          Haushaltskonto hinzufügen
+          {_`Haushaltskonto hinzufügen`}
         </MainContentMenuHeader>
 
         <CreateAccountMenu accounts={flatAccounts.value} />
@@ -251,6 +252,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: "VSFV | Haushaltskonten",
+  title: _`VSFV | Haushaltskonten`,
   meta: [],
 };
