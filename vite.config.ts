@@ -23,16 +23,16 @@ errorOnDuplicatesPkgDeps(devDependencies, dependencies);
 export default defineConfig(({ command, mode }): UserConfig => {
   return {
     plugins: [
-      qwikCity(),
-      qwikVite(),
-      tsconfigPaths({ root: "." }),
-      qwikReact(),
       i18nPlugin({
         defaultLocale: 'de-DE',
         locales: ['de-DE', 'en-GB'],
         addMissing: true,
         removeUnusedKeys: true
       }),
+      qwikCity(),
+      qwikVite(),
+      tsconfigPaths({ root: "." }),
+      qwikReact(),
     ],
     assetsInclude: [
       './node_modules/fontawesome-free/webfonts'

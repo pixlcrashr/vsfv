@@ -1,5 +1,5 @@
 import { component$, useComputed$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeAction$, routeLoader$, zod$, z } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeAction$, routeLoader$, zod$, z, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
@@ -11,7 +11,11 @@ import { Prisma } from "~/lib/prisma";
 import styles from "./index@menu.scss?inline";
 import CreateAccountGroupMenu from "~/components/accountGroups/CreateAccountGroupMenu";
 import EditAccountGroupMenu from "~/components/accountGroups/EditAccountGroupMenu";
-import { checkPermission } from "~/lib/auth";
+import { checkPermission, requirePermission, Permissions, checkPermissions } from "~/lib/auth";
+
+
+
+export const onRequest: RequestHandler = requirePermission(Permissions.ACCOUNT_GROUPS_READ);
 
 export const CreateAccountGroupSchema = {
   name: z.string().min(1),
@@ -159,10 +163,20 @@ async function getAccountGroups(offset: number, limit: number): Promise<AccountG
 
 export const useGetAccountGroups = routeLoader$<AccountGroup[]>(async () => await getAccountGroups(0, 100));
 
+export const useAccountGroupPermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canCreate: Permissions.ACCOUNT_GROUPS_CREATE,
+    canUpdate: Permissions.ACCOUNT_GROUPS_UPDATE,
+    canDelete: Permissions.ACCOUNT_GROUPS_DELETE
+  });
+});
+
 export default component$(() => {
   useStylesScoped$(styles);
 
   const accountGroups = useGetAccountGroups();
+  const permissions = useAccountGroupPermissions();
   const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
   const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
   const editMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Edit);
@@ -180,8 +194,10 @@ export default component$(() => {
             </nav>
           </HeaderTitle>
           <HeaderButtons>
-            <button class="button is-primary is-rounded"
-              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+            {permissions.value.canCreate && (
+              <button class="button is-primary is-rounded"
+                onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+            )}
           </HeaderButtons>
         </Header>
         <table class="table is-narrow is-hoverable is-striped is-fullwidth">
@@ -202,11 +218,15 @@ export default component$(() => {
                 <td class="is-vcentered">
                   <p class="buttons are-small is-right">
                     <Link class="button is-info is-outlined" href={`/accountGroups/${group.id}`}>{_`Statistik`}</Link>
-                    <button class="button" onClick$={() => {
-                      editMenuAccountGroupId.value = group.id;
-                      menuStatus.value = MenuStatus.Edit;
-                    }}>{_`Bearbeiten`}</button>
-                    <Link class="button is-danger is-outlined" href={`/accountGroups/${group.id}/delete`}>{_`Entfernen`}</Link>
+                    {permissions.value.canUpdate && (
+                      <button class="button" onClick$={() => {
+                        editMenuAccountGroupId.value = group.id;
+                        menuStatus.value = MenuStatus.Edit;
+                      }}>{_`Bearbeiten`}</button>
+                    )}
+                    {permissions.value.canDelete && (
+                      <Link class="button is-danger is-outlined" href={`/accountGroups/${group.id}/delete`}>{_`Entfernen`}</Link>
+                    )}
                   </p>
                 </td>
               </tr>

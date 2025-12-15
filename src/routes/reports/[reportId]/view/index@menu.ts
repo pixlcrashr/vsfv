@@ -1,6 +1,11 @@
 import { RequestHandler } from "@builder.io/qwik-city";
 import { Prisma } from "~/lib/prisma";
 import { Bytes } from "~/lib/prisma/generated/internal/prismaNamespace";
+import { requirePermission, Permissions } from "~/lib/auth";
+
+
+
+export const onRequest: RequestHandler = requirePermission(Permissions.REPORTS_READ);
 
 async function getReportData(reportId: string): Promise<Bytes> {
   const r = await Prisma.reports.findUnique({

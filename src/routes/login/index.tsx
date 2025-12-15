@@ -1,7 +1,17 @@
 import { component$ } from "@builder.io/qwik";
 import { useSignIn, useSession } from "../plugin@auth";
-import { useNavigate, DocumentHead } from "@builder.io/qwik-city";
+import { useNavigate, DocumentHead, RequestHandler } from "@builder.io/qwik-city";
 import { _ } from "compiled-i18n";
+
+
+
+export const onRequest: RequestHandler = ({ sharedMap, redirect }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  
+  if (userId) {
+    throw redirect(302, '/overview');
+  }
+}
 
 export default component$(() => {
   const signIn = useSignIn();

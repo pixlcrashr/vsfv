@@ -1,16 +1,19 @@
-import { $, component$, Resource, useOnDocument, useResource$, useSignal, useStore, useStylesScoped$, useTask$, useVisibleTask$ } from "@builder.io/qwik";
-import { routeLoader$, server$ } from "@builder.io/qwik-city";
+import { $, component$, useOnDocument, useSignal, useStylesScoped$, useVisibleTask$ } from "@builder.io/qwik";
+import { DocumentHead, routeLoader$, server$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { Decimal } from 'decimal.js/decimal';
 import { Prisma } from "~/lib/prisma";
-import { type accountsModel } from "../../lib/prisma/generated/models";
-import { Prisma as P } from "../../lib/prisma/generated/client";
+import { type accountsModel } from "~/lib/prisma/generated/models";
+import { Prisma as P } from "~/lib/prisma/generated/client";
 import styles from "./index@menu.scss?inline";
 import MatrixTable from "~/components/matrix/MatrixTable";
 import { buildTreeFromDB, Node as AccountNode, sortedFlatAccountIterator } from "~/lib/accounts/tree";
+import { requirePermission, Permissions } from "~/lib/auth";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.MATRIX_READ);
 
 export interface Item {
   accountId: string;
@@ -464,3 +467,8 @@ export default component$(() => {
     </main>
   </div>);
 });
+
+export const head: DocumentHead = {
+  title: _`VSFV | Matrix`,
+  meta: [],
+};

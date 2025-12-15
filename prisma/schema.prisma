@@ -257,6 +257,17 @@ model user_identities {
   @@index([provider], map: "idx_user_identities_provider")
 }
 
+model user_groups {
+  id          String   @id
+  name        String
+  description String   @default("")
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([name], map: "idx_user_groups_name")
+}
+
 model casbin_rule {
   id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ptype String

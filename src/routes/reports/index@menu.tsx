@@ -1,5 +1,5 @@
 import { component$, useComputed$, useSignal } from "@builder.io/qwik";
-import { Form, Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import { DocumentHead, Form, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -12,8 +12,12 @@ import { formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import { buildTreeFromDB, sortedFlatAccountIterator } from "~/lib/accounts/tree";
 import { generateReportPdf } from "~/lib/reports/generate";
+import { requirePermission, withPermission, Permissions, checkPermissions } from "~/lib/auth";
+import { _ } from "compiled-i18n";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.REPORTS_READ);
 
 export interface Report {
   id: string;
@@ -37,6 +41,14 @@ export const useGetReportsLoader = routeLoader$(async () => {
   return await getReports();
 });
 
+export const useReportPermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canCreate: Permissions.REPORTS_CREATE,
+    canDelete: Permissions.REPORTS_DELETE
+  });
+});
+
 export const DeleteReportSchema = {
   id: z.string().uuid()
 };
@@ -49,7 +61,12 @@ async function deleteReport(id: string): Promise<void> {
   });
 }
 
-export const useDeleteReportAction = routeAction$(async (values) => {
+export const useDeleteReportAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.REPORTS_DELETE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await deleteReport(values.id);
 
   return {
@@ -193,7 +210,12 @@ async function createReport(
   });
 }
 
-export const useCreateReportAction = routeAction$(async (values, { env }) => {
+export const useCreateReportAction = routeAction$(async (values, { env, sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.REPORTS_CREATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await createReport(
     env.get('HTML2PDF_URL') ?? '',
     values.reportTemplateId,
@@ -215,6 +237,7 @@ export const useCreateReportAction = routeAction$(async (values, { env }) => {
 export default component$(() => {
   const getLoader = useGetReportsLoader();
   const deleteAction = useDeleteReportAction();
+  const permissions = useReportPermissions();
 
   const getAccountsLoader = useGetAccountsLoader();
   const getBudgetsLoader = useGetBudgetsLoader();
@@ -231,20 +254,22 @@ export default component$(() => {
           <HeaderTitle>
             <nav class="breadcrumb" aria-label="breadcrumbs">
               <ul>
-                <li class="is-active"><Link href="#" aria-current="page">Berichte</Link></li>
+                <li class="is-active"><Link href="#" aria-current="page">{_`Berichte`}</Link></li>
               </ul>
             </nav>
           </HeaderTitle>
           <HeaderButtons>
-            <button class="button is-primary is-rounded" onClick$={() => menuStatus.value = MenuStatus.Create}>Erstellen</button>
-            <button class="button is-link is-rounded" onClick$={() => menuStatus.value = MenuStatus.Render}>Export</button>
+            {permissions.value.canCreate && (
+              <button class="button is-primary is-rounded" onClick$={() => menuStatus.value = MenuStatus.Create}>{_`Erstellen`}</button>
+            )}
+            <button class="button is-link is-rounded" onClick$={() => menuStatus.value = MenuStatus.Render}>{_`Export`}</button>
           </HeaderButtons>
         </Header>
         <table class="table is-narrow is-hoverable is-fullwidth">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Erstellt am</th>
+              <th>{_`Name`}</th>
+              <th>{_`Erstellt am`}</th>
               <th></th>
             </tr>
           </thead>
@@ -255,12 +280,13 @@ export default component$(() => {
                 <td class="is-vcentered">{formatDateShort(report.createdAt)}</td>
                 <td class="is-vcentered">
                   <div class="buttons are-small">
-                    <Link href={`/reports/${report.id}/view`} target="_blank" class="button">Anzeigen</Link>
-
-                    <Form action={deleteAction}>
-                      <input type="hidden" name="id" value={report.id} />
-                      <button type="submit" class="button is-danger is-outlined" disabled={deleteAction.isRunning}>Entfernen</button>
-                    </Form>
+                    <Link href={`/reports/${report.id}/view`} target="_blank" class="button">{_`Anzeigen`}</Link>
+                    {permissions.value.canDelete && (
+                      <Form action={deleteAction}>
+                        <input type="hidden" name="id" value={report.id} />
+                        <button type="submit" class="button is-danger is-outlined" disabled={deleteAction.isRunning}>{_`Entfernen`}</button>
+                      </Form>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -268,7 +294,7 @@ export default component$(() => {
             {getLoader.value.length === 0 && (
               <tr>
                 <td colSpan={6} class="has-text-centered">
-                  <p class="is-size-6">Keine Berichte gefunden</p>
+                  <p class="is-size-6">{_`Keine Berichte gefunden`}</p>
                 </td>
               </tr>
             )}
@@ -277,7 +303,7 @@ export default component$(() => {
       </MainContent>
       <MainContentMenu isShown={createMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          Bericht erstellen
+          {_`Bericht erstellen`}
         </MainContentMenuHeader>
 
         <CreateReportMenu
@@ -287,7 +313,7 @@ export default component$(() => {
       </MainContentMenu>
       <MainContentMenu isShown={renderMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          Bericht exportieren
+          {_`Bericht exportieren`}
         </MainContentMenuHeader>
 
         <RenderReportMenu
@@ -297,4 +323,9 @@ export default component$(() => {
       </MainContentMenu>
     </>
   );
-})
+});
+
+export const head: DocumentHead = {
+  title: _`VSFV | Berichte`,
+  meta: [],
+};

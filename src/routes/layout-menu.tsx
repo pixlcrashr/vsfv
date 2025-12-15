@@ -1,7 +1,8 @@
 import { component$, Slot } from "@builder.io/qwik";
 import MainLayout from "~/components/layout/MainLayout";
 import { guessLocale } from 'compiled-i18n';
-import { RequestHandler } from "@builder.io/qwik-city";
+import { RequestHandler, routeLoader$ } from "@builder.io/qwik-city";
+import { getAccessibleMenuItems, menuItems, menuItemsAdmin } from "~/lib/auth";
 
 export const onRequest: RequestHandler = async ({
 	query,
@@ -39,10 +40,35 @@ export const onRequest: RequestHandler = async ({
 	}
 }
 
+export const useAccessibleMenuItems = routeLoader$(async ({ sharedMap }) => {
+	const userId = sharedMap.get('userId') as string | undefined;
+	
+	if (!userId) {
+		return {
+			mainMenuItems: [],
+			adminMenuItems: []
+		};
+	}
+	
+	const [mainMenuItems, adminMenuItems] = await Promise.all([
+		getAccessibleMenuItems(userId, menuItems),
+		getAccessibleMenuItems(userId, menuItemsAdmin)
+	]);
+	
+	return {
+		mainMenuItems,
+		adminMenuItems
+	};
+});
+
 export default component$(() => {
+	const accessibleMenuItems = useAccessibleMenuItems();
   return (
     <>
-      <MainLayout>
+      <MainLayout 
+        mainMenuItems={accessibleMenuItems.value.mainMenuItems}
+        adminMenuItems={accessibleMenuItems.value.adminMenuItems}
+      >
         <Slot />
       </MainLayout>
     </>

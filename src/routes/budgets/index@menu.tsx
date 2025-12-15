@@ -1,5 +1,5 @@
 import { component$, useComputed$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeAction$, routeLoader$, zod$, z } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeAction$, routeLoader$, zod$, z, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
@@ -12,8 +12,11 @@ import { Prisma } from "~/lib/prisma";
 import styles from "./index@menu.scss?inline";
 import CreateBudgetMenu from "~/components/budgets/CreateBudgetMenu";
 import EditBudgetMenu from "~/components/budgets/EditBudgetMenu";
+import { requirePermission, withPermission, Permissions, checkPermissions } from "~/lib/auth";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.BUDGETS_READ);
 
 export const CreateBudgetSchema = {
   name: z.string(),
@@ -130,7 +133,12 @@ async function deleteRevision(id: string): Promise<void> {
   });
 }
 
-export const useCreateBudgetRouteAction = routeAction$(async (args) => {
+export const useCreateBudgetRouteAction = routeAction$(async (args, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.BUDGETS_CREATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await createBudget(args.name, args.description, new Date(args.startDate), new Date(args.endDate));
 
   return {
@@ -138,7 +146,12 @@ export const useCreateBudgetRouteAction = routeAction$(async (args) => {
   };
 }, zod$(CreateBudgetSchema));
 
-export const useSaveBudgetRouteAction = routeAction$(async (values) => {
+export const useSaveBudgetRouteAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.BUDGETS_UPDATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await saveBudget(
     values.id,
     values.name,
@@ -196,10 +209,20 @@ async function getBudgets(offset: number, limit: number): Promise<Budget[]> {
 
 export const useGetBudgets = routeLoader$<Budget[]>(async () => await getBudgets(0, 10));
 
+export const useBudgetPermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canCreate: Permissions.BUDGETS_CREATE,
+    canUpdate: Permissions.BUDGETS_UPDATE,
+    canDelete: Permissions.BUDGETS_DELETE
+  });
+});
+
 export default component$(() => {
   useStylesScoped$(styles);
 
   const budgets = useGetBudgets();
+  const permissions = useBudgetPermissions();
   const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
   const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
   const editMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Edit);
@@ -225,8 +248,10 @@ export default component$(() => {
             </nav>
           </HeaderTitle>
           <HeaderButtons>
-            <button class="button is-primary is-rounded"
-              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+            {permissions.value.canCreate && (
+              <button class="button is-primary is-rounded"
+                onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+            )}
           </HeaderButtons>
         </Header>
         <table class="table is-narrow is-hoverable is-striped">
@@ -251,11 +276,15 @@ export default component$(() => {
                 ]}>{budget.is_closed ? _`Geschlossen` : _`Offen`}</span></td>
                 <td class="is-vcentered">
                   <p class="buttons are-small is-right">
-                    <button class="button" onClick$={() => {
-                      editMenuBudgetId.value = budget.id;
-                      menuStatus.value = MenuStatus.Edit;
-                    }}>{_`Bearbeiten`}</button>
-                    <Link class="button is-danger is-outlined" href={`/budgets/${budget.id}/delete`}>{_`Entfernen`}</Link>
+                    {permissions.value.canUpdate && (
+                      <button class="button" onClick$={() => {
+                        editMenuBudgetId.value = budget.id;
+                        menuStatus.value = MenuStatus.Edit;
+                      }}>{_`Bearbeiten`}</button>
+                    )}
+                    {permissions.value.canDelete && (
+                      <Link class="button is-danger is-outlined" href={`/budgets/${budget.id}/delete`}>{_`Entfernen`}</Link>
+                    )}
                   </p>
                 </td>
               </tr>
@@ -291,6 +320,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: _`VSFV | Haushaltspläne`,
+  title: _`VSFV | Pläne`,
   meta: [],
 };

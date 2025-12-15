@@ -47,6 +47,31 @@ export async function removePermission(
   await enforcer.removePolicy(role, resource, action);
 }
 
+export async function deletePermission(
+  role: string,
+  resource: string,
+  action: string
+): Promise<boolean> {
+  const enforcer = await getEnforcer();
+  return await enforcer.removePolicy(role, resource, action);
+}
+
+export async function addRoleForUser(
+  userId: string,
+  role: string
+): Promise<boolean> {
+  const enforcer = await getEnforcer();
+  return await enforcer.addRoleForUser(userId, role);
+}
+
+export async function deleteRoleForUser(
+  userId: string,
+  role: string
+): Promise<boolean> {
+  const enforcer = await getEnforcer();
+  return await enforcer.deleteRoleForUser(userId, role);
+}
+
 export async function getUserPermissions(userId: string): Promise<Array<{ resource: string; action: string }>> {
   const enforcer = await getEnforcer();
   const roles = await getUserRoles(userId);
@@ -61,4 +86,19 @@ export async function getUserPermissions(userId: string): Promise<Array<{ resour
   }
   
   return permissions;
+}
+
+export async function deleteAllPermissionsForRole(role: string): Promise<boolean> {
+  const enforcer = await getEnforcer();
+  return await enforcer.deletePermissionsForUser(role);
+}
+
+export async function deleteAllRolesForRole(role: string): Promise<boolean> {
+  const enforcer = await getEnforcer();
+  return await enforcer.deleteRolesForUser(role);
+}
+
+export async function getUsersForRole(role: string): Promise<string[]> {
+  const enforcer = await getEnforcer();
+  return await enforcer.getUsersForRole(role);
 }

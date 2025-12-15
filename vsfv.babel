@@ -83,6 +83,21 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Abmelden</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Administration</name>
 								<description/>
 								<comment/>
@@ -113,7 +128,52 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Anzahl Benutzer</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Anzahl Konten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Anzeigen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Anzeigename der Gruppe (kann Duplikate enthalten)</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -158,6 +218,21 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>bearbeiten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Bearbeiten</name>
 								<description/>
 								<comment/>
@@ -173,7 +248,97 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Bearbeiten Sie die Gruppenbeschreibung und wählen Sie die Berechtigungen aus, die Mitglieder dieser Gruppe erhalten sollen.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Beginn</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Benutzer</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Benutzerinformationen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Berechtigungen erfolgreich gespeichert.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Bericht erstellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Bericht exportieren</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -219,6 +384,21 @@
 							</concept_node>
 							<concept_node>
 								<name>Beschreibung</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Beschreibung der Gruppe</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -398,7 +578,67 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Diese Gruppe ist eine Systemgruppe und kann nicht bearbeitet werden.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Diff.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>E-Mail</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Eindeutige ID für die Gruppe. Nur Buchstaben, Zahlen, Bindestriche und Unterstriche erlaubt</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Einstellungen</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -458,7 +698,97 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Erstellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Erstellen Sie eine neue Gruppe, um Berechtigungen zu organisieren. Nach dem Erstellen können Sie der Gruppe Berechtigungen zuweisen.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Erstellt am</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Es wurden keine Transaktionen gefunden.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Export</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Fehler beim Erstellen der Gruppe</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Fehler beim Speichern der Berechtigungen</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -504,6 +834,126 @@
 							</concept_node>
 							<concept_node>
 								<name>Gruppe</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppe bearbeiten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppe erfolgreich gelöscht.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppe erstellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppen-ID</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppenname</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppenzuweisungen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Gruppenzuweisungen erfolgreich gespeichert.</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -698,6 +1148,21 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>ID</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Ignorieren</name>
 								<description/>
 								<comment/>
@@ -758,6 +1223,21 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Importquelle hinzufügen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Importquellen</name>
 								<description/>
 								<comment/>
@@ -803,6 +1283,51 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Ist Abgeschlossen?</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Ja</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Jahr</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Journal</name>
 								<description/>
 								<comment/>
@@ -819,6 +1344,36 @@
 							</concept_node>
 							<concept_node>
 								<name>Journalbuchungen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Keine Berichte gefunden</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Keine Berichtsvorlagen gefunden</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -998,7 +1553,7 @@
 								</translations>
 							</concept_node>
 							<concept_node>
-								<name>Matrix</name>
+								<name>Löschen</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -1088,6 +1643,66 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Nein</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Neue Gruppe</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Neue Gruppe erstellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>nicht editierbar</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Nicht zugeordnet</name>
 								<description/>
 								<comment/>
@@ -1133,7 +1748,52 @@
 								</translations>
 							</concept_node>
 							<concept_node>
-								<name>Pläne</name>
+								<name>Optionale Beschreibung der Gruppe</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Periodenende</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Periodenstart</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Rechnungsjahre</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -1328,6 +1988,36 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>System</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Systemgruppe</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Trend</name>
 								<description/>
 								<comment/>
@@ -1373,7 +2063,7 @@
 								</translations>
 							</concept_node>
 							<concept_node>
-								<name>VSFV | Haushaltskonten</name>
+								<name>VSFV | Benutzer</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -1388,7 +2078,232 @@
 								</translations>
 							</concept_node>
 							<concept_node>
-								<name>VSFV | Haushaltspläne</name>
+								<name>VSFV | Benutzer bearbeiten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Berichte</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Berichtsvorlage bearbeiten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Berichtsvorlage erstellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Berichtsvorlagen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Einstellungen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Gruppe bearbeiten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Gruppe erstellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Gruppen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Importquelle bearbeiten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Importquellen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Journal</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Journal Importieren</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Konten</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Kontengruppe</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Kontengruppe entfernen</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -1404,6 +2319,81 @@
 							</concept_node>
 							<concept_node>
 								<name>VSFV | Kontengruppen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Konto entfernen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Login</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Matrix</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Plan entfernen</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>VSFV | Pläne</name>
 								<description/>
 								<comment/>
 								<translations>
@@ -1448,7 +2438,67 @@
 								</translations>
 							</concept_node>
 							<concept_node>
+								<name>Weisen Sie diesem Benutzer Gruppen zu, um Berechtigungen zu vergeben.</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>z.B. editors</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>z.B. Redakteure</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
 								<name>Zugeordnet</name>
+								<description/>
+								<comment/>
+								<translations>
+									<translation>
+										<language>de-DE</language>
+										<approved>false</approved>
+									</translation>
+									<translation>
+										<language>en-GB</language>
+										<approved>false</approved>
+									</translation>
+								</translations>
+							</concept_node>
+							<concept_node>
+								<name>Zurück</name>
 								<description/>
 								<comment/>
 								<translations>

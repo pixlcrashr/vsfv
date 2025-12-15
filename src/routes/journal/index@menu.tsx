@@ -1,5 +1,5 @@
 import { component$, Resource, useResource$, useSignal } from "@builder.io/qwik";
-import { Link, server$ } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeLoader$, server$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
@@ -7,7 +7,11 @@ import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
 import { formatCurrency, formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
+import { requirePermission, Permissions, checkPermissions } from "~/lib/auth";
 
+
+
+export const onRequest: RequestHandler = requirePermission(Permissions.JOURNAL_READ);
 
 export interface Transaction {
   id: string;
@@ -63,7 +67,15 @@ export const getTransactionsServer = server$(async ({ page, size }: { page: numb
   };
 });
 
+export const useJournalPermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canImport: Permissions.JOURNAL_IMPORT
+  });
+});
+
 export default component$(() => {
+  const permissions = useJournalPermissions();
   const page = useSignal<{
     page: number;
     size: number;
@@ -92,7 +104,9 @@ export default component$(() => {
           </nav>
         </HeaderTitle>
         <HeaderButtons>
-          <Link href="/journal/import" class="button is-primary is-rounded">{_`Importieren...`}</Link>
+          {permissions.value.canImport && (
+            <Link href="/journal/import" class="button is-primary is-rounded">{_`Importieren...`}</Link>
+          )}
         </HeaderButtons>
       </Header>
       <Resource value={transactionsResource} onResolved={(res) => {
@@ -180,4 +194,9 @@ export default component$(() => {
       }} />
     </MainContent>
   </>);
-})
+});
+
+export const head: DocumentHead = {
+  title: _`VSFV | Journal`,
+  meta: [],
+};

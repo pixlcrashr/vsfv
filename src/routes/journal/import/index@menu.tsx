@@ -1,5 +1,5 @@
 import { component$, useSignal } from "@builder.io/qwik";
-import { Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$ } from "@builder.io/qwik-city";
+import { DocumentHead, Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Decimal from "decimal.js";
 import Header from "~/components/layout/Header";
@@ -12,8 +12,11 @@ import { parseDatevTransactions } from "~/lib/datev/parser";
 import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 import { Transaction } from "~/lib/transaction";
+import { requirePermission, withPermission, Permissions } from "~/lib/auth";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.JOURNAL_IMPORT);
 
 export const UploadTransactionsSchema = {
   sourceId: z.string().uuid(),
@@ -37,7 +40,12 @@ function transactionToCustomId(
   return `v1:${bookedAt.toISOString().slice(0, 10)}:${receiptFrom.toISOString().slice(0, 10)}:${escapeCustomIdDelimiter(creditAccount)}:${escapeCustomIdDelimiter(debitAccount)}:${amount.toString()}:${escapeCustomIdDelimiter(`${reference}`)}:${escapeCustomIdDelimiter(description)}`;
 }
 
-export const useUploadTransactionsRouteAction = routeAction$(async (args) => {
+export const useUploadTransactionsRouteAction = routeAction$(async (args, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.JOURNAL_IMPORT);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   if (args.file) {
     const source = await Prisma.import_sources.findFirst({
       where: {
@@ -123,7 +131,12 @@ export const ImportTransactionsSchema = {
   }))
 };
 
-export const useImportTransactionsRouteAction = routeAction$(async (args) => {
+export const useImportTransactionsRouteAction = routeAction$(async (args, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.JOURNAL_IMPORT);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   if (args.sourceId === '') {
     return {
       success: false
@@ -414,3 +427,8 @@ export default component$(() => {
     </MainContentLarge >
   );
 });
+
+export const head: DocumentHead = {
+  title: _`VSFV | Journal Importieren`,
+  meta: [],
+};

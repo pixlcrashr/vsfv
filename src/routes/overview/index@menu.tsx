@@ -1,10 +1,15 @@
 import { component$, useSignal, useVisibleTask$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeLoader$ } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeLoader$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
 import { Prisma } from "~/lib/prisma";
+import { requirePermission, Permissions } from "~/lib/auth";
+
+
+
+export const onRequest: RequestHandler = requirePermission(Permissions.OVERVIEW_READ);
 
 interface MonthPoint {
   label: string;

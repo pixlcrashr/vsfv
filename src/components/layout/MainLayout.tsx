@@ -4,50 +4,14 @@ import { _ } from 'compiled-i18n';
 import MainContentContainer from "./MainContentContainer";
 import styles from "./MainLayout.scss?inline";
 import { useSession, useSignOut } from "~/routes/plugin@auth";
+import type { MenuItem } from "~/lib/auth";
 
-const menuItems = [
-  {
-    name: _`Übersicht`,
-    path: '/overview'
-  },
-  {
-    name: _`Matrix`,
-    path: '/matrix'
-  },
-  {
-    name: _`Pläne`,
-    path: '/budgets'
-  },
-  {
-    name: _`Konten`,
-    path: '/accounts'
-  },
-  {
-    name: _`Kontengruppen`,
-    path: '/accountGroups'
-  },
-  {
-    name: _`Journal`,
-    path: '/journal'
-  },
-  {
-    name: _`Berichte`,
-    path: '/reports'
-  },
-  {
-    name: _`Berichtsvorlagen`,
-    path: '/reportTemplates'
-  }
-];
+interface MainLayoutProps {
+  mainMenuItems: MenuItem[];
+  adminMenuItems: MenuItem[];
+}
 
-const menuItemsAdmin = [
-  {
-    name: _`Importquellen`,
-    path: '/admin/importSources'
-  }
-];
-
-export default component$(() => {
+export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) => {
   useStylesScoped$(styles);
   const location = useLocation();
   const session = useSession();
@@ -67,17 +31,23 @@ export default component$(() => {
         </div>
 
         <aside class="menu p-4">
-          <ul class="menu-list">
-            {menuItems.map(({ name, path }) => <li key={name}>
-              <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
-            </li>)}
-          </ul>
-          <p class="menu-label">{_`Administration`}</p>
-          <ul class="menu-list">
-            {menuItemsAdmin.map(({ name, path }) => <li key={name}>
-              <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
-            </li>)}
-          </ul>
+          {mainMenuItems.length > 0 && (
+            <ul class="menu-list">
+              {mainMenuItems.map(({ name, path }) => <li key={name}>
+                <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
+              </li>)}
+            </ul>
+          )}
+          {adminMenuItems.length > 0 && (
+            <>
+              <p class="menu-label">{_`Administration`}</p>
+              <ul class="menu-list">
+                {adminMenuItems.map(({ name, path }) => <li key={name}>
+                  <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
+                </li>)}
+              </ul>
+            </>
+          )}
         </aside>
 
         <footer class="nav-menu-footer">

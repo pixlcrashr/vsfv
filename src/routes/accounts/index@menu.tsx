@@ -1,5 +1,5 @@
 import { component$, Signal, useComputed$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";
 import EditAccountMenu from "~/components/accounts/EditAccountMenu";
@@ -11,8 +11,13 @@ import MainContentMenu from "~/components/layout/MainContentMenu";
 import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { Prisma } from "~/lib/prisma";
 import { accountsModel } from "~/lib/prisma/generated/models";
-import { Prisma as P } from "../../lib/prisma/generated/client";
+import { Prisma as P } from "~/lib/prisma/generated/client";
 import styles from "./index@menu.scss?inline";
+import { requirePermission, withPermission, Permissions, checkPermissions } from "~/lib/auth";
+
+
+
+export const onRequest: RequestHandler = requirePermission(Permissions.ACCOUNTS_READ);
 
 export const CreateAccountActionSchema = {
   name: z.string().min(1),
@@ -31,7 +36,12 @@ async function createAccount(parentAccountId: string | null, name: string, code:
   });
 }
 
-export const useCreateAccountAction = routeAction$(async (values) => {
+export const useCreateAccountAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.ACCOUNTS_CREATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await createAccount(
     (values.parentAccountId === '' || !values.parentAccountId) ? null : values.parentAccountId,
     values.name,
@@ -84,7 +94,12 @@ SELECT EXISTS (SELECT 1 FROM ancestors WHERE id = $2::uuid) AS has_cycle`;
   });
 }
 
-export const useSaveAccountAction = routeAction$(async (values) => {
+export const useSaveAccountAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.ACCOUNTS_UPDATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await saveAccount(
     values.id,
     values.name,
@@ -141,11 +156,22 @@ async function getAccounts(): Promise<Account[]> {
 
 export const useGetAccounts = routeLoader$<Account[]>(async () => await getAccounts());
 
+export const useAccountPermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canCreate: Permissions.ACCOUNTS_CREATE,
+    canUpdate: Permissions.ACCOUNTS_UPDATE,
+    canDelete: Permissions.ACCOUNTS_DELETE
+  });
+});
+
 export interface AccountRowProps {
   account: Account;
   maxDepth: number;
   editMenuAccountId: Signal<string>;
   menuStatus: Signal<MenuStatus>;
+  canUpdate: boolean;
+  canDelete: boolean;
 }
 
 export const AccountRow = component$<AccountRowProps>((props) => {
@@ -158,16 +184,22 @@ export const AccountRow = component$<AccountRowProps>((props) => {
         <td class="is-vcentered">{props.account.name}</td>
         <td class="is-vcentered">
           <div class="buttons are-small is-flex-wrap-nowrap is-right">
-            <button class="button" onClick$={() => {
-              props.editMenuAccountId.value = props.account.id;
-              props.menuStatus.value = MenuStatus.Edit;
-            }}>{_`Bearbeiten`}</button>
-            <button class="button is-warning is-outlined">{_`Archivieren`}</button>
-            <Link class="button is-danger is-outlined" href={`/accounts/${props.account.id}/delete`}>{_`Entfernen`}</Link>
+            {props.canUpdate && (
+              <button class="button" onClick$={() => {
+                props.editMenuAccountId.value = props.account.id;
+                props.menuStatus.value = MenuStatus.Edit;
+              }}>{_`Bearbeiten`}</button>
+            )}
+            {props.canUpdate && (
+              <button class="button is-warning is-outlined">{_`Archivieren`}</button>
+            )}
+            {props.canDelete && (
+              <Link class="button is-danger is-outlined" href={`/accounts/${props.account.id}/delete`}>{_`Entfernen`}</Link>
+            )}
           </div>
         </td>
       </tr>
-      {props.account.children.map(x => <AccountRow editMenuAccountId={props.editMenuAccountId} menuStatus={props.menuStatus} maxDepth={props.maxDepth} account={x} />)}
+      {props.account.children.map(x => <AccountRow canUpdate={props.canUpdate} canDelete={props.canDelete} editMenuAccountId={props.editMenuAccountId} menuStatus={props.menuStatus} maxDepth={props.maxDepth} account={x} />)}
     </>
   );
 });
@@ -176,6 +208,7 @@ export default component$(() => {
   useStylesScoped$(styles);
 
   const accounts = useGetAccounts();
+  const permissions = useAccountPermissions();
   const maxDepth = useComputed$(() => {
     const traverseDepth = (accounts: Account[]): number => {
       return accounts.reduce((max, account) => Math.max(max, account.depth, traverseDepth(account.children)), 0);
@@ -216,8 +249,10 @@ export default component$(() => {
             </nav>
           </HeaderTitle>
           <HeaderButtons>
-            <button class="button is-primary is-rounded"
-              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+            {permissions.value.canCreate && (
+              <button class="button is-primary is-rounded"
+                onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+            )}
           </HeaderButtons>
         </Header>
         <table class="table is-hoverable is-striped is-fullwidth is-narrow">
@@ -229,7 +264,7 @@ export default component$(() => {
             </tr>
           </thead>
           <tbody>
-            {accounts.value.map((account) => <AccountRow editMenuAccountId={editMenuAccountId} menuStatus={menuStatus} maxDepth={maxDepth.value} account={account} />)}
+            {accounts.value.map((account) => <AccountRow canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} editMenuAccountId={editMenuAccountId} menuStatus={menuStatus} maxDepth={maxDepth.value} account={account} />)}
           </tbody>
         </table>
       </MainContent>
@@ -252,6 +287,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: _`VSFV | Haushaltskonten`,
+  title: _`VSFV | Konten`,
   meta: [],
 };

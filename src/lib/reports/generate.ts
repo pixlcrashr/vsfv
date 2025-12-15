@@ -176,7 +176,6 @@ GROUP BY f1.budget_id, f1.assigned_account_id`;
   });
 
   const tree = buildTreeFromDB(allAccounts);
-  console.log(tree.children);
 
   const sumActualChildren = (node: AccountNode, budgetId: string): Decimal => {
     let sum = new Decimal(0);

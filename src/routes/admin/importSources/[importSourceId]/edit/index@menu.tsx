@@ -1,12 +1,16 @@
 import { component$ } from "@builder.io/qwik";
-import { Form, Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import { DocumentHead, Form, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
 import { formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
+import { requirePermission, withPermission, Permissions } from "~/lib/auth";
+import { _ } from "compiled-i18n";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.IMPORT_SOURCES_UPDATE);
 
 export interface TransactionAccount {
   id: string;
@@ -153,7 +157,12 @@ async function saveImportSourceTransactionAccounts(
   );
 }
 
-export const useSaveImportSourceAction = routeAction$(async (args) => {
+export const useSaveImportSourceAction = routeAction$(async (args, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.IMPORT_SOURCES_UPDATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await saveImportSource(
     args.id,
     args.name,
@@ -187,8 +196,8 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li><Link href="/admin/importSources">Importquellen</Link></li>
-              <li class="is-active"><Link href="#" aria-current="page">{getImportLoader.value.name} bearbeiten</Link></li>
+              <li><Link href="/admin/importSources">{_`Importquellen`}</Link></li>
+              <li class="is-active"><Link href="#" aria-current="page">{getImportLoader.value.name} {_`bearbeiten`}</Link></li>
             </ul>
           </nav>
         </HeaderTitle>
@@ -197,28 +206,28 @@ export default component$(() => {
       <Form action={saveAction}>
         <input type="hidden" name="id" value={getImportLoader.value.id} />
         <div class="field">
-          <label class="label">Name</label>
+          <label class="label">{_`Name`}</label>
           <div class="control">
             <input class="input" type="text" name="name" value={getImportLoader.value.name} />
           </div>
         </div>
 
-        <p>Periodenstart: {formatDateShort(periodStart)}, Periodenende: {formatDateShort(periodEnd)}</p>
+        <p>{_`Periodenstart`}: {formatDateShort(periodStart)}, {_`Periodenende`}: {formatDateShort(periodEnd)}</p>
 
         <div class="field">
-          <label class="label">Beschreibung</label>
+          <label class="label">{_`Beschreibung`}</label>
           <div class="control">
             <textarea rows={4} class="textarea" name="description" value={getImportLoader.value.description}></textarea>
           </div>
         </div>
 
         <div class="field">
-          <label class="label">Rechnungsjahre</label>
+          <label class="label">{_`Rechnungsjahre`}</label>
           <table class="table is-hoverable is-striped is-fullwidth is-narrow">
             <thead>
               <tr>
-                <th>Jahr</th>
-                <th>Ist Abgeschlossen?</th>
+                <th>{_`Jahr`}</th>
+                <th>{_`Ist Abgeschlossen?`}</th>
               </tr>
             </thead>
             <tbody>
@@ -228,20 +237,20 @@ export default component$(() => {
                   <input hidden type="text" name={`periods.${i}.isClosed`} value={period.isClosed ? 'true' : 'false'} />
                   {period.year}
                 </td>
-                <td class="is-vcentered">{period.isClosed ? 'Ja' : 'Nein'}</td>
+                <td class="is-vcentered">{period.isClosed ? _`Ja` : _`Nein`}</td>
               </tr>)}
             </tbody>
           </table>
         </div>
         
         <div class="field">
-          <label class="label">Konten</label>
+          <label class="label">{_`Konten`}</label>
           <table class="table is-hoverable is-striped is-fullwidth is-narrow">
               <thead>
                 <tr>
-                  <th>Nr.</th>
-                  <th>Name</th>
-                  <th>Beschreibung</th>
+                  <th>{_`Nr.`}</th>
+                  <th>{_`Name`}</th>
+                  <th>{_`Beschreibung`}</th>
                 </tr>
               </thead>
               <tbody>
@@ -271,9 +280,14 @@ export default component$(() => {
           </table>
         </div>
         <div class="buttons is-right">
-          <button class="button is-warning" type="submit">Speichern</button>
+          <button class="button is-warning" type="submit">{_`Speichern`}</button>
         </div>
       </Form>
     </MainContent>
   </>
-})
+});
+
+export const head: DocumentHead = {
+  title: _`VSFV | Importquelle bearbeiten`,
+  meta: [],
+};

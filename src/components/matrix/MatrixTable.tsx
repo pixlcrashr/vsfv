@@ -5,6 +5,8 @@ import TargetValueInput from "./TargetValueInput";
 import { Decimal } from 'decimal.js/decimal';
 import styles from "./MatrixTable.scss?inline";
 
+
+
 export interface MatrixTableProps {
   showDescription?: Signal<boolean>;
   showTarget?: Signal<boolean>;
@@ -39,7 +41,6 @@ function propagateMatrixValues(
   parentAccountId: string | null,
   v: Decimal,
 ) {
-  console.log(revisionId, parentAccountId, v);
   if (parentAccountId === null) {
     return;
   }

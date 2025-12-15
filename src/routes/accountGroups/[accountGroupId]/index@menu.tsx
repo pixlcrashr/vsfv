@@ -1,5 +1,5 @@
 import { component$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeLoader$, useNavigate, useLocation } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeLoader$, useNavigate, useLocation, type RequestHandler } from "@builder.io/qwik-city";
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { Decimal } from "decimal.js/decimal";
 import { buildTreeFromDB, Node as AccountNode } from "~/lib/accounts/tree";
@@ -9,6 +9,12 @@ import MainContent from "~/components/layout/MainContent";
 import { formatCurrency, formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";
+import { requirePermission, Permissions } from "~/lib/auth";
+import { _ } from "compiled-i18n";
+
+
+
+export const onRequest: RequestHandler = requirePermission(Permissions.ACCOUNT_GROUPS_READ);
 
 interface AccountAssignment {
   id: string;
@@ -424,6 +430,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: "VSFV | Kontengruppe",
+  title: _`VSFV | Kontengruppe`,
   meta: [],
 };

@@ -1,12 +1,16 @@
 import { component$, useSignal } from "@builder.io/qwik";
-import { Link, routeAction$, routeLoader$, useNavigate, z, zod$ } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeAction$, routeLoader$, useNavigate, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContentLarge from "~/components/layout/MainContentLarge";
 import PreviewEditor from "~/components/reports/PreviewEditor";
 import { Prisma } from "~/lib/prisma";
+import { requirePermission, withPermission, Permissions } from "~/lib/auth";
+import { _ } from "compiled-i18n";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.REPORT_TEMPLATES_UPDATE);
 
 export interface ReportTemplate {
   id: string;
@@ -59,7 +63,12 @@ async function saveReportTemplate(id: string, name: string, template: string): P
   });
 }
 
-export const useSaveReportTemplateAction = routeAction$(async (values) => {
+export const useSaveReportTemplateAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.REPORT_TEMPLATES_UPDATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await saveReportTemplate(values.id, values.name, values.template);
 
   return {
@@ -82,14 +91,14 @@ export default component$(() => {
           <HeaderTitle>
             <nav class="breadcrumb" aria-label="breadcrumbs">
               <ul>
-                <li><Link href="/reportTemplates">Berichtsvorlagen</Link></li>
-                <li class="is-active"><Link href="#" aria-current="page">{getLoader.value.name} Bearbeiten</Link></li>
+                <li><Link href="/reportTemplates">{_`Berichtsvorlagen`}</Link></li>
+                <li class="is-active"><Link href="#" aria-current="page">{getLoader.value.name} {_`Bearbeiten`}</Link></li>
               </ul>
             </nav>
           </HeaderTitle>
         </Header>
         <div class="field">
-          <label class="label">Name</label>
+          <label class="label">{_`Name`}</label>
           <div class="control">
             <input class="input" disabled={saveAction.isRunning} value={nameValue.value} onChange$={(event, elem) => nameValue.value = elem.value} type="text" />
           </div>
@@ -102,9 +111,14 @@ export default component$(() => {
                 name: nameValue.value,
                 template: editorValue.value
               });
-          }}>Speichern</button>
+          }}>{_`Speichern`}</button>
         </div>
       </MainContentLarge>
     </>
   );
-})
+});
+
+export const head: DocumentHead = {
+  title: _`VSFV | Berichtsvorlage bearbeiten`,
+  meta: [],
+};

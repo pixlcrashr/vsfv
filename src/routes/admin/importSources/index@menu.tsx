@@ -1,5 +1,5 @@
 import { component$, useComputed$, useSignal } from "@builder.io/qwik";
-import { Link, routeAction$, routeLoader$, z, zod$ } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import CreateImportSourceMenu from "~/components/importSources/CreateImportSourceMenu";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
@@ -9,6 +9,10 @@ import MainContentMenu from "~/components/layout/MainContentMenu";
 import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
+import { requirePermission, withPermission, Permissions, checkPermissions } from "~/lib/auth";
+import { _ } from "compiled-i18n";
+
+export const onRequest: RequestHandler = requirePermission(Permissions.IMPORT_SOURCES_READ);
 
 export interface ImportSource {
   id: string;
@@ -32,6 +36,14 @@ async function getImportSources(): Promise<ImportSource[]> {
 
 export const useGetImportSourcesLoader = routeLoader$(async () => {
   return await getImportSources();
+});
+
+export const useImportSourcePermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canCreate: Permissions.IMPORT_SOURCES_CREATE,
+    canUpdate: Permissions.IMPORT_SOURCES_UPDATE
+  });
 });
 
 enum MenuStatus {
@@ -65,7 +77,12 @@ async function createImportSource(
   });
 }
 
-export const useCreateImportSourceAction = routeAction$(async (args) => {
+export const useCreateImportSourceAction = routeAction$(async (args, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.IMPORT_SOURCES_CREATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await createImportSource(
     args.name,
     args.description,
@@ -79,6 +96,7 @@ export const useCreateImportSourceAction = routeAction$(async (args) => {
 
 export default component$(() => {
   const importSources = useGetImportSourcesLoader();
+  const permissions = useImportSourcePermissions();
   
   const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
   const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
@@ -89,22 +107,24 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li class="is-active"><Link href="#" aria-current="page">Importquellen</Link></li>
+                <li class="is-active"><Link href="#" aria-current="page">{_`Importquellen`}</Link></li>
             </ul>
           </nav>
         </HeaderTitle>
         <HeaderButtons>
-          <button class="button is-primary is-rounded"
-            onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>Hinzufügen</button>
+          {permissions.value.canCreate && (
+            <button class="button is-primary is-rounded"
+              onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>{_`Hinzufügen`}</button>
+          )}
         </HeaderButtons>
       </Header>
 
       <table class="table is-hoverable is-fullwidth is-narrow">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Beschreibung</th>
-            <th>Erstellt am</th>
+            <th>{_`Name`}</th>
+            <th>{_`Beschreibung`}</th>
+            <th>{_`Erstellt am`}</th>
             <th></th>
           </tr>
         </thead>
@@ -115,7 +135,9 @@ export default component$(() => {
             <td>{formatDateShort(importSource.created_at)}</td>
             <td>
               <div class="buttons are-small is-right">
-                <Link class="button" href={`/admin/importSources/${importSource.id}/edit`}>Bearbeiten</Link>
+                {permissions.value.canUpdate && (
+                  <Link class="button" href={`/admin/importSources/${importSource.id}/edit`}>{_`Bearbeiten`}</Link>
+                )}
               </div>
             </td>
           </tr>)}
@@ -125,10 +147,15 @@ export default component$(() => {
     
     <MainContentMenu isShown={createMenuShown}>
       <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-        Importquelle hinzufügen
+        {_`Importquelle hinzufügen`}
       </MainContentMenuHeader>
 
       <CreateImportSourceMenu />
     </MainContentMenu>
   </>;
-})
+});
+
+export const head: DocumentHead = {
+  title: _`VSFV | Importquellen`,
+  meta: [],
+};

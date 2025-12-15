@@ -1,26 +1,29 @@
 import { type RequestHandler } from "@builder.io/qwik-city";
 import { generateReportPdf, generateReportHtml } from "~/lib/reports/generate";
+import { requirePermission, Permissions } from "~/lib/auth";
+
+export const onRequest: RequestHandler = requirePermission(Permissions.REPORTS_READ);
 
 
 
 export const onPost: RequestHandler = async ({ send, env, request }) => {
+  const formData = await request.formData();
+
+  const reportTemplateId = formData.get("reportTemplateId");
+  const selectedBudgetIds = formData.getAll("selectedBudgetIds[]").map(String);
+  const selectedAccountIds = formData.getAll("selectedAccountIds[]").map(String);
+  const exportType = formData.get("exportType") ?? "pdf";
+
+  if (!reportTemplateId || selectedBudgetIds.length === 0 || selectedAccountIds.length === 0) {
+    send(new Response("Bad Request", {
+      status: 400
+    }));
+    return;
+  }
+
+  const checkboxEnabled = (name: string) => formData.get(name) === "on";
+
   try {
-    const formData = await request.formData();
-
-    const reportTemplateId = formData.get("reportTemplateId");
-    const selectedBudgetIds = formData.getAll("selectedBudgetIds[]").map(String);
-    const selectedAccountIds = formData.getAll("selectedAccountIds[]").map(String);
-    const exportType = formData.get("exportType") ?? "pdf";
-
-    if (!reportTemplateId || selectedBudgetIds.length === 0 || selectedAccountIds.length === 0) {
-      send(new Response("Bad Request", {
-        status: 400
-      }));
-      return;
-    }
-
-    const checkboxEnabled = (name: string) => formData.get(name) === "on";
-
     switch (exportType) {
       case 'html': {
         const html = await generateReportHtml(
@@ -41,8 +44,8 @@ export const onPost: RequestHandler = async ({ send, env, request }) => {
           status: 200,
           headers
         }));
-        break;
-      };
+        return;
+      }
       case 'pdf': {
         const pdf = await generateReportPdf(
           env.get("HTML2PDF_URL") ?? "",
@@ -63,17 +66,18 @@ export const onPost: RequestHandler = async ({ send, env, request }) => {
           status: 200,
           headers
         }));
-        break;
-      };
+        return;
+      }
       default: {
         send(new Response("Bad Request", {
           status: 400
         }));
         return;
-      };
+      }
     }
   } catch (e) {
-    send(new Response("", {
+    console.error("Error generating report:", e);
+    send(new Response("Internal Server Error", {
       status: 500
     }));
   }

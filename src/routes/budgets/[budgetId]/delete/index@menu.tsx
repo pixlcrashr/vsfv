@@ -1,5 +1,5 @@
 import { $, component$ } from "@builder.io/qwik";
-import { Form, Link, routeAction$, routeLoader$ } from "@builder.io/qwik-city";
+import { DocumentHead, Form, Link, routeAction$, routeLoader$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
@@ -7,8 +7,11 @@ import HeaderTitle from "~/components/layout/HeaderTitle";
 import { Prisma } from "~/lib/prisma";
 import { useMinLoading } from "~/lib/delay";
 import MainContent from "~/components/layout/MainContent";
+import { requirePermission, withPermission, Permissions } from "~/lib/auth";
 
 
+
+export const onRequest: RequestHandler = requirePermission(Permissions.BUDGETS_DELETE);
 
 interface Budget {
   id: string;
@@ -63,6 +66,11 @@ export const useGetBudget = routeLoader$<Budget>(async (req) => {
 });
 
 export const useDeleteBudgetAction = routeAction$(async (_, req) => {
+  const auth = await withPermission(req.sharedMap, req.fail, Permissions.BUDGETS_DELETE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
   await deleteBudget(req.params.budgetId);
 
   throw req.redirect(307, "/budgets");
@@ -107,4 +115,9 @@ export default component$(() => {
       </MainContent>
     </>
   );
-})
+});
+
+export const head: DocumentHead = {
+  title: _`VSFV | Plan entfernen`,
+  meta: [],
+};
