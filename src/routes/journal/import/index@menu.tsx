@@ -24,8 +24,14 @@ export const UploadTransactionsSchema = {
   file: z.any()
 };
 
-function escapeCustomIdDelimiter(s: string): string {
-  return s.replace(/:/g, '\\:');
+function escapeCustomIdDelimiter(s?: string): string {
+  return s?.replace(/:/g, '\\:') ?? '';
+}
+
+function parseDecimalValue(value: string): number {
+  const normalized = value.replace(',', '.');
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? 0 : parsed;
 }
 
 function transactionToCustomId(
@@ -78,7 +84,7 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
             x.creditAccount,
             x.debitAccount,
             x.amount,
-            `${x.receiptNumberGroup}${x.receiptNumber}`,
+            `${x.receiptNumberGroup ?? ''}${x.receiptNumber ?? ''}`,
             x.description
           ))
         }
@@ -127,7 +133,10 @@ export const ImportTransactionsSchema = {
     reference: z.string(),
     debitAccount: z.string().min(1),
     creditAccount: z.string().min(1),
-    accountId: z.string().optional()
+    accountAssignments: z.array(z.object({
+      accountId: z.string(),
+      value: z.string()
+    })).optional()
   }))
 };
 
@@ -181,9 +190,21 @@ export const useImportTransactionsRouteAction = routeAction$(async (args, { shar
   }
 
   for (const t of args.transactions) {
-    const accountId = t.accountId === undefined || t.accountId === 'ignore' ? null : t.accountId;
+    const assignments = t.accountAssignments ?? [];
+    const transactionAmount = new Decimal(t.amount);
+    
+    if (assignments.length > 0) {
+      const totalAssigned = assignments.reduce((sum, a) => sum.plus(new Decimal(a.value)), new Decimal(0));
+      
+      if (!totalAssigned.equals(transactionAmount)) {
+        return fail(400, {
+          success: false,
+          message: `Transaction assignments must total to ${transactionAmount.toString()}, but got ${totalAssigned.toString()}`
+        });
+      }
+    }
 
-    await Prisma.transactions.create({
+    const transaction = await Prisma.transactions.create({
       data: {
         amount: P.Decimal(t.amount),
         booked_at: new Date(t.bookedAt),
@@ -201,9 +222,21 @@ export const useImportTransactionsRouteAction = routeAction$(async (args, { shar
           t.reference,
           t.description
         ),
-        assigned_account_id: accountId
+        assigned_account_id: null
       }
     });
+
+    for (const assignment of assignments) {
+      if (assignment.accountId !== 'ignore' && assignment.accountId !== '') {
+        await Prisma.transaction_account_assignments.create({
+          data: {
+            transaction_id: transaction.id,
+            account_id: assignment.accountId,
+            value: P.Decimal(assignment.value)
+          }
+        });
+      }
+    }
   }
 
   return {
@@ -279,6 +312,8 @@ export default component$(() => {
     debitAccount: string;
     creditAccount: string;
   }[] | null>(null);
+  
+  const accountAssignments = useSignal<Map<number, Array<{accountId: string, value: string}>>>(new Map());
 
   return (
     <MainContentLarge>
@@ -376,52 +411,146 @@ export default component$(() => {
               <th>{_`Habenkonto`}</th>
               <th>{_`Buchungstext`}</th>
               <th>{_`Referenz`}</th>
-              <th>{_`Haushaltskonto`}</th>
+              <th>{_`Haushaltskonto-Zuweisungen`}</th>
             </tr>
           </thead>
           <tbody>
-            {transactions.value.map((x, i) => <tr key={i}>
-              <td class="is-vcentered">
-                <input hidden name={`transactions.${i}.bookedAt`} type="date" value={formatDateInputField(x.bookedAt)} />
-                <input hidden name={`transactions.${i}.receiptFrom`} type="data" value={formatDateInputField(x.receiptFrom)} />
+            {transactions.value.map((x, i) => {
+              const assignments = accountAssignments.value.get(i) ?? [{accountId: '', value: x.amount.toString()}];
+              const totalAssigned = assignments.reduce((sum, a) => {
+                return sum + parseDecimalValue(a.value);
+              }, 0);
+              const transactionAmount = parseFloat(x.amount.toString());
+              const isValid = Math.abs(totalAssigned - transactionAmount) < 0.01;
+              
+              return <tr key={i}>
+                <td class="is-vcentered">
+                  <input hidden name={`transactions.${i}.bookedAt`} type="date" value={formatDateInputField(x.bookedAt)} />
+                  <input hidden name={`transactions.${i}.receiptFrom`} type="data" value={formatDateInputField(x.receiptFrom)} />
 
-                {formatDateShort(x.bookedAt)}
-              </td>
-              <td class="is-vcentered has-text-right">
-                <input hidden name={`transactions.${i}.amount`} value={x.amount.toString()} />
-                {formatCurrency(x.amount.toString())}
-              </td>
-              <td class="is-vcentered has-text-right">
-                <input hidden name={`transactions.${i}.debitAccount`} value={x.debitAccount} />
-                {x.debitAccount}
-              </td>
-              <td class="is-vcentered has-text-right">
-                <input hidden name={`transactions.${i}.creditAccount`} value={x.creditAccount} />
-                {x.creditAccount}
-              </td>
-              <td class="is-vcentered">
-                <input hidden name={`transactions.${i}.description`} value={x.description} />
-                {x.description}
-              </td>
-              <td class="is-vcentered">
-                <input hidden name={`transactions.${i}.reference`} value={x.reference} />
-                {x.reference}
-              </td>
-              <td class="is-vcentered">
-                <div class="select is-small">
-                  <select name={`transactions.${i}.accountId`}>
-                    <option selected disabled>{_`- bitte auswählen -`}</option>
-                    <option value="ignore">{_`Ignorieren`}</option>
-                    <option disabled>---</option>
-                    {accounts.value.map(x => <option value={x.id} key={x.id}>{x.name}</option>)}
-                  </select>
-                </div>
-              </td>
-            </tr>)}
+                  {formatDateShort(x.bookedAt)}
+                </td>
+                <td class="is-vcentered has-text-right">
+                  <input hidden name={`transactions.${i}.amount`} value={x.amount.toString()} />
+                  {formatCurrency(x.amount.toString())}
+                </td>
+                <td class="is-vcentered has-text-right">
+                  <input hidden name={`transactions.${i}.debitAccount`} value={x.debitAccount} />
+                  {x.debitAccount}
+                </td>
+                <td class="is-vcentered has-text-right">
+                  <input hidden name={`transactions.${i}.creditAccount`} value={x.creditAccount} />
+                  {x.creditAccount}
+                </td>
+                <td class="is-vcentered">
+                  <input hidden name={`transactions.${i}.description`} value={x.description} />
+                  {x.description}
+                </td>
+                <td class="is-vcentered">
+                  <input hidden name={`transactions.${i}.reference`} value={x.reference} />
+                  {x.reference}
+                </td>
+                <td class="is-vcentered">
+                  <div>
+                    {assignments.map((assignment, j) => (
+                      <div key={j} class="field has-addons mb-2">
+                        <div class="control is-expanded">
+                          <div class="select is-small is-fullwidth">
+                            <select 
+                              name={`transactions.${i}.accountAssignments.${j}.accountId`}
+                              value={assignment.accountId}
+                              onChange$={(e, elem) => {
+                                const newAssignments = [...assignments];
+                                newAssignments[j] = {...newAssignments[j], accountId: elem.value};
+                                const newMap = new Map(accountAssignments.value);
+                                newMap.set(i, newAssignments);
+                                accountAssignments.value = newMap;
+                              }}
+                            >
+                              <option value="" selected disabled>{_`- bitte auswählen -`}</option>
+                              <option value="ignore">{_`Ignorieren`}</option>
+                              <option disabled>---</option>
+                              {accounts.value.map(acc => <option value={acc.id} key={acc.id}>{acc.name}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div class="control">
+                          <input 
+                            class="input is-small" 
+                            type="text" 
+                            pattern="[0-9]+([.,][0-9]{1,2})?"
+                            name={`transactions.${i}.accountAssignments.${j}.value`}
+                            value={assignment.value}
+                            style="width: 100px;"
+                            placeholder="0,00"
+                            onChange$={(e, elem) => {
+                              const newAssignments = [...assignments];
+                              newAssignments[j] = {...newAssignments[j], value: elem.value};
+                              const newMap = new Map(accountAssignments.value);
+                              newMap.set(i, newAssignments);
+                              accountAssignments.value = newMap;
+                            }}
+                          />
+                        </div>
+                        <div class="control">
+                          <button 
+                            type="button"
+                            class="button is-small is-danger"
+                            disabled={assignments.length === 1}
+                            onClick$={() => {
+                              const newAssignments = assignments.filter((_, idx) => idx !== j);
+                              const newMap = new Map(accountAssignments.value);
+                              newMap.set(i, newAssignments);
+                              accountAssignments.value = newMap;
+                            }}
+                          >
+                            <span class="icon is-small">
+                              <i class="fas fa-minus"></i>
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div class="field">
+                      <button 
+                        type="button"
+                        class="button is-small is-success"
+                        onClick$={() => {
+                          const remaining = transactionAmount - totalAssigned;
+                          const newAssignments = [...assignments, {accountId: '', value: remaining.toFixed(2)}];
+                          const newMap = new Map(accountAssignments.value);
+                          newMap.set(i, newAssignments);
+                          accountAssignments.value = newMap;
+                        }}
+                      >
+                        <span class="icon is-small">
+                          <i class="fas fa-plus"></i>
+                        </span>
+                        <span>{_`Zuweisung hinzufügen`}</span>
+                      </button>
+                    </div>
+                    <div class="field">
+                      <p class={["help", {"is-danger": !isValid, "is-success": isValid}]}>
+                        {_`Summe`}: {formatCurrency(totalAssigned.toFixed(2))} / {formatCurrency(x.amount.toString())}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+              </tr>;
+            })}
           </tbody>
         </table>
         <div class="buttons is-right is-fullwidth">
-          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning} class="button is-primary">{_`Importieren`}</button>
+          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning || transactions.value.some((x, i) => {
+            const assignments = accountAssignments.value.get(i) ?? [{accountId: '', value: x.amount.toString()}];
+            const hasUnassigned = assignments.some(a => a.accountId === '' || a.accountId === undefined);
+            const totalAssigned = assignments.reduce((sum, a) => {
+              return sum + parseDecimalValue(a.value);
+            }, 0);
+            const transactionAmount = parseFloat(x.amount.toString());
+            const isValid = Math.abs(totalAssigned - transactionAmount) < 0.01;
+            return hasUnassigned || !isValid;
+          })} class="button is-primary">{_`Importieren`}</button>
         </div>
       </Form>}
     </MainContentLarge >

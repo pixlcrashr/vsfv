@@ -133,31 +133,32 @@ async function buildReportRenderData(
   });
 
   const q = P.sql`WITH forward AS (
-  SELECT
-    b.id AS budget_id,
-    t.assigned_account_id,
-    t.debit_transaction_account_id,
-    t.credit_transaction_account_id,
-    SUM(t.amount) AS total
-  FROM budgets AS b
-  JOIN transactions AS t
-    ON t.document_date >= b.period_start
-    AND t.document_date <= b.period_end
-    AND t.assigned_account_id IS NOT NULL
-  WHERE b.id IN (${P.join(budgets.map(b => P.sql`${b.id}::uuid`))})
-  GROUP BY b.id, t.assigned_account_id, t.debit_transaction_account_id, t.credit_transaction_account_id
+    SELECT
+        b.id AS budget_id,
+        taa.account_id,
+        t.debit_transaction_account_id,
+        t.credit_transaction_account_id,
+        SUM(taa.value) AS total
+    FROM budgets AS b
+    JOIN transactions AS t
+        ON t.document_date >= b.period_start
+        AND t.document_date <= b.period_end
+    JOIN transaction_account_assignments AS taa
+        ON taa.transaction_id = t.id
+    WHERE b.id IN (${P.join(budgets.map(b => P.sql`${b.id}::uuid`))})
+    GROUP BY b.id, taa.account_id, t.debit_transaction_account_id, t.credit_transaction_account_id
 )
 SELECT
-  f1.budget_id,
-  f1.assigned_account_id AS account_id,
-  SUM(f1.total - COALESCE(f2.total, 0)) AS amount
+    f1.budget_id,
+    f1.account_id,
+    SUM(f1.total - COALESCE(f2.total, 0)) AS amount
 FROM forward AS f1
 LEFT JOIN forward AS f2
-  ON f2.budget_id = f1.budget_id
-  AND f2.assigned_account_id = f1.assigned_account_id
-  AND f2.debit_transaction_account_id = f1.credit_transaction_account_id
-  AND f2.credit_transaction_account_id = f1.debit_transaction_account_id
-GROUP BY f1.budget_id, f1.assigned_account_id`;
+    ON f2.budget_id = f1.budget_id
+    AND f2.account_id = f1.account_id
+    AND f2.debit_transaction_account_id = f1.credit_transaction_account_id
+    AND f2.credit_transaction_account_id = f1.debit_transaction_account_id
+GROUP BY f1.budget_id, f1.account_id`;
 
   const avs = await Prisma.$queryRaw<{
     budget_id: string;

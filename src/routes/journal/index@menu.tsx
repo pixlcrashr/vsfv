@@ -24,6 +24,12 @@ export interface Transaction {
   description: string;
   assignedAccountId: string | null;
   assignedAccountName: string | null;
+  accountAssignments: Array<{
+    id: string;
+    accountId: string;
+    accountName: string;
+    value: string;
+  }>;
 }
 
 async function getTotalTransactions(): Promise<number> {
@@ -35,7 +41,12 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
     include: {
       accounts: true,
       transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts: true,
-      transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts: true
+      transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts: true,
+      transaction_account_assignments: {
+        include: {
+          accounts: true
+        }
+      }
     },
     orderBy: {
       created_at: 'desc'
@@ -55,7 +66,13 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
       creditAccountId: t.transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts.id,
       description: t.description,
       assignedAccountId: t.assigned_account_id,
-      assignedAccountName: t.accounts?.display_name ?? null
+      assignedAccountName: t.accounts?.display_name ?? null,
+      accountAssignments: t.transaction_account_assignments.map(a => ({
+        id: a.id,
+        accountId: a.account_id,
+        accountName: a.accounts.display_name,
+        value: a.value.toString()
+      }))
     };
   });
 }
@@ -139,7 +156,7 @@ export default component$(() => {
                 <th>{_`Sollkonto`}</th>
                 <th>{_`Habenkonto`}</th>
                 <th>{_`Buchungstext`}</th>
-                <th>{_`Haushaltskonto`}</th>
+                <th>{_`Haushaltskonten`}</th>
                 <th></th>
               </tr>
             </thead>
@@ -151,7 +168,18 @@ export default component$(() => {
                 <td class="is-vcentered has-text-right">{x.creditAccountCode}</td>
                 <td class="is-vcentered">{x.description}</td>
                 <td class="is-vcentered">
-                  {x.assignedAccountId === null ? '-' : <Link href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName}</Link>}
+                  {x.accountAssignments.length === 0 ? (
+                    x.assignedAccountId === null ? '-' : <Link href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName}</Link>
+                  ) : (
+                    <div>
+                      {x.accountAssignments.map((assignment, idx) => (
+                        <div key={assignment.id} class="mb-1">
+                          <Link href={`/accounts/${assignment.accountId}`}>{assignment.accountName}</Link>
+                          <span class="has-text-grey"> ({formatCurrency(assignment.value)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td class="is-vcentered">
                   <div class="buttons are-small is-right">

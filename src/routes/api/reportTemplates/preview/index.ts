@@ -45,7 +45,7 @@ function generateRandomAccount(minChildren: number, maxChildren: number, maxDept
 }
 
 export const onPost: RequestHandler = async ({ send, env, request }) => {
-  const budgets = Array.from({ length: 8 }, () => generateRandomBudget(1, 3));
+  const budgets = Array.from({ length: 4 }, () => generateRandomBudget(1, 3));
   const accounts = Array.from({ length: 4 }, () => generateRandomAccount(0, 4, 4, 0));
 
   try {

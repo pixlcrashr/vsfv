@@ -143,14 +143,6 @@ function buildReportHtml(
     accounts: params?.accounts ?? []
   });
 
-  const fp = path.resolve('./report.html');
-
-  writeFile(fp, html, (err) => {
-    if (err) {
-      console.error(err);
-    }
-  });
-
   return html;
 }
 

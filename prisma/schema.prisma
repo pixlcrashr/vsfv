@@ -38,20 +38,21 @@ model account_groups {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model accounts {
-  id                             String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  parent_account_id              String?                          @db.Uuid
-  display_name                   String                           @default("")
-  display_code                   String                           @default("")
-  display_description            String                           @default("")
-  updated_at                     DateTime                         @default(now()) @db.Timestamp(6)
-  created_at                     DateTime                         @default(now()) @db.Timestamp(6)
-  account_group_assignments      account_group_assignments[]
-  accounts                       accounts?                        @relation("accountsToaccounts", fields: [parent_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  other_accounts                 accounts[]                       @relation("accountsToaccounts")
-  budget_revision_account_values budget_revision_account_values[]
-  transactions                   transactions[]
-  view_account_assignments       view_account_assignments[]
-  is_archived                    Boolean                          @default(false)
+  id                              String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_account_id               String?                          @db.Uuid
+  display_name                    String                           @default("")
+  display_code                    String                           @default("")
+  display_description             String                           @default("")
+  updated_at                      DateTime                         @default(now()) @db.Timestamp(6)
+  created_at                      DateTime                         @default(now()) @db.Timestamp(6)
+  account_group_assignments       account_group_assignments[]
+  accounts                        accounts?                        @relation("accountsToaccounts", fields: [parent_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_accounts                  accounts[]                       @relation("accountsToaccounts")
+  budget_revision_account_values  budget_revision_account_values[]
+  transactions                    transactions[]
+  view_account_assignments        view_account_assignments[]
+  transaction_account_assignments transaction_account_assignments[]
+  is_archived                     Boolean                          @default(false)
 
   @@index([display_code], map: "idx_accounts_display_code")
   @@index([display_name], map: "idx_accounts_display_name")
@@ -143,24 +144,39 @@ model transaction_accounts {
 }
 
 model transactions {
-  id                                                                                    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  credit_transaction_account_id                                                         String               @db.Uuid
-  debit_transaction_account_id                                                          String               @db.Uuid
-  amount                                                                                Decimal              @db.Decimal
-  description                                                                           String               @default("")
-  reference                                                                             String               @default("")
-  assigned_account_id                                                                   String?              @db.Uuid
-  booked_at                                                                             DateTime             @default(now()) @db.Date
-  document_date                                                                         DateTime             @default(now()) @db.Date
-  updated_at                                                                            DateTime             @default(now()) @db.Timestamp(6)
-  created_at                                                                            DateTime             @default(now()) @db.Timestamp(6)
-  custom_id                                                                             String               @default("")
-  accounts                                                                              accounts?            @relation(fields: [assigned_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts transaction_accounts @relation("transactions_credit_transaction_account_idTotransaction_accounts", fields: [credit_transaction_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts  transaction_accounts @relation("transactions_debit_transaction_account_idTotransaction_accounts", fields: [debit_transaction_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                                                                                    String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credit_transaction_account_id                                                         String                           @db.Uuid
+  debit_transaction_account_id                                                          String                           @db.Uuid
+  amount                                                                                Decimal                          @db.Decimal
+  description                                                                           String                           @default("")
+  reference                                                                             String                           @default("")
+  assigned_account_id                                                                   String?                          @db.Uuid
+  booked_at                                                                             DateTime                         @default(now()) @db.Date
+  document_date                                                                         DateTime                         @default(now()) @db.Date
+  updated_at                                                                            DateTime                         @default(now()) @db.Timestamp(6)
+  created_at                                                                            DateTime                         @default(now()) @db.Timestamp(6)
+  custom_id                                                                             String                           @default("")
+  accounts                                                                              accounts?                        @relation(fields: [assigned_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts transaction_accounts             @relation("transactions_credit_transaction_account_idTotransaction_accounts", fields: [credit_transaction_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts  transaction_accounts             @relation("transactions_debit_transaction_account_idTotransaction_accounts", fields: [debit_transaction_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transaction_account_assignments                                                       transaction_account_assignments[]
 
   @@unique([custom_id])
   @@unique([credit_transaction_account_id, debit_transaction_account_id, amount, description, reference, booked_at, document_date])
+}
+
+model transaction_account_assignments {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_id String       @db.Uuid
+  account_id     String       @db.Uuid
+  value          Decimal      @db.Decimal
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  updated_at     DateTime     @default(now()) @db.Timestamp(6)
+  transactions   transactions @relation(fields: [transaction_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  accounts       accounts     @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([transaction_id], map: "idx_transaction_account_assignments_transaction_id")
+  @@index([account_id], map: "idx_transaction_account_assignments_account_id")
 }
 
 model view_account_assignments {

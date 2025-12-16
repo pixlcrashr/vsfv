@@ -3,28 +3,32 @@ import Decimal from "decimal.js";
 import { Transaction } from "../transaction";
 
 export async function parseDatevTransactions(d: Blob): Promise<Transaction[]> {
-  // DATEV exports are usually UTF-8 encoded
-  const t = new TextDecoder('utf-8').decode(await d.arrayBuffer());
-
-  // Split lines and skip metadata/header lines
+  const t = new TextDecoder('windows-1252').decode(await d.arrayBuffer());
+  
   const lines = t.split(/\r?\n/).filter(line => line.trim().length > 0);
-  // Find the header line (the one containing 'Umsatz (ohne Soll/Haben-Kz)' and 'Soll/Haben-Kennzeichen')
   const headerIdx = lines.findIndex(line => line.includes('Umsatz (ohne Soll/Haben-Kz)') && line.includes('Soll/Haben-Kennzeichen'));
+  
   if (headerIdx === -1) throw new Error('DATEV header not found');
-  const header = lines[headerIdx].split(';').map(h => h.replace(/^"|"$/g, ''));
-  const dataLines = lines.slice(headerIdx + 1);
-
-  // Parse CSV data using the detected header
-  const records: Record<string, string>[] = dataLines.map(line => {
-    const cols = line.split(';');
-    const rec: Record<string, string> = {};
-    for (let i = 0; i < header.length; ++i) {
-      rec[header[i]] = (cols[i] || '').replace(/^"|"$/g, '');
-    }
-    return rec;
-  }).filter(r => r['Umsatz (ohne Soll/Haben-Kz)'] && r['Konto'] && r['Gegenkonto (ohne BU-Schlüssel)']);
-
-  // Map CSV fields to our transaction structure
+  
+  const csvData = lines.slice(headerIdx).join('\n');
+  
+  const records = await new Promise<Record<string, string>[]>((resolve, reject) => {
+    parse(csvData, {
+      columns: true,
+      delimiter: ';',
+      skip_empty_lines: true,
+      trim: true,
+      relax_quotes: true,
+      relax_column_count: true
+    }, (err, output) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(output as Record<string, string>[]);
+      }
+    });
+  });
+  
   const ts: Transaction[] = records.map((record) => {
     function parseDate(val?: string): Date {
       if (!val || val.length < 8) return new Date();
@@ -33,8 +37,9 @@ export async function parseDatevTransactions(d: Blob): Promise<Transaction[]> {
       const d = val.slice(6, 8);
       return new Date(`${y}-${m}-${d}`);
     }
+
     return {
-      bookedAt: parseDate(record['Buchungsdatum']),
+      bookedAt: parseDate(record['Belegdatum']),
       receiptFrom: parseDate(record['Belegdatum']),
       ...(record['Soll/Haben-Kennzeichen'] === 'H' ? {
         debitAccount: record['Gegenkonto (ohne BU-Schlüssel)'],
