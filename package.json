@@ -77,5 +77,6 @@
     "openapi-fetch": "^0.15.0",
     "sass": "^1.93.2",
     "undici": "*"
-  }
+  },
+  "version": "1.0.0"
 }
