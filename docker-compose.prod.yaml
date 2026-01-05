@@ -1,0 +1,38 @@
+name: vsfv-production
+
+services:
+  app-migrate:
+    image: pixlcrashr/vsfv:${VERSION:-latest}
+    restart: "no"
+    environment:
+      TZ: Europe/Berlin
+      DB_URL: ${DB_URL}
+    entrypoint: ["./node_modules/.bin/prisma"]
+    command: ["migrate", "deploy"]
+  app:
+    image: pixlcrashr/vsfv:${VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+      HOST: 0.0.0.0
+      PORT: 3000
+      HTML2PDF_URL: http://html2pdf:8082
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      html2pdf:
+        condition: service_started
+    ports:
+      - 127.0.0.1:3000:3000
+    networks:
+      - internal
+  html2pdf:
+    image: improrama/html2pdf-server:v1.2.0
+    restart: unless-stopped
+    expose:
+      - 8082
+    networks:
+      - internal
+
+networks:
+  internal:
