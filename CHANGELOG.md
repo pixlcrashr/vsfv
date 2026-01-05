@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.1](https://github.com/pixlcrashr/vsfv/compare/v1.0.0...v1.0.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* use secret instead of var for registry username in release workflow ([86824a6](https://github.com/pixlcrashr/vsfv/commit/86824a6ab45b165c34a83c18f65f9f8dec24ab72))
+
 ## 1.0.0 (2026-01-05)
 
 
