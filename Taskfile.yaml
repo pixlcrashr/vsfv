@@ -1,0 +1,7 @@
+version: "3"
+
+tasks:
+  release:
+    cmds:
+      - commit-and-tag-version {{.CLI_ARGS}}
+      - git push --follow-tags origin main
