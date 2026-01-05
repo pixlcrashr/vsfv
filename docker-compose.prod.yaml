@@ -16,6 +16,12 @@ services:
       TZ: Europe/Berlin
       HOST: 0.0.0.0
       PORT: 3000
+      DB_URL: ${DB_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      GITLAB_CLIENT_ID: ${GITLAB_CLIENT_ID}
+      GITLAB_CLIENT_SECRET: ${GITLAB_CLIENT_SECRET}
+      GITLAB_ISSUER: ${GITLAB_ISSUER}
+      ORGANISATION_NAME: ${ORGANISATION_NAME}
       HTML2PDF_URL: http://html2pdf:8082
     depends_on:
       migrate:
