@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.4](https://github.com/pixlcrashr/vsfv/compare/v1.0.3...v1.0.4) (2026-01-05)
+
+
+### Bug Fixes
+
+* add latest tag to Docker image and add badges to README ([b52dc69](https://github.com/pixlcrashr/vsfv/commit/b52dc695c5ad1c036634ffa0945f8e5f193bb51f))
+
 ## [1.0.3](https://github.com/pixlcrashr/vsfv/compare/v1.0.2...v1.0.3) (2026-01-05)
 
 
