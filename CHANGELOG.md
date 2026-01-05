@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.1](https://github.com/pixlcrashr/vsfv/compare/v1.2.0...v1.2.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* correct service dependency name in production Docker Compose ([c23de2c](https://github.com/pixlcrashr/vsfv/commit/c23de2c99da471b98c137d5f22cab58eab0bb811))
+
 ## [1.2.0](https://github.com/pixlcrashr/vsfv/compare/v1.1.0...v1.2.0) (2026-01-05)
 
 
