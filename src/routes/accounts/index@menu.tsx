@@ -264,6 +264,13 @@ export default component$(() => {
             </tr>
           </thead>
           <tbody>
+            {accounts.value.length === 0 && (
+              <tr>
+                <td colSpan={maxDepth.value + 3} class="has-text-centered">
+                  <p class="is-size-6">{_`Keine Haushaltskonten vorhanden`}</p>
+                </td>
+              </tr>
+            )}
             {accounts.value.map((account) => <AccountRow canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} editMenuAccountId={editMenuAccountId} menuStatus={menuStatus} maxDepth={maxDepth.value} account={account} />)}
           </tbody>
         </table>

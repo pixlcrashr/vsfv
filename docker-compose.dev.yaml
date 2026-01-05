@@ -1,4 +1,4 @@
-name: vs-finanzverwaltung
+name: vsfv-dev
 
 services:
   development-db:
@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: vsf
       POSTGRES_PASSWORD: postgres
     ports:
-      - 5334:5432
+      - 127.0.0.1:5334:5432
   test-db:
     image: postgres
     restart: unless-stopped
@@ -20,9 +20,9 @@ services:
       POSTGRES_USER: vsf
       POSTGRES_PASSWORD: postgres
     ports:
-      - 5335:5432
+      - 127.0.0.1:5335:5432
   html2pdf:
     image: improrama/html2pdf-server:v1.2.0
     restart: unless-stopped
     ports:
-      - 8082:8082
+      - 127.0.0.1:8082:8082

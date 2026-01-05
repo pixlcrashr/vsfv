@@ -66,11 +66,6 @@ export const menuItemsAdmin: MenuItem[] = [
     name: _`Importquellen`,
     path: '/admin/importSources',
     permission: Permissions.IMPORT_SOURCES_READ
-  },
-  {
-    name: _`Einstellungen`,
-    path: '/admin/settings',
-    permission: Permissions.SETTINGS_READ
   }
 ];
 

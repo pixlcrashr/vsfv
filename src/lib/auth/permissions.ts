@@ -194,14 +194,7 @@ export const Permissions = {
     name: _`Importquellen bearbeiten`,
     description: _`Datenquellen ändern`
   }),
-  
-  // Settings
-  SETTINGS_READ: permission(Resources.SETTINGS, Actions.READ, {
-    category: _`Einstellungen`,
-    name: _`Einstellungen anzeigen`,
-    description: _`Systemeinstellungen ansehen`
-  }),
-  
+
   // Users
   USERS_READ: permission(Resources.USERS, Actions.READ, {
     category: _`Benutzer`,

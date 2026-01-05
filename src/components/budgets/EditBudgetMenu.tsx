@@ -96,7 +96,7 @@ export const fetchBudget = server$(async (budgetId: string) => {
   return b;
 });
 
-export default component$<EditBudgetMenuProps>(({ budgetId, onSaved$ }) => {
+export default component$<EditBudgetMenuProps>(({ budgetId }) => {
   const budgetResource = useResource$(async ({ track }) => {
     track(() => budgetId.value);
 

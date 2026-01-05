@@ -1,4 +1,4 @@
-import { component$, useSignal } from "@builder.io/qwik";
+import { component$, useComputed$, useSignal } from "@builder.io/qwik";
 import type { Account, Budget, ReportTemplate } from "~/routes/reports/index@menu";
 
 
@@ -12,6 +12,8 @@ export interface RenderReportMenuProps {
 export default component$<RenderReportMenuProps>((props) => {
   const selectedBudgetIds = useSignal<string[]>(props.budgets.length > 0 ? [props.budgets[0].id] : []);
   const selectedAccountIds = useSignal<string[]>(props.accounts.map(x => x.id));
+  const selectedReportTemplateId = useSignal<string>('');
+  const isFormValid = useComputed$(() => selectedReportTemplateId.value !== '');
 
   return <>
     <form method="POST" action="/api/reports/render" target="_blank">
@@ -31,8 +33,8 @@ export default component$<RenderReportMenuProps>((props) => {
         <label class="label">Berichtsvorlage</label>
         <div class="control">
           <div class="select is-small">
-            <select name="reportTemplateId" required>
-              <option selected disabled>- bitte auswählen -</option>
+            <select name="reportTemplateId" required value={selectedReportTemplateId.value} onChange$={(e) => selectedReportTemplateId.value = (e.target as HTMLSelectElement).value}>
+              <option value="" disabled>- bitte auswählen -</option>
               {props.reportTemplates.map((reportTemplate) => <option key={reportTemplate.id} value={reportTemplate.id}>{reportTemplate.name}</option>)}
             </select>
           </div>
@@ -89,7 +91,7 @@ export default component$<RenderReportMenuProps>((props) => {
       </div>
 
       <div class="buttons mt-4">
-        <button class="button is-link" type="submit">Anzeigen</button>
+        <button class="button is-link" type="submit" disabled={!isFormValid.value}>Exportieren</button>
       </div>
     </form>
   </>;

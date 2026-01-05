@@ -8,11 +8,12 @@
  *
  */
 import { type PlatformNode } from "@builder.io/qwik-city/middleware/node";
-import "dotenv/config";
+import { Command } from "commander";
 import Fastify from "fastify";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import FastifyQwik from "./plugins/fastify-qwik";
+import { setupSystemRole } from "./lib/auth/setup-roles";
 
 declare global {
   type QwikCityPlatform = PlatformNode;
@@ -23,11 +24,13 @@ const distDir = join(fileURLToPath(import.meta.url), "..", "..", "dist");
 const buildDir = join(distDir, "build");
 const assetsDir = join(distDir, "assets");
 
-// Allow for dynamic port and host
-const PORT = parseInt(process.env.PORT ?? "3000");
-const HOST = process.env.HOST ?? "0.0.0.0";
+async function serve(opts?: { port?: number; host?: string }) {
+  const port = opts?.port ?? Number.parseInt(process.env.PORT ?? "3000", 10);
+  const host = opts?.host ?? process.env.HOST ?? "0.0.0.0";
 
-const start = async () => {
+  // Setup system role and permissions
+  await setupSystemRole();
+
   // Create the fastify server
   // https://fastify.dev/docs/latest/Guides/Getting-Started/
   const fastify = Fastify({
@@ -43,7 +46,27 @@ const start = async () => {
   await fastify.register(FastifyQwik, { distDir, buildDir, assetsDir });
 
   // Start the fastify server
-  await fastify.listen({ port: PORT, host: HOST,  });
-};
+  await fastify.listen({ port, host });
+}
 
-start();
+const program = new Command();
+program.name("vs-finanzverwaltung");
+
+program
+  .command("serve")
+  .description("Start the Fastify server")
+  .option("-p, --port <port>", "Port to listen on", (v) => Number.parseInt(v, 10))
+  .option("--host <host>", "Host to bind to")
+  .action(async (options: { port?: number; host?: string }) => {
+    await serve({ port: options.port, host: options.host });
+  });
+
+// Preserve old behavior: running without args starts the server.
+if (process.argv.length <= 2) {
+  process.argv.push("serve");
+}
+
+program.parseAsync(process.argv).catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

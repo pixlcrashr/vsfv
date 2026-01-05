@@ -1,6 +1,11 @@
 import { QwikAuth$ } from "@auth/qwik";
 import type { Provider } from "@auth/core/providers";
 import { Prisma } from "~/lib/prisma";
+import { isFirstUser, assignSystemRoleToUser, setupSystemRole } from "~/lib/auth/setup-roles";
+import { isBrowser, isServer } from "@builder.io/qwik";
+import { skipCSRFCheck } from "@auth/core";
+
+let systemRoleInitialized = false;
 
 export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
   (req) => ({
@@ -17,6 +22,7 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
             scope: "openid profile email read_user",
           },
         },
+
         profile(profile) {
           return {
             id: profile.sub,
@@ -27,19 +33,31 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
         },
       } as Provider,
     ],
+    trustHost: true,
     secret: req.env.get("AUTH_SECRET")!,
     callbacks: {
-      async signIn({ user, account, profile }) {
+      async signIn({ user, account }) {
+        if (isBrowser) {
+          return true;
+        }
+
         if (!user.email || !user.id) {
           return false;
         }
 
         try {
+          if (!systemRoleInitialized) {
+            await setupSystemRole();
+            systemRoleInitialized = true;
+          }
+
           const existingUser = await Prisma.users.findUnique({
             where: { email: user.email },
           });
 
           if (!existingUser) {
+            const shouldAssignSystemRole = await isFirstUser();
+
             const newUser = await Prisma.users.create({
               data: {
                 email: user.email,
@@ -56,6 +74,11 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
                   provider_user_id: account.providerAccountId,
                 },
               });
+            }
+
+            if (shouldAssignSystemRole) {
+              await assignSystemRoleToUser(newUser.id);
+              console.log(`First user ${newUser.email} assigned system role`);
             }
           } else {
             if (account) {
@@ -86,8 +109,8 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
           return false;
         }
       },
-      async jwt({ token, user, account, profile }) {
-        if (user?.email) {
+      async jwt({ token, user }) {
+        if (isServer && user?.email) {
           const dbUser = await Prisma.users.findUnique({
             where: { email: user.email },
           });

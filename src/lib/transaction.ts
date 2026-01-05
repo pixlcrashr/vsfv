@@ -1,10 +1,12 @@
+import { Decimal } from "decimal.js";
+
 export interface Transaction {
   receiptFrom: Date;
   bookedAt: Date;
   receiptNumberGroup?: string;
   receiptNumber?: string;
   description: string;
-  amount: import('decimal.js').Decimal;
+  amount: Decimal;
   debitAccount: string;
   creditAccount: string;
   taxKey?: string;

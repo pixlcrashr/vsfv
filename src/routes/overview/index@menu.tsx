@@ -6,6 +6,7 @@ import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
 import { Prisma } from "~/lib/prisma";
 import { requirePermission, Permissions } from "~/lib/auth";
+import Chart from 'chart.js/auto';
 
 
 
@@ -103,8 +104,8 @@ export const useOverviewStats = routeLoader$<OverviewStats>(async () => {
 
 interface ChartCanvasProps {
   type: string;
-  data: unknown;
-  options?: unknown;
+  data: any;
+  options?: any;
 }
 
 const ChartCanvas = component$<ChartCanvasProps>(({ type, data, options }) => {
@@ -115,12 +116,10 @@ const ChartCanvas = component$<ChartCanvasProps>(({ type, data, options }) => {
       return;
     }
 
-    const { default: Chart } = await import("chart.js/auto");
-
     const chart = new Chart(canvasRef.value, {
       type: type as any,
-      data: data as any,
-      options: options as any,
+      data: data,
+      options: options
     });
 
     cleanup(() => chart.destroy());

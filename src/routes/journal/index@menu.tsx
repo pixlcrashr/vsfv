@@ -161,6 +161,13 @@ export default component$(() => {
               </tr>
             </thead>
             <tbody>
+              {res.transactions.length === 0 && (
+                <tr>
+                  <td colSpan={7} class="has-text-centered">
+                    <p class="is-size-6">{_`Keine Buchungen vorhanden`}</p>
+                  </td>
+                </tr>
+              )}
               {res.transactions.map(x => <tr>
                 <td class="is-vcentered">{formatDateShort(x.date)}</td>
                 <td class="is-vcentered">{formatCurrency(x.amount)}</td>
@@ -172,7 +179,7 @@ export default component$(() => {
                     x.assignedAccountId === null ? '-' : <Link href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName}</Link>
                   ) : (
                     <div>
-                      {x.accountAssignments.map((assignment, idx) => (
+                      {x.accountAssignments.map((assignment) => (
                         <div key={assignment.id} class="mb-1">
                           <Link href={`/accounts/${assignment.accountId}`}>{assignment.accountName}</Link>
                           <span class="has-text-grey"> ({formatCurrency(assignment.value)})</span>
@@ -190,7 +197,7 @@ export default component$(() => {
             </tbody>
           </table>
 
-          <nav class="pagination is-small is-centered" role="navigation" aria-label="pagination">
+          {res.totalPages > 1 && <nav class="pagination is-small is-centered" role="navigation" aria-label="pagination">
             {page.value.page > 1 && <button class="pagination-previous" onClick$={() => {
                 page.value = {
                   page: page.value.page - 1,
@@ -217,7 +224,7 @@ export default component$(() => {
                 };
               }}>{x}</a></li>)}
             </ul>
-          </nav>
+          </nav>}
         </>;
       }} />
     </MainContent>

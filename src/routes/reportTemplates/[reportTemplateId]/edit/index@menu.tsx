@@ -1,5 +1,5 @@
 import { component$, useSignal } from "@builder.io/qwik";
-import { DocumentHead, Link, routeAction$, routeLoader$, useNavigate, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
+import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContentLarge from "~/components/layout/MainContentLarge";
@@ -77,7 +77,6 @@ export const useSaveReportTemplateAction = routeAction$(async (values, { sharedM
 }, zod$(SaveReportTemplateAction));
 
 export default component$(() => {
-  const nav = useNavigate();
   const getLoader = useGetReportTemplateLoader();
   const saveAction = useSaveReportTemplateAction();
 
@@ -106,7 +105,7 @@ export default component$(() => {
         <PreviewEditor height="700px" defaultValue={editorValue.value} onChange$={(value) => editorValue.value = value} />
         <div class="buttons is-right mt-4">
           <button class="button is-warning" disabled={saveAction.isRunning} onClick$={async () => {
-              const { value } = await saveAction.submit({
+              await saveAction.submit({
                 id: getLoader.value.id,
                 name: nameValue.value,
                 template: editorValue.value

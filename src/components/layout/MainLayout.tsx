@@ -5,6 +5,7 @@ import MainContentContainer from "./MainContentContainer";
 import styles from "./MainLayout.scss?inline";
 import { useSession, useSignOut } from "~/routes/plugin@auth";
 import type { MenuItem } from "~/lib/auth";
+import { useNameLoader } from "~/routes/layout-menu";
 
 interface MainLayoutProps {
   mainMenuItems: MenuItem[];
@@ -16,6 +17,7 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
   const location = useLocation();
   const session = useSession();
   const signOut = useSignOut();
+  const name = useNameLoader();
 
   return (
     <div class="columns">
@@ -27,7 +29,7 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
             src="/assets/logo.svg"
             alt="Bulma logo"
           />
-          <h1>AStA TUHH</h1>
+          <h1>{name.value}</h1>
         </div>
 
         <aside class="menu p-4">
@@ -81,7 +83,7 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
               </div>
             </div>
           )}
-          <p>Copyright © 2025 Vincent Heins<br/><a href="https://github.com/pixlcrashr/vs-finanzverwaltung" target="_blank">github.com/pixlcrashr/vs-finanzverwaltung</a></p>
+          <p>Copyright © 2025 Vincent Heins, Version {import.meta.env.PUBLIC_VERSION ?? "0.0.0"}<br/><a href="https://github.com/pixlcrashr/vs-finanzverwaltung" target="_blank">github.com/pixlcrashr/vs-finanzverwaltung</a></p>
         </footer>
       </div>
       <MainContentContainer>

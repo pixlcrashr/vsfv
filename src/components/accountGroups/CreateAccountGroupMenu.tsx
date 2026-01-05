@@ -1,13 +1,15 @@
-import { component$, useSignal, useTask$ } from "@builder.io/qwik";
+import { component$, useComputed$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import { useCreateAccountGroupRouteAction } from "~/routes/accountGroups/index@menu";
 
-export interface CreateAccountGroupMenuFormProps {}
 
-export default component$<CreateAccountGroupMenuFormProps>(() => {
+
+export default component$(() => {
   const action = useCreateAccountGroupRouteAction();
   const refSig = useSignal<HTMLFormElement>();
+  const name = useSignal('');
+  const isFormValid = useComputed$(() => name.value.trim().length > 0);
 
   useTask$(({ track }) => {
     const success = track(() => action.value?.success);
@@ -15,6 +17,7 @@ export default component$<CreateAccountGroupMenuFormProps>(() => {
       if (refSig.value) {
         refSig.value.reset();
       }
+      name.value = '';
     }
   });
 
@@ -24,7 +27,7 @@ export default component$<CreateAccountGroupMenuFormProps>(() => {
         <div class="field">
           <label class="label">{_`Name`}</label>
           <div class="control">
-            <input name="name" class="input is-small" disabled={action.isRunning} type="text" />
+            <input name="name" class="input is-small" disabled={action.isRunning} type="text" value={name.value} onInput$={(e) => name.value = (e.target as HTMLInputElement).value} />
           </div>
 
           {action.value?.fieldErrors?.name && <p class="help is-danger">{action.value?.fieldErrors?.name}</p>}
@@ -42,7 +45,7 @@ export default component$<CreateAccountGroupMenuFormProps>(() => {
         <div class="buttons mt-5 is-right are-small">
           <button type="submit" class={["button", "is-primary", {
             'is-loading': action.isRunning
-          }]}>{_`Hinzufügen`}</button>
+          }]} disabled={!isFormValid.value || action.isRunning}>{_`Hinzufügen`}</button>
         </div>
       </Form>
     </>

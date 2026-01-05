@@ -1,4 +1,4 @@
-import { component$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
+import { component$, useComputed$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import { Form } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import { useCreateAccountAction } from "~/routes/accounts/index@menu";
@@ -23,6 +23,9 @@ export default component$<CreateAccountFormProps>((compProps) => {
   const createAction = useCreateAccountAction();
 
   const refSig = useSignal<HTMLFormElement>();
+  const code = useSignal('');
+  const name = useSignal('');
+  const isFormValid = useComputed$(() => code.value.trim().length > 0 && name.value.trim().length > 0);
 
   useTask$(({ track }) => {
     const success = track(() => createAction.value?.success);
@@ -30,6 +33,8 @@ export default component$<CreateAccountFormProps>((compProps) => {
       if (refSig.value) {
         refSig.value.reset();
       }
+      code.value = '';
+      name.value = '';
     }
   });
 
@@ -59,14 +64,16 @@ export default component$<CreateAccountFormProps>((compProps) => {
           <div class="field">
             <label class="label">{_`Code`}</label>
             <p class="control">
-              <input name="code" class="input is-small code-input" disabled={createAction.isRunning} type="text" placeholder={_`Code`} />
+              <input name="code" class={['input', 'is-small', 'code-input', { 'is-danger': createAction.value?.fieldErrors?.code }]} disabled={createAction.isRunning} type="text" placeholder={_`Code`} value={code.value} onInput$={(e) => code.value = (e.target as HTMLInputElement).value} />
             </p>
+            {createAction.value?.fieldErrors?.code && <p class="help is-danger">{createAction.value?.fieldErrors?.code}</p>}
           </div>
           <div class="field">
             <label class="label">{_`Name`}</label>
             <p class="control">
-              <input name="name" class="input is-small" disabled={createAction.isRunning} type="text" placeholder={_`Name`} />
+              <input name="name" class={['input', 'is-small', { 'is-danger': createAction.value?.fieldErrors?.name }]} disabled={createAction.isRunning} type="text" placeholder={_`Name`} value={name.value} onInput$={(e) => name.value = (e.target as HTMLInputElement).value} />
             </p>
+            {createAction.value?.fieldErrors?.name && <p class="help is-danger">{createAction.value?.fieldErrors?.name}</p>}
           </div>
         </div>
       </div>
@@ -81,7 +88,7 @@ export default component$<CreateAccountFormProps>((compProps) => {
       <div class="buttons mt-5 is-right are-small">
         <button type="submit" class={["button", "is-primary", {
           'is-loading': createAction.isRunning
-        }]}>{_`Hinzufügen`}</button>
+        }]} disabled={!isFormValid.value || createAction.isRunning}>{_`Hinzufügen`}</button>
       </div>
     </Form>
   );

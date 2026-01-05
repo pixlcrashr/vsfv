@@ -1,4 +1,4 @@
-import { component$, QRL, Resource, Signal, useResource$, useSignal, useTask$ } from "@builder.io/qwik";
+import { component$, Resource, Signal, useResource$, useSignal, useTask$ } from "@builder.io/qwik";
 import { Form, server$ } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import { delay } from "~/lib/delay";

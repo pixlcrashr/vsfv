@@ -134,7 +134,7 @@ export default component$<MatrixTableProps>(({
         </tr>
       </thead>
       <tbody>
-        {matrix.value.items.map((row, i) => <tr key={row.accountId}>
+        {matrix.value.items.map((row) => <tr key={row.accountId}>
           {Array.from({ length: matrix.value.maxDepth + 1 }).map((_, j) => <td class="is-vcentered" key={j}>
             {j === row.depth ? row.accountCode : ''}
           </td>)}

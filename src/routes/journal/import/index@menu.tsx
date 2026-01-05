@@ -1,4 +1,4 @@
-import { component$, useSignal } from "@builder.io/qwik";
+import { component$, useSignal, useStore } from "@builder.io/qwik";
 import { DocumentHead, Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Decimal from "decimal.js";
@@ -6,6 +6,7 @@ import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContentLarge from "~/components/layout/MainContentLarge";
+import TransactionAssignmentCell from "~/components/journal/TransactionAssignmentCell";
 import { formatCurrency, formatDateInputField, formatDateShort } from "~/lib/format";
 import { parseLexwareTransactions } from "~/lib/lexware/parser";
 import { parseDatevTransactions } from "~/lib/datev/parser";
@@ -26,12 +27,6 @@ export const UploadTransactionsSchema = {
 
 function escapeCustomIdDelimiter(s?: string): string {
   return s?.replace(/:/g, '\\:') ?? '';
-}
-
-function parseDecimalValue(value: string): number {
-  const normalized = value.replace(',', '.');
-  const parsed = parseFloat(normalized);
-  return isNaN(parsed) ? 0 : parsed;
 }
 
 function transactionToCustomId(
@@ -252,19 +247,29 @@ export interface Account {
 async function getAllAccounts(): Promise<Account[]> {
   const as = await Prisma.accounts.findMany();
 
-  const getPrefix = (parentAccountId: string | null): string => {
+  const getCodePrefix = (parentAccountId: string | null): string => {
     if (parentAccountId === null) {
       return '';
     }
 
     const a = as.find(x => x.id === parentAccountId);
 
-    return getPrefix(a?.parent_account_id ?? null) + a?.display_code + '-';
+    return getCodePrefix(a?.parent_account_id ?? null) + a?.display_code + '-';
+  };
+
+  const getNamePrefix = (parentAccountId: string | null): string => {
+    if (parentAccountId === null) {
+      return '';
+    }
+
+    const a = as.find(x => x.id === parentAccountId);
+
+    return getNamePrefix(a?.parent_account_id ?? null) + a?.display_name + ' / ';
   };
 
   return as.filter(x => as.every(y => y.parent_account_id !== x.id)).map(x => ({
     id: x.id,
-    name: `${getPrefix(x.parent_account_id)}${x.display_code} | ${x.display_name}`
+    name: `${getCodePrefix(x.parent_account_id)}${x.display_code} | ${getNamePrefix(x.parent_account_id)}${x.display_name}`
   }));
 }
 
@@ -312,8 +317,8 @@ export default component$(() => {
     debitAccount: string;
     creditAccount: string;
   }[] | null>(null);
-  
-  const accountAssignments = useSignal<Map<number, Array<{accountId: string, value: string}>>>(new Map());
+
+  const assignmentValidity = useStore<{ byIndex: boolean[] }>({ byIndex: [] });
 
   return (
     <MainContentLarge>
@@ -388,8 +393,10 @@ export default component$(() => {
 
             uploadLoading.value = true;
             transactions.value = null;
+            assignmentValidity.byIndex = [];
             const { value } = await uploadTransactionsAction.submit(formData);
             transactions.value = value.result ?? [];
+            assignmentValidity.byIndex = new Array((value.result ?? []).length).fill(false);
             selectedSourceId.value = value.sourceId ?? '';
             uploadLoading.value = false;
           }
@@ -416,141 +423,49 @@ export default component$(() => {
           </thead>
           <tbody>
             {transactions.value.map((x, i) => {
-              const assignments = accountAssignments.value.get(i) ?? [{accountId: '', value: x.amount.toString()}];
-              const totalAssigned = assignments.reduce((sum, a) => {
-                return sum + parseDecimalValue(a.value);
-              }, 0);
-              const transactionAmount = parseFloat(x.amount.toString());
-              const isValid = Math.abs(totalAssigned - transactionAmount) < 0.01;
-              
               return <tr key={i}>
-                <td class="is-vcentered">
+                <td style="vertical-align: top;">
                   <input hidden name={`transactions.${i}.bookedAt`} type="date" value={formatDateInputField(x.bookedAt)} />
                   <input hidden name={`transactions.${i}.receiptFrom`} type="data" value={formatDateInputField(x.receiptFrom)} />
 
                   {formatDateShort(x.bookedAt)}
                 </td>
-                <td class="is-vcentered has-text-right">
+                <td class="has-text-right" style="vertical-align: top;">
                   <input hidden name={`transactions.${i}.amount`} value={x.amount.toString()} />
                   {formatCurrency(x.amount.toString())}
                 </td>
-                <td class="is-vcentered has-text-right">
+                <td class="has-text-right" style="vertical-align: top;">
                   <input hidden name={`transactions.${i}.debitAccount`} value={x.debitAccount} />
                   {x.debitAccount}
                 </td>
-                <td class="is-vcentered has-text-right">
+                <td class="has-text-right" style="vertical-align: top;">
                   <input hidden name={`transactions.${i}.creditAccount`} value={x.creditAccount} />
                   {x.creditAccount}
                 </td>
-                <td class="is-vcentered">
+                <td style="vertical-align: top;">
                   <input hidden name={`transactions.${i}.description`} value={x.description} />
                   {x.description}
                 </td>
-                <td class="is-vcentered">
+                <td style="vertical-align: top;">
                   <input hidden name={`transactions.${i}.reference`} value={x.reference} />
                   {x.reference}
                 </td>
-                <td class="is-vcentered">
-                  <div>
-                    {assignments.map((assignment, j) => (
-                      <div key={j} class="field has-addons mb-2">
-                        <div class="control is-expanded">
-                          <div class="select is-small is-fullwidth">
-                            <select 
-                              name={`transactions.${i}.accountAssignments.${j}.accountId`}
-                              value={assignment.accountId}
-                              onChange$={(e, elem) => {
-                                const newAssignments = [...assignments];
-                                newAssignments[j] = {...newAssignments[j], accountId: elem.value};
-                                const newMap = new Map(accountAssignments.value);
-                                newMap.set(i, newAssignments);
-                                accountAssignments.value = newMap;
-                              }}
-                            >
-                              <option value="" selected disabled>{_`- bitte auswählen -`}</option>
-                              <option value="ignore">{_`Ignorieren`}</option>
-                              <option disabled>---</option>
-                              {accounts.value.map(acc => <option value={acc.id} key={acc.id}>{acc.name}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div class="control">
-                          <input 
-                            class="input is-small" 
-                            type="text" 
-                            pattern="[0-9]+([.,][0-9]{1,2})?"
-                            name={`transactions.${i}.accountAssignments.${j}.value`}
-                            value={assignment.value}
-                            style="width: 100px;"
-                            placeholder="0,00"
-                            onChange$={(e, elem) => {
-                              const newAssignments = [...assignments];
-                              newAssignments[j] = {...newAssignments[j], value: elem.value};
-                              const newMap = new Map(accountAssignments.value);
-                              newMap.set(i, newAssignments);
-                              accountAssignments.value = newMap;
-                            }}
-                          />
-                        </div>
-                        <div class="control">
-                          <button 
-                            type="button"
-                            class="button is-small is-danger"
-                            disabled={assignments.length === 1}
-                            onClick$={() => {
-                              const newAssignments = assignments.filter((_, idx) => idx !== j);
-                              const newMap = new Map(accountAssignments.value);
-                              newMap.set(i, newAssignments);
-                              accountAssignments.value = newMap;
-                            }}
-                          >
-                            <span class="icon is-small">
-                              <i class="fas fa-minus"></i>
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    <div class="field">
-                      <button 
-                        type="button"
-                        class="button is-small is-success"
-                        onClick$={() => {
-                          const remaining = transactionAmount - totalAssigned;
-                          const newAssignments = [...assignments, {accountId: '', value: remaining.toFixed(2)}];
-                          const newMap = new Map(accountAssignments.value);
-                          newMap.set(i, newAssignments);
-                          accountAssignments.value = newMap;
-                        }}
-                      >
-                        <span class="icon is-small">
-                          <i class="fas fa-plus"></i>
-                        </span>
-                        <span>{_`Zuweisung hinzufügen`}</span>
-                      </button>
-                    </div>
-                    <div class="field">
-                      <p class={["help", {"is-danger": !isValid, "is-success": isValid}]}>
-                        {_`Summe`}: {formatCurrency(totalAssigned.toFixed(2))} / {formatCurrency(x.amount.toString())}
-                      </p>
-                    </div>
-                  </div>
+                <td style="vertical-align: top;">
+                  <TransactionAssignmentCell
+                    transactionIndex={i}
+                    transactionAmount={x.amount.toString()}
+                    accounts={accounts.value}
+                    onValidChange$={(index, isValid) => {
+                      assignmentValidity.byIndex[index] = isValid;
+                    }}
+                  />
                 </td>
               </tr>;
             })}
           </tbody>
         </table>
         <div class="buttons is-right is-fullwidth">
-          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning || transactions.value.some((x, i) => {
-            const assignments = accountAssignments.value.get(i) ?? [{accountId: '', value: x.amount.toString()}];
-            const hasUnassigned = assignments.some(a => a.accountId === '' || a.accountId === undefined);
-            const totalAssigned = assignments.reduce((sum, a) => {
-              return sum + parseDecimalValue(a.value);
-            }, 0);
-            const transactionAmount = parseFloat(x.amount.toString());
-            const isValid = Math.abs(totalAssigned - transactionAmount) < 0.01;
-            return hasUnassigned || !isValid;
-          })} class="button is-primary">{_`Importieren`}</button>
+          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning || transactions.value.some((_, i) => assignmentValidity.byIndex[i] !== true)} class="button is-primary">{_`Importieren`}</button>
         </div>
       </Form>}
     </MainContentLarge >

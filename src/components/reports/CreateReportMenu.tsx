@@ -33,7 +33,7 @@ export default component$<CreateReportMenuProps>((props) => {
           <div class="select is-small">
             <select name="reportTemplateId" required>
               <option selected disabled>- bitte auswählen -</option>
-              {props.reportTemplates.map((reportTemplate, i) => <option key={reportTemplate.id} value={reportTemplate.id}>{reportTemplate.name}</option>)}
+              {props.reportTemplates.map((reportTemplate) => <option key={reportTemplate.id} value={reportTemplate.id}>{reportTemplate.name}</option>)}
             </select>
           </div>
         </div>

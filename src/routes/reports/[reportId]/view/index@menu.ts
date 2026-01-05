@@ -23,7 +23,7 @@ async function getReportData(reportId: string): Promise<Bytes> {
   return r.data;
 }
 
-export const onGet: RequestHandler = async ({ send, env, request, getWritableStream, params }) => {
+export const onGet: RequestHandler = async ({ send, params }) => {
   const reportId = params.reportId;
 
   try {

@@ -1,5 +1,5 @@
 import { RequestHandler } from '@builder.io/qwik-city';
-import { checkPermission } from './rbac';
+import { checkPermission, getUserRoles } from './rbac';
 import { Permission } from './permissions';
 
 export interface AuthContext {
@@ -42,7 +42,6 @@ export function requireRole(role: string): RequestHandler {
       throw redirect(302, '/login');
     }
     
-    const { getUserRoles } = await import('./rbac');
     const userRoles = await getUserRoles(userId);
     
     if (!userRoles.includes(role)) {

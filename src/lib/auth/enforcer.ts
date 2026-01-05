@@ -9,6 +9,7 @@ export async function getEnforcer(): Promise<Enforcer> {
     const adapter = new PrismaAdapter();
     const modelPath = join(process.cwd(), 'src', 'lib', 'auth', 'casbin-model.conf');
     enforcer = await newEnforcer(modelPath, adapter);
+    enforcer.enableAutoSave(true);
     await enforcer.loadPolicy();
   }
   return enforcer;

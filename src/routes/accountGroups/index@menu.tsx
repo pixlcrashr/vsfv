@@ -124,14 +124,6 @@ export enum MenuStatus {
   Edit
 }
 
-interface AccountGroupAssignment {
-  id: string;
-  accountId: string;
-  accountName: string;
-  accountCode: string;
-  negate: boolean;
-}
-
 interface AccountGroup {
   id: string;
   displayName: string;

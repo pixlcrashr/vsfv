@@ -4,6 +4,8 @@ import { guessLocale } from 'compiled-i18n';
 import { RequestHandler, routeLoader$ } from "@builder.io/qwik-city";
 import { getAccessibleMenuItems, menuItems, menuItemsAdmin } from "~/lib/auth";
 
+
+
 export const onRequest: RequestHandler = async ({
 	query,
 	cookie,
@@ -39,6 +41,10 @@ export const onRequest: RequestHandler = async ({
 		throw redirect(302, '/login');
 	}
 }
+
+export const useNameLoader = routeLoader$(({ env }) => {
+  return env.get('ORGANISATION_NAME') ?? 'please set ORGANISATION_NAME env var';
+});
 
 export const useAccessibleMenuItems = routeLoader$(async ({ sharedMap }) => {
 	const userId = sharedMap.get('userId') as string | undefined;

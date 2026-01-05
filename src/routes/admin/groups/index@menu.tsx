@@ -1,9 +1,11 @@
-import { component$ } from "@builder.io/qwik";
+import { component$, useComputed$, useSignal } from "@builder.io/qwik";
 import { DocumentHead, Form, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
+import MainContentMenu from "~/components/layout/MainContentMenu";
+import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { Prisma } from "~/lib/prisma";
 import { requirePermission, withPermission, Permissions, deleteAllPermissionsForRole, deleteAllRolesForRole, getUsersForRole, checkPermissions } from "~/lib/auth";
 import { _ } from "compiled-i18n";
@@ -59,6 +61,40 @@ export const DeleteGroupSchema = {
   id: z.string().min(1)
 };
 
+export const CreateGroupSchema = {
+  id: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/, 'Nur Buchstaben, Zahlen, - und _ erlaubt'),
+  name: z.string().min(1),
+  description: z.string().optional()
+};
+
+export const useCreateGroupAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.GROUPS_CREATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+
+  const existing = await Prisma.user_groups.findUnique({
+    where: { id: values.id }
+  });
+
+  if (existing) {
+    return fail(400, { message: 'Eine Gruppe mit dieser ID existiert bereits' });
+  }
+
+  await Prisma.user_groups.create({
+    data: {
+      id: values.id,
+      name: values.name,
+      description: values.description || ''
+    }
+  });
+
+  return {
+    success: true,
+    groupId: values.id
+  };
+}, zod$(CreateGroupSchema));
+
 export const useDeleteGroupAction = routeAction$(async (values, { sharedMap, fail }) => {
   const auth = await withPermission(sharedMap, fail, Permissions.GROUPS_DELETE);
   if (!auth.authorized) {
@@ -93,12 +129,31 @@ export const useDeleteGroupAction = routeAction$(async (values, { sharedMap, fai
   };
 }, zod$(DeleteGroupSchema));
 
+enum MenuStatus {
+  None,
+  Create
+}
+
 export default component$(() => {
   const groups = useGetGroupsLoader();
   const deleteAction = useDeleteGroupAction();
+  const createAction = useCreateGroupAction();
   const permissions = useGroupPermissions();
+  
+  const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
+  const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
+  
+  const groupId = useSignal('');
+  const groupName = useSignal('');
+  const groupDescription = useSignal('');
+  const isFormValid = useComputed$(() => 
+    groupId.value.trim().length > 0 && 
+    groupName.value.trim().length > 0 &&
+    /^[a-zA-Z0-9_-]+$/.test(groupId.value)
+  );
 
   return (
+    <>
     <MainContent>
       <Header>
         <HeaderTitle>
@@ -111,12 +166,12 @@ export default component$(() => {
         </HeaderTitle>
         <HeaderButtons>
           {permissions.value.canCreate && (
-            <Link href="/admin/groups/new" class="button is-primary">
+            <button class="button is-primary is-rounded" onClick$={() => menuStatus.value = menuStatus.value === MenuStatus.Create ? MenuStatus.None : MenuStatus.Create}>
               <span class="icon is-small">
                 <i class="fas fa-plus"></i>
               </span>
               <span>{_`Neue Gruppe`}</span>
-            </Link>
+            </button>
           )}
         </HeaderButtons>
       </Header>
@@ -177,6 +232,79 @@ export default component$(() => {
         </table>
       </div>
     </MainContent>
+    
+    <MainContentMenu isShown={createMenuShown}>
+      <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
+        {_`Neue Gruppe erstellen`}
+      </MainContentMenuHeader>
+
+      <Form action={createAction} onSubmitCompleted$={() => {
+        if (createAction.value?.success) {
+          menuStatus.value = MenuStatus.None;
+          groupId.value = '';
+          groupName.value = '';
+          groupDescription.value = '';
+        }
+      }}>
+        <div class="field">
+          <label class="label">{_`Gruppen-ID`}</label>
+          <div class="control">
+            <input
+              type="text"
+              name="id"
+              class={['input', 'is-small', { 'is-danger': createAction.value?.fieldErrors?.id }]}
+              placeholder={_`z.B. editors`}
+              value={groupId.value}
+              onInput$={(e) => groupId.value = (e.target as HTMLInputElement).value}
+            />
+          </div>
+          <p class="help">{_`Eindeutige ID für die Gruppe. Nur Buchstaben, Zahlen, Bindestriche und Unterstriche erlaubt`}</p>
+          {createAction.value?.fieldErrors?.id && <p class="help is-danger">{createAction.value?.fieldErrors?.id}</p>}
+        </div>
+
+        <div class="field">
+          <label class="label">{_`Gruppenname`}</label>
+          <div class="control">
+            <input
+              type="text"
+              name="name"
+              class={['input', 'is-small', { 'is-danger': createAction.value?.fieldErrors?.name }]}
+              placeholder={_`z.B. Redakteure`}
+              value={groupName.value}
+              onInput$={(e) => groupName.value = (e.target as HTMLInputElement).value}
+            />
+          </div>
+          {createAction.value?.fieldErrors?.name && <p class="help is-danger">{createAction.value?.fieldErrors?.name}</p>}
+        </div>
+
+        <div class="field">
+          <label class="label">{_`Beschreibung`}</label>
+          <div class="control">
+            <textarea
+              name="description"
+              class="textarea is-small"
+              placeholder={_`Optionale Beschreibung der Gruppe`}
+              rows={3}
+              value={groupDescription.value}
+              onInput$={(e) => groupDescription.value = (e.target as HTMLTextAreaElement).value}
+            />
+          </div>
+        </div>
+
+        {createAction.value?.failed && (
+          <div class="notification is-danger mt-4">
+            {createAction.value.message || _`Fehler beim Erstellen der Gruppe`}
+          </div>
+        )}
+
+        <div class="buttons mt-5 is-right are-small">
+          <button type="submit" class={['button', 'is-primary', { 'is-loading': createAction.isRunning }]} disabled={!isFormValid.value || createAction.isRunning}>
+            {_`Gruppe erstellen`}
+          </button>
+        </div>
+      </Form>
+    </MainContentMenu>
+    </>
   );
 });
 

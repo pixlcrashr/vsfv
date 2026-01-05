@@ -55,13 +55,13 @@ export const onPost: RequestHandler = async ({ send, env, request }) => {
       {
         budgets,
         accounts,
-        getTargetValueHandler: (budgetRevisionId: string, accountId: string) => {
+        getTargetValueHandler: () => {
           return new Decimal(Math.random() * 10000);
         },
-        getDiffValueHandler: (budgetRevisionId: string, accountId: string) => {
+        getDiffValueHandler: () => {
           return new Decimal(Math.random() * 10000);
         },
-        getActualValueHandler: (budgetRevisionId: string, accountId: string) => {
+        getActualValueHandler: () => {
           return new Decimal(Math.random() * 10000);
         },
         accountDescriptionsEnabled: true,
@@ -80,7 +80,7 @@ export const onPost: RequestHandler = async ({ send, env, request }) => {
       status: 200,
       headers: headers
     }));
-  } catch (e) {
+  } catch {
 
     send(new Response('', {
       status: 500

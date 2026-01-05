@@ -1,0 +1,16 @@
+tools/
+tmp/
+test/
+server/
+node_modules/
+dist/
+.windsurf/
+.vscode/
+
+.env*
+.gitignore
+.prettierignore
+docker-compose.yaml
+README.md
+vsfv.babel
+src/lib/prisma/generated/

@@ -1,6 +1,6 @@
 import { component$ } from "@builder.io/qwik";
 import { useSignIn, useSession } from "../plugin@auth";
-import { useNavigate, DocumentHead, RequestHandler } from "@builder.io/qwik-city";
+import { useNavigate, DocumentHead, RequestHandler, Form } from "@builder.io/qwik-city";
 import { _ } from "compiled-i18n";
 
 
@@ -26,17 +26,16 @@ export default component$(() => {
     <div class="hero is-fullheight">
       <div class="hero-body">
         <div class="container has-text-centered">
-          <button
-            class="button is-primary is-medium"
-            onClick$={async () => {
-              await signIn.submit({ providerId: "gitlab", options: { callbackUrl: "/" } });
-            }}
-          >
-            <span class="icon">
-              <i class="fab fa-gitlab"></i>
-            </span>
-            <span>Sign in with GitLab</span>
-          </button>
+          <Form action={signIn}>
+            <input type="hidden" name="providerId" value="gitlab" />
+            <input type="hidden" name="options.redirectTo" value="/" />
+            <button type="submit" class="button is-primary is-medium">
+              <span class="icon">
+                <i class="fab fa-gitlab"></i>
+              </span>
+              <span>{_`Mit GitLab anmelden`}</span>
+            </button>
+          </Form>
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { Transaction } from "../transaction";
 export async function parseLexwareTransactions(d: Blob): Promise<Transaction[]> {
   // Lexware buchhaltung's exports use windows-1252 encoding
   const t = new TextDecoder('windows-1252').decode(
-    await d.bytes()
+    new Uint8Array(await d.arrayBuffer())
   );
 
   const records: Record<string, string>[] = await new Promise((resolve, reject) => {
@@ -34,8 +34,8 @@ export async function parseLexwareTransactions(d: Blob): Promise<Transaction[]> 
     const creditAccount = isNegative ? record['Sollkonto'] : record['Habenkonto'];
     
     return {
-      receiptFrom: new Date(parseGermanDate(record['Belegdatum']) ?? new Date()),
-      bookedAt: new Date(parseGermanDate(record['Buchungsdatum']) ?? new Date()),
+      receiptFrom: parseGermanDate(record['Belegdatum']) ?? new Date(),
+      bookedAt: parseGermanDate(record['Buchungsdatum']) ?? new Date(),
       receiptNumberGroup: record['Belegnummernkreis'] || undefined,
       receiptNumber: record['Belegnummer'] || undefined,
       description: record['Buchungstext'],

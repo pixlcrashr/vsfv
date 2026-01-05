@@ -1,4 +1,4 @@
-import { component$, QRL, Resource, useResource$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
+import { component$, isServer, QRL, Resource, useResource$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import styles from "./PreviewEditor.scss?inline";
 import { Editor } from "@monaco-editor/react";
 import { qwikify$ } from "@builder.io/qwik-react";
@@ -31,6 +31,10 @@ export default component$<PreviewEditorProps>((props) => {
   });
 
   const previewBlobUrlResource = useResource$<string>(async ({ track }) => {
+    if (isServer) {
+      return '';
+    }
+
     track(() => debouncedEditorValue.value);
 
     try {
