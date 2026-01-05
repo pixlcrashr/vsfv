@@ -3,13 +3,12 @@ run-name: "Build"
 on:
   - push
 
-strategy:
-  matrix:
-    node-version: ['24.x']
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['24.x']
     steps:
       - uses: actions/checkout@v5
       - name: Use Node.js ${{ matrix.node-version }}
