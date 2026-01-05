@@ -15,7 +15,7 @@ jobs:
         name: Checkout repository
 
       - name: Login to ${{ vars.REGISTRY_URL }} Docker registry
-        run: echo "${{ secrets.REGISTRY_CREDENTIALS }}" | docker login --password-stdin -u "${{ vars.REGISTRY_USER }}" "${{ vars.REGISTRY_URL }}"
+        run: echo "${{ secrets.REGISTRY_CREDENTIALS }}" | docker login --password-stdin -u "${{ secrets.REGISTRY_USER }}" "${{ vars.REGISTRY_URL }}"
 
       - name: Build Docker image
         run: docker build --push -t ${{ vars.IMAGE }}:${{ github.ref_name }} .
