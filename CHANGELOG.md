@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.3](https://github.com/pixlcrashr/vsfv/compare/v1.0.2...v1.0.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* add write permissions and upgrade action-gh-release to v2 in release workflow ([d210d1d](https://github.com/pixlcrashr/vsfv/commit/d210d1d9a13258d2e1126631523fc568da43b8e4))
+
 ## [1.0.2](https://github.com/pixlcrashr/vsfv/compare/v1.0.1...v1.0.2) (2026-01-05)
 
 
