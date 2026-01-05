@@ -3,7 +3,6 @@ import type { Provider } from "@auth/core/providers";
 import { Prisma } from "~/lib/prisma";
 import { isFirstUser, assignSystemRoleToUser, setupSystemRole } from "~/lib/auth/setup-roles";
 import { isBrowser, isServer } from "@builder.io/qwik";
-import { skipCSRFCheck } from "@auth/core";
 
 let systemRoleInitialized = false;
 
