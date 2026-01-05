@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.2](https://github.com/pixlcrashr/vsfv/compare/v1.0.1...v1.0.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* remove registry URL from docker login and logout commands in release workflow ([07e3f18](https://github.com/pixlcrashr/vsfv/commit/07e3f188010720a5eb2c899f90d2c21f58eb8586))
+
 ## [1.0.1](https://github.com/pixlcrashr/vsfv/compare/v1.0.0...v1.0.1) (2026-01-05)
 
 
