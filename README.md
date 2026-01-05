@@ -1,10 +1,10 @@
 # VS-Finanzverwaltung
 
-![GitHub Release](https://img.shields.io/github/v/release/pixlcrashr/vsfv)
-![Docker Image Version](https://img.shields.io/docker/v/pixlcrashr/vsfv)
-![Docker Image Size (tag)](https://img.shields.io/docker/image-size/pixlcrashr/vsfv/latest)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/pixlcrashr/vsfv/build.yml)
-![GitHub License](https://img.shields.io/github/license/pixlcrashr/vsfv)
+[![GitHub Release](https://img.shields.io/github/v/release/pixlcrashr/vsfv)](https://github.com/pixlcrashr/vsfv/releases/latest)
+[![Docker Image Version](https://img.shields.io/docker/v/pixlcrashr/vsfv)](https://hub.docker.com/r/pixlcrashr/vsfv)
+[![Docker Image Size (tag)](https://img.shields.io/docker/image-size/pixlcrashr/vsfv/latest)](https://hub.docker.com/r/pixlcrashr/vsfv)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/pixlcrashr/vsfv/build.yml)](https://github.com/pixlcrashr/vsfv/actions/workflows/build.yml)
+[![GitHub License](https://img.shields.io/github/license/pixlcrashr/vsfv)](https://github.com/pixlcrashr/vsfv/blob/main/LICENSE)
 
 
 
