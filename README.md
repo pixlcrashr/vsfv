@@ -1,5 +1,13 @@
 # VS-Finanzverwaltung
 
+![GitHub Release](https://img.shields.io/github/v/release/pixlcrashr/vsfv)
+![Docker Image Version](https://img.shields.io/docker/v/pixlcrashr/vsfv)
+![Docker Image Size (tag)](https://img.shields.io/docker/image-size/pixlcrashr/vsfv/latest)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/pixlcrashr/vsfv/build.yml)
+![GitHub License](https://img.shields.io/github/license/pixlcrashr/vsfv)
+
+
+
 Finanzverwaltungssoftware für Verfasste Studierendenschaften.
 
 ## Features
