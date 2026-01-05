@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.1.0](https://github.com/pixlcrashr/vsfv/compare/v1.0.5...v1.1.0) (2026-01-05)
+
+
+### Features
+
+* add production Docker Compose configuration ([bfb2526](https://github.com/pixlcrashr/vsfv/commit/bfb25264888d7af6604223ac87e2a03f13254521))
+
+
+### Bug Fixes
+
+* make README badges clickable by adding links ([5d151c9](https://github.com/pixlcrashr/vsfv/commit/5d151c9ee4cf11f4464d4336e5c02e51b62a8614))
+
 ## [1.0.5](https://github.com/pixlcrashr/vsfv/compare/v1.0.4...v1.0.5) (2026-01-05)
 
 ## [1.0.4](https://github.com/pixlcrashr/vsfv/compare/v1.0.3...v1.0.4) (2026-01-05)
