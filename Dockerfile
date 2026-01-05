@@ -1,5 +1,8 @@
 FROM node:24-alpine AS build
 
+ARG VERSION
+ENV PUBLIC_VERSION=${VERSION}
+
 WORKDIR /app
 
 COPY . .

@@ -18,7 +18,8 @@ jobs:
         run: echo "${{ secrets.REGISTRY_CREDENTIALS }}" | docker login --password-stdin -u "${{ secrets.REGISTRY_USER }}"
 
       - name: Build Docker image
-        run: docker build -t ${{ vars.IMAGE }}:${{ github.ref_name }} .
+        run: |
+          VERSION="$(echo "${{ github.ref_name }}" | sed 's/^v//')" docker build --build-arg VERSION=${VERSION} -t ${{ vars.IMAGE }}:${{ github.ref_name }} .
       
       - name: Tag Docker image
         run: docker tag ${{ vars.IMAGE }}:${{ github.ref_name }} ${{ vars.IMAGE }}:latest
