@@ -24,7 +24,7 @@ services:
       ORGANISATION_NAME: ${ORGANISATION_NAME}
       HTML2PDF_URL: http://html2pdf:8082
     depends_on:
-      migrate:
+      app-migrate:
         condition: service_completed_successfully
       html2pdf:
         condition: service_started
