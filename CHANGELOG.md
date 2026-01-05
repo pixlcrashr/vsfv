@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.0](https://github.com/pixlcrashr/vsfv/compare/v1.1.0...v1.2.0) (2026-01-05)
+
+
+### Features
+
+* add required environment variables to production Docker Compose ([c3c85c2](https://github.com/pixlcrashr/vsfv/commit/c3c85c213b73146b850c29a61890ab98043f1de0))
+* add version build argument to Docker image ([0ab81bd](https://github.com/pixlcrashr/vsfv/commit/0ab81bdf6ec51e7568b2f5682a82a4409736d868))
+
 ## [1.1.0](https://github.com/pixlcrashr/vsfv/compare/v1.0.5...v1.1.0) (2026-01-05)
 
 
