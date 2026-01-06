@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.5](https://github.com/pixlcrashr/vsfv/compare/v1.2.4...v1.2.5) (2026-01-06)
+
+
+### Bug Fixes
+
+* correct GitHub repository URL in footer from vsfz to vsfv ([8c23551](https://github.com/pixlcrashr/vsfv/commit/8c23551eedbb5b24e4290943d1337b2ddeadd18c))
+
 ## [1.2.4](https://github.com/pixlcrashr/vsfv/compare/v1.2.3...v1.2.4) (2026-01-06)
 
 
