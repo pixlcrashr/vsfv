@@ -33,7 +33,7 @@ const SPECIAL_OPTIONS: SpecialOption[] = [
   { id: 'ignore', name: 'Ignorieren', disabled: false },
 ];
 
-export default component$<VirtualizedAccountSelectProps>(({ name, value, accounts, isInvalid, onValueChange$ }) => {
+export default component$<VirtualizedAccountSelectProps>(({ name, value, accounts, onValueChange$ }) => {
   const isOpen = useSignal(false);
   const scrollTop = useSignal(0);
   const searchQuery = useSignal('');
