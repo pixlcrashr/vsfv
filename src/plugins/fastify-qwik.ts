@@ -12,7 +12,7 @@ export interface FastifyQwikOptions {
   assetsDir: string;
 }
 
-const { router, notFound } = createQwikCity({ render, qwikCityPlan });
+const { router, notFound } = createQwikCity({ render, qwikCityPlan, checkOrigin: 'lax-proto' });
 
 const qwikPlugin: FastifyPluginAsync<FastifyQwikOptions> = async (
   fastify,
