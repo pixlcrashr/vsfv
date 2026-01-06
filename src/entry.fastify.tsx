@@ -36,12 +36,17 @@ async function serve(opts?: { port?: number; host?: string }) {
   // https://fastify.dev/docs/latest/Guides/Getting-Started/
   const fastify = Fastify({
     logger: true,
+    trustProxy: true
   });
 
   // Enable compression
   // https://github.com/fastify/fastify-compress
   // IMPORTANT NOTE: THIS MUST BE REGISTERED BEFORE THE fastify-qwik PLUGIN
   await fastify.register(import('@fastify/compress'));
+
+  fastify.get("/healthz", async (request, reply) => {
+    return reply.status(200).send({ status: "ok" });
+  });
 
   // Handle Qwik City using a plugin
   await fastify.register(FastifyQwik, { distDir, buildDir, assetsDir });
