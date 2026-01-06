@@ -340,7 +340,7 @@ export default component$(() => {
         <label class="label">{_`Importtyp`}</label>
         <div class="control">
           <div class="select is-fullwidth">
-            <select name="type" onChange$={(event, elem) => importType.value = elem.value}>
+            <select name="type" autocomplete="off" onChange$={(event, elem) => importType.value = elem.value}>
               <option disabled selected>{_`- bitte auswählen -`}</option>
               <option value="lexware">{_`Lexware Buchhaltung`}</option>
               <option value="datev">{_`DATEV Buchungsstapel`}</option>
@@ -354,7 +354,7 @@ export default component$(() => {
         <label class="label">{_`Importquelle`}</label>
         <div class="control">
           <div class="select is-fullwidth">
-            <select name="sourceId" onChange$={(event, elem) => {
+            <select name="sourceId" autocomplete="off" onChange$={(event, elem) => {
               selectedSourceId.value = elem.value;
             }}>
               <option disabled selected>{_`- bitte auswählen -`}</option>
@@ -365,7 +365,7 @@ export default component$(() => {
       </div>
       <div class="pt-5 file has-name is-fullwidth">
         <label class="file-label">
-          <input class="file-input" type="file" onChange$={(event, elem) => {
+          <input class="file-input" autocomplete="off" type="file" onChange$={(event, elem) => {
             filename.value = elem.files?.[0].name ?? '';
           }} ref={fileRef} />
           <span class="file-cta">
@@ -405,7 +405,7 @@ export default component$(() => {
 
       {transactions.value !== null && transactions.value.length === 0 && <p class="has-text-centered is-size-5">{_`Es wurden keine Transaktionen gefunden.`}</p>}
 
-      {transactions.value !== null && transactions.value.length > 0 && <Form action={importTransactionsAction} onSubmitCompleted$={async () => {
+      {transactions.value !== null && transactions.value.length > 0 && <Form action={importTransactionsAction} autocomplete="off" onSubmitCompleted$={async () => {
         await nav('/journal');
       }}>
         <input hidden name="sourceId" value={selectedSourceId.value} />

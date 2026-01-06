@@ -8,7 +8,7 @@
  *
  * Example: npx ts-node tools/import-blanner.ts test/haushaltsplan.blanner.json
  */
-
+import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient, Prisma } from '../src/lib/prisma/generated/client';
