@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.4](https://github.com/pixlcrashr/vsfv/compare/v1.2.3...v1.2.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* configure Qwik City with lax-proto origin checking ([50c04dd](https://github.com/pixlcrashr/vsfv/commit/50c04dd11a2c92df350597fe68f07fc5c65d375c))
+
 ## [1.2.3](https://github.com/pixlcrashr/vsfv/compare/v1.2.2...v1.2.3) (2026-01-06)
 
 
