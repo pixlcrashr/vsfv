@@ -83,7 +83,7 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
               </div>
             </div>
           )}
-          <p>Copyright © 2025 Vincent Heins, Version {import.meta.env.PUBLIC_VERSION ?? "0.0.0"}<br/><a href="https://github.com/pixlcrashr/vs-finanzverwaltung" target="_blank">github.com/pixlcrashr/vs-finanzverwaltung</a></p>
+          <p>Copyright © 2025 Vincent Heins<br/><a href="https://github.com/pixlcrashr/vsfz" target="_blank">github.com/pixlcrashr/vsfz @ {import.meta.env.PUBLIC_VERSION ?? "v0.0.0"}</a></p>
         </footer>
       </div>
       <MainContentContainer>

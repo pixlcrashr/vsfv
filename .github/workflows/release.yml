@@ -18,15 +18,14 @@ jobs:
         run: echo "${{ secrets.REGISTRY_CREDENTIALS }}" | docker login --password-stdin -u "${{ secrets.REGISTRY_USER }}"
 
       - name: Build Docker image
-        run: |
-          VERSION="$(echo "${{ github.ref_name }}" | sed 's/^v//')" docker build --build-arg VERSION=${VERSION} -t ${{ vars.IMAGE }}:${{ github.ref_name }} .
-      
+        run: docker build --build-arg VERSION="${{ github.ref_name }}" -t ${{ vars.IMAGE }}:${{ github.ref_name }} .
+
       - name: Tag Docker image
         run: docker tag ${{ vars.IMAGE }}:${{ github.ref_name }} ${{ vars.IMAGE }}:latest
 
       - name: Push Docker image version
         run: docker push ${{ vars.IMAGE }}:${{ github.ref_name }}
-      
+
       - name: Push Docker image latest
         run: docker push ${{ vars.IMAGE }}:latest
 

@@ -9,6 +9,7 @@
  */
 import { type PlatformNode } from "@builder.io/qwik-city/middleware/node";
 import { Command } from "commander";
+import "dotenv/config";
 import Fastify from "fastify";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

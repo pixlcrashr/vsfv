@@ -73,7 +73,6 @@
 		"Haushaltskonto-Zuweisungen": "Account assignments",
 		"Ignorieren": "Ignore",
 		"Zuweisung hinzufügen": "Add assignment",
-		"Summe": "Total",
 		"Importieren": "Import",
 		"VSFV | Journal Importieren": "VSFV | Import journal",
 		"Benutzerinformationen": "User information",
@@ -169,6 +168,7 @@
 		"Revision hinzufügen": "Add revision",
 		"Gruppe": "Group",
 		"- keine -": "- none -",
-		"Mit GitLab anmelden": "Sign in with GitLab"
+		"Mit GitLab anmelden": "Sign in with GitLab",
+		"VSFV | Berichtsvorlage erstellen": "VSFV | Create report template"
 	}
 }
