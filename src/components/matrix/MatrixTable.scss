@@ -14,4 +14,11 @@ table {
             color: #696969;
         }
     }
+
+    .description-cell {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: wrap;
+    }
 }

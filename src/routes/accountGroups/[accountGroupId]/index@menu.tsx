@@ -6,7 +6,7 @@ import { buildTreeFromDB, Node as AccountNode } from "~/lib/accounts/tree";
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
-import { formatCurrency, formatDateShort } from "~/lib/format";
+import { formatCurrency } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 import { requirePermission, Permissions } from "~/lib/auth";
@@ -43,6 +43,7 @@ interface BudgetRevisionStat {
   budgetId: string;
   budgetName: string;
   revisionIndex: number;
+  revisionName: string;
   revisionId: string;
   revisionDate: Date;
   actualAmount: string;
@@ -115,12 +116,13 @@ async function getAccountGroupData(accountGroupId: string, selectedRevisionId?: 
   const budgets = await Prisma.budgets.findMany({
     include: {
       budget_revisions: {
-        orderBy: { date: 'asc' }
+        orderBy: { date: 'desc' }
       }
     },
-    orderBy: {
-      period_start: 'desc'
-    }
+    orderBy: [
+      { period_start: 'desc' },
+      { created_at: 'desc' }
+    ]
   });
 
   if (budgets.length === 0) {
@@ -257,6 +259,7 @@ GROUP BY f1.budget_id, f1.account_id`;
         budgetId: budget.id,
         budgetName: budget.display_name,
         revisionIndex: i,
+        revisionName: `(Rev. ${budget.budget_revisions.length - i})`,
         revisionId: revision.id,
         revisionDate: revision.date,
         actualAmount: actualSum.toString(),
@@ -342,9 +345,7 @@ export default component$(() => {
                             value={stat.revisionId}
                             selected={stat.revisionId === selectedBudgetRevisionId}
                           >
-                            {stat.revisionIndex > 0
-                              ? `${stat.budgetName} (Rev. ${stat.revisionIndex + 1}, ${formatDateShort(stat.revisionDate)})`
-                              : `${stat.budgetName} (${formatDateShort(stat.revisionDate)})`}
+                            {stat.budgetName} {stat.revisionName}
                           </option>
                         ))}
                       </select>
@@ -410,10 +411,7 @@ export default component$(() => {
                   {budgetStats.map(stat => (
                     <tr key={`${stat.budgetId}-${stat.revisionId}`}>
                       <td>
-                        {stat.budgetName}
-                        {stat.revisionIndex > 0 && (
-                          <span class="has-text-grey is-size-7"> (Rev. {stat.revisionIndex + 1})</span>
-                        )}
+                        {stat.budgetName} <span class="has-text-grey is-size-7"> {stat.revisionName}</span>
                       </td>
                       <td class="has-text-right">{formatCurrency(stat.targetAmount)}</td>
                       <td class="has-text-right">{formatCurrency(stat.actualAmount)}</td>

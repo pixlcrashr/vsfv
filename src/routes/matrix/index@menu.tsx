@@ -41,6 +41,7 @@ export interface Matrix {
       id: string;
       description: string;
       date: Date;
+      displayName: string;
     }[];
   }[];
   maxDepth: number;
@@ -66,11 +67,17 @@ async function getMatrix(
       }
     },
     include: {
-      budget_revisions: true
+      budget_revisions: {
+        orderBy: {
+          date: 'asc'
+        }
+      }
     },
-    orderBy: {
-      period_start: 'desc'
-    }
+    orderBy: [
+      { period_start: 'desc' },
+      { created_at: 'desc' },
+      { display_name: 'asc' }
+    ]
   });
   const as = await Prisma.accounts.findMany({
     where: {
@@ -212,14 +219,21 @@ GROUP BY f1.budget_id, f1.account_id`;
 
   return {
     headers: bs.map(b => {
+      const totalRevisions = b.budget_revisions.length;
       return {
         budgetId: b.id,
         budgetName: b.display_name,
-        budgetRevisions: b.budget_revisions.map(r => {
+        budgetRevisions: b.budget_revisions.map((r, index) => {
+          const revisionNumber = index + 1;
+          const dateStr = r.date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const displayName = totalRevisions === 1 && index === 0
+            ? 'Soll'
+            : `Soll (Rev. ${revisionNumber}, ${dateStr})`;
           return {
             id: r.id,
             description: r.display_description,
-            date: r.date
+            date: r.date,
+            displayName: displayName
           };
         })
       };
@@ -241,11 +255,17 @@ export interface Budget {
 async function getBudgets(): Promise<Budget[]> {
   const bs = await Prisma.budgets.findMany({
     include: {
-      budget_revisions: true
+      budget_revisions: {
+        orderBy: {
+          date: 'desc'
+        }
+      }
     },
-    orderBy: {
-      period_start: 'desc'
-    }
+    orderBy: [
+      { period_start: 'desc' },
+      { created_at: 'desc' },
+      { display_name: 'asc' }
+    ]
   });
 
   return bs.map(b => {
@@ -342,6 +362,7 @@ export default component$(() => {
   const showActual = useSignal(false);
   const showDiff = useSignal(false);
   const showDescription = useSignal(false);
+  const showOnlyLatestRevision = useSignal(false);
 
   const budgetsDropdownRef = useSignal<HTMLElement>();
   const showBudgetsDropdown = useSignal(false);
@@ -392,6 +413,11 @@ export default component$(() => {
       <div class="buttons are-small has-addons">
         <button class={["button", { "is-active": showDescription.value }]} onClick$={() => showDescription.value = !showDescription.value}>
           {_`Kontobeschreibung`}
+        </button>
+      </div>
+      <div class="buttons are-small has-addons">
+        <button class={["button", { "is-active": showOnlyLatestRevision.value }]} onClick$={() => showOnlyLatestRevision.value = !showOnlyLatestRevision.value}>
+          {_`Nur Letzte Revision`}
         </button>
       </div>
       <div class={["dropdown", "is-small", {
@@ -464,7 +490,8 @@ export default component$(() => {
         showActual={showActual}
         showDescription={showDescription}
         showDiff={showDiff}
-        showTarget={showTarget} />
+        showTarget={showTarget}
+        showOnlyLatestRevision={showOnlyLatestRevision} />
     </main>
   </div>);
 });

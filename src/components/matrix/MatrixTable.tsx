@@ -1,5 +1,5 @@
 import { component$, Signal, useComputed$, useStore, useStylesScoped$, useTask$ } from "@builder.io/qwik";
-import { formatCurrency, formatDateShort } from "~/lib/format";
+import { formatCurrency } from "~/lib/format";
 import { Account, Budget, Matrix } from "~/routes/matrix/index@menu";
 import TargetValueInput from "./TargetValueInput";
 import { Decimal } from 'decimal.js/decimal';
@@ -12,6 +12,7 @@ export interface MatrixTableProps {
   showTarget?: Signal<boolean>;
   showActual?: Signal<boolean>;
   showDiff?: Signal<boolean>;
+  showOnlyLatestRevision?: Signal<boolean>;
   matrix: Signal<Matrix>;
   allBudgets: Budget[];
   allAccounts: Account[];
@@ -77,6 +78,7 @@ export default component$<MatrixTableProps>(({
   showTarget,
   showActual,
   showDiff,
+  showOnlyLatestRevision,
   matrix,
   allBudgets,
   allAccounts
@@ -98,6 +100,11 @@ export default component$<MatrixTableProps>(({
   useTask$(({ track }) => {
     track(() => matrix.value);
     
+    // Clear existing values before populating
+    Object.keys(actualValues).forEach(key => delete actualValues[key]);
+    Object.keys(targetValues).forEach(key => delete targetValues[key]);
+    Object.keys(diffValues).forEach(key => delete diffValues[key]);
+    
     matrix.value.items.forEach(row => {
       row.values.forEach((value, i) => {
         actualValues[actualValueKey(row.accountId, matrix.value.headers[i].budgetId)] = value.actualValue;
@@ -114,6 +121,39 @@ export default component$<MatrixTableProps>(({
     return (showTarget?.value ? 1 : 0) + (showActual?.value ? 1 : 0) + (showDiff?.value ? 1 : 0);
   });
 
+  // Compute filtered headers based on showOnlyLatestRevision
+  const filteredHeaders = useComputed$(() => {
+    return matrix.value.headers.map(h => ({
+      ...h,
+      budgetRevisions: showOnlyLatestRevision?.value 
+        ? (h.budgetRevisions.length > 0 ? [h.budgetRevisions[h.budgetRevisions.length - 1]] : [])
+        : h.budgetRevisions
+    }));
+  });
+
+  // Helper to get filtered revisions for an item's values
+  const getFilteredRevisions = (revisions: { revisionId: string; targetValue: string; diffValue: string; }[], budgetIndex: number) => {
+    if (showOnlyLatestRevision?.value) {
+      const header = matrix.value.headers[budgetIndex];
+      if (header && header.budgetRevisions.length > 0) {
+        const latestRevisionId = header.budgetRevisions[header.budgetRevisions.length - 1].id;
+        const latestRevision = revisions.find(r => r.revisionId === latestRevisionId);
+        return latestRevision ? [latestRevision] : [];
+      }
+      return [];
+    }
+    return revisions;
+  };
+
+  // Helper to check if a revision is the latest (editable) - last in ASC-sorted array
+  const isLatestRevision = (revisionId: string, budgetIndex: number) => {
+    const header = matrix.value.headers[budgetIndex];
+    if (header && header.budgetRevisions.length > 0) {
+      return header.budgetRevisions[header.budgetRevisions.length - 1].id === revisionId;
+    }
+    return false;
+  };
+
   return <>
     <table class="table is-bordered">
       <thead>
@@ -122,14 +162,14 @@ export default component$<MatrixTableProps>(({
           <th rowSpan={2}>Titel</th>
           {showDescription?.value && <th rowSpan={2}>Beschreibung</th>}
           {(showTarget?.value || showActual?.value || showDiff?.value) && <>
-            {matrix.value.headers.map((h) => <th key={h.budgetId} colSpan={budgetColSpan.value + (h.budgetRevisions.length - 1) * ((showTarget?.value ? 1 : 0) + (showDiff?.value ? 1 : 0))}>{h.budgetName}</th>)}
+            {filteredHeaders.value.map((h) => <th key={h.budgetId} colSpan={budgetColSpan.value + (h.budgetRevisions.length - 1) * ((showTarget?.value ? 1 : 0) + (showDiff?.value ? 1 : 0))}>{h.budgetName}</th>)}
           </>}
         </tr>
         <tr>
-          {matrix.value.headers.map((h) => <>
-            {showTarget?.value && h.budgetRevisions.map((revision, i) => <th key={revision.id}>Soll{i > 0 ? ` (Rev. ${i + 1}, ${formatDateShort(revision.date)})` : ''}</th>)}
+          {filteredHeaders.value.map((h) => <>
+            {showTarget?.value && h.budgetRevisions.map((revision) => <th key={revision.id}>{revision.displayName}</th>)}
             {showActual?.value && <th>Ist</th>}
-            {showDiff?.value && h.budgetRevisions.map((revision, i) => <th key={revision.id}>Diff.{i > 0 ? ` (Rev. ${i + 1}, ${formatDateShort(revision.date)})` : ''}</th>)}
+            {showDiff?.value && h.budgetRevisions.map((revision) => <th key={revision.id}>{revision.displayName.replace('Soll', 'Diff.')}</th>)}
           </>)}
         </tr>
       </thead>
@@ -139,31 +179,34 @@ export default component$<MatrixTableProps>(({
             {j === row.depth ? row.accountCode : ''}
           </td>)}
           <td>{row.accountName}</td>
-          {showDescription?.value && <td>{row.accountDescription}</td>}
+          {showDescription?.value && <td class="description-cell" title={row.accountDescription}>{row.accountDescription}</td>}
           {row.values.map((value, i) => <>
-            {showTarget?.value && value.revisions.map((revision) => <td class="p-0 is-vcentered" key={revision.revisionId}>
+            {showTarget?.value && getFilteredRevisions(value.revisions, i).map((revision) => <td class="p-0 is-vcentered" key={revision.revisionId}>
               {row.isGroup ?
                 <p class="pl-2 pr-2">{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</p> :
-                <TargetValueInput
-                  tabIndex={10 + i}
-                  value={targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0'}
-                  accountId={row.accountId}
-                  budgetRevisionId={revision.revisionId}
-                  onSaved$={(event) => {
-                    propagateMatrixValues(
-                      budgetRevisionIdToBudgetIdMap,
-                      targetValues,
-                      actualValues,
-                      diffValues,
-                      allAccounts,
-                      revision.revisionId,
-                      row.parentAccountId,
-                      event.change.diff
-                    );
-                  }} />}
+                (isLatestRevision(revision.revisionId, i) ?
+                  <TargetValueInput
+                    tabIndex={10 + i}
+                    value={targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0'}
+                    accountId={row.accountId}
+                    budgetRevisionId={revision.revisionId}
+                    onSaved$={(event) => {
+                      propagateMatrixValues(
+                        budgetRevisionIdToBudgetIdMap,
+                        targetValues,
+                        actualValues,
+                        diffValues,
+                        allAccounts,
+                        revision.revisionId,
+                        row.parentAccountId,
+                        event.change.diff
+                      );
+                    }} /> :
+                  <p class="pl-2 pr-2">{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</p>)
+              }
             </td>)}
             {showActual?.value && <td class="disabled-cell">{formatCurrency(actualValues[actualValueKey(row.accountId, matrix.value.headers[i].budgetId)] ?? '0')}</td>}
-            {showDiff?.value && value.revisions.map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(diffValues[`${row.accountId}:${revision.revisionId}`] ?? '0')}</td>)}
+            {showDiff?.value && getFilteredRevisions(value.revisions, i).map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(diffValues[`${row.accountId}:${revision.revisionId}`] ?? '0')}</td>)}
           </>)}
         </tr>)}
       </tbody>

@@ -39,11 +39,11 @@ export function parseGermanDate(input: string): Date | null {
   if (!match) {
     return null;
   }
-
+  
   const [, dd, mm, yyyy] = match;
   const day = Number(dd);
   const month = Number(mm) - 1;
   const year = Number(yyyy);
 
-  return new Date(year, month, day);
+  return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
 }
