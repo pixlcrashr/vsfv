@@ -73,7 +73,6 @@
 		"Haushaltskonto-Zuweisungen": "Account assignments",
 		"Ignorieren": "Ignore",
 		"Zuweisung hinzufügen": "Add assignment",
-		"Importieren": "Import",
 		"VSFV | Journal Importieren": "VSFV | Import journal",
 		"Benutzerinformationen": "User information",
 		"Gruppenzuweisungen": "Group assignments",
@@ -169,6 +168,9 @@
 		"Gruppe": "Group",
 		"- keine -": "- none -",
 		"Mit GitLab anmelden": "Sign in with GitLab",
-		"VSFV | Berichtsvorlage erstellen": "VSFV | Create report template"
+		"VSFV | Berichtsvorlage erstellen": "VSFV | Create report template",
+		"Nur Letzte Revision": "Only last revision",
+		"Suchen...": "Search...",
+		"Keine Konten gefunden": "No accounts found"
 	}
 }

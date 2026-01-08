@@ -73,7 +73,6 @@
 		"Haushaltskonto-Zuweisungen": "Haushaltskonto-Zuweisungen",
 		"Ignorieren": "Ignorieren",
 		"Zuweisung hinzufügen": "Zuweisung hinzufügen",
-		"Importieren": "Importieren",
 		"VSFV | Journal Importieren": "VSFV | Journal Importieren",
 		"Benutzerinformationen": "Benutzerinformationen",
 		"Gruppenzuweisungen": "Gruppenzuweisungen",
@@ -169,6 +168,9 @@
 		"Gruppe": "Gruppe",
 		"- keine -": "- keine -",
 		"Mit GitLab anmelden": "Mit GitLab anmelden",
-		"VSFV | Berichtsvorlage erstellen": "VSFV | Berichtsvorlage erstellen"
+		"VSFV | Berichtsvorlage erstellen": "VSFV | Berichtsvorlage erstellen",
+		"Nur Letzte Revision": "Nur Letzte Revision",
+		"Suchen...": "Suchen...",
+		"Keine Konten gefunden": "Keine Konten gefunden"
 	}
 }
