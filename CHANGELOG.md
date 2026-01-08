@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.3.0](https://github.com/pixlcrashr/vsfv/compare/v1.2.8...v1.3.0) (2026-01-08)
+
+
+### Features
+
+* implement individual transaction import with inline assignment ([153b713](https://github.com/pixlcrashr/vsfv/commit/153b71332bd6424716e5635d642c990fc293c11a))
+
 ## [1.2.8](https://github.com/pixlcrashr/vsfv/compare/v1.2.7...v1.2.8) (2026-01-07)
 
 ## [1.2.7](https://github.com/pixlcrashr/vsfv/compare/v1.2.6...v1.2.7) (2026-01-06)
