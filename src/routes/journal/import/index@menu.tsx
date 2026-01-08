@@ -85,7 +85,7 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
       }
     });
 
-    const res = ts.filter((t: any) => matchingTransactions.every((x: any) => x.custom_id !== transactionToCustomId(
+    const res = ts.filter((t) => matchingTransactions.every((x) => x.custom_id !== transactionToCustomId(
         t.bookedAt,
         t.receiptFrom,
         t.creditAccount,
@@ -93,7 +93,16 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
         t.amount,
         `${t.receiptNumberGroup ?? ''}${t.receiptNumber ?? ''}`,
         t.description
-      ))).map((t: any) => ({
+      ))).map((t) => ({
+      custom_id: transactionToCustomId(
+        t.bookedAt,
+        t.receiptFrom,
+        t.creditAccount,
+        t.debitAccount,
+        t.amount,
+        `${t.receiptNumberGroup ?? ''}${t.receiptNumber ?? ''}`,
+        t.description
+      ),
       receiptFrom: t.receiptFrom,
       bookedAt: t.bookedAt,
       reference: `${t.receiptNumberGroup ?? ''}${t.receiptNumber ?? ''}`,
@@ -421,6 +430,7 @@ export default component$(() => {
   const uploadLoading = useSignal<boolean>(false);
 
   const transactions = useSignal<{
+    custom_id: string;
     receiptFrom: Date;
     bookedAt: Date;
     reference: string;
@@ -527,16 +537,15 @@ export default component$(() => {
             </tr>
           </thead>
           <tbody>
-            {transactions.value.map((x, i) => (
+            {transactions.value.map(x => (
               <ImportTransactionRow
-                key={`${x.bookedAt}-${x.amount}-${x.reference}-${i}`}
+                key={x.custom_id}
                 transaction={x}
-                index={i}
                 sourceId={selectedSourceId.value}
                 accounts={accounts.value}
                 importAction={importSingleTransactionAction}
-                onSuccess$={(index: number) => {
-                  transactions.value = transactions.value?.filter((_, idx) => idx !== index) ?? null;
+                onSuccess$={() => {
+                  transactions.value = transactions.value?.filter(y => y.custom_id !== x.custom_id) ?? null;
                 }}
               />
             ))}

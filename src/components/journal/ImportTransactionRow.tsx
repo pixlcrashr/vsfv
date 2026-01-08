@@ -1,6 +1,5 @@
 import { component$, useSignal, type QRL } from "@builder.io/qwik";
 import { Form, type ActionStore } from "@builder.io/qwik-city";
-import { _ } from "compiled-i18n";
 import { formatCurrency, formatDateInputField, formatDateShort } from "~/lib/format";
 import type { Account } from "~/routes/journal/import/index@menu";
 import TransactionAssignmentCellInline from "./TransactionAssignmentCellInline";
@@ -17,16 +16,14 @@ export interface ImportTransaction {
 
 export interface ImportTransactionRowProps {
   transaction: ImportTransaction;
-  index: number;
   sourceId: string;
   accounts: Account[];
   importAction: ActionStore<any, any, boolean>;
-  onSuccess$: QRL<(index: number) => void>;
+  onSuccess$: QRL<() => void>;
 }
 
 export default component$<ImportTransactionRowProps>(({
   transaction,
-  index,
   sourceId,
   accounts,
   importAction,
@@ -64,7 +61,7 @@ export default component$<ImportTransactionRowProps>(({
             const detail = event.detail as { value?: { success?: boolean } };
             if (detail?.value?.success) {
               isSubmitted.value = true;
-              setTimeout(() => onSuccess$(index), 0);
+              setTimeout(() => onSuccess$(), 0);
               return;
             }
             isLoading.value = false;
