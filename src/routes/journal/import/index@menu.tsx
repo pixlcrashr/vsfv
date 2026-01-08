@@ -1,13 +1,12 @@
-import { component$, useSignal, useStore } from "@builder.io/qwik";
-import { DocumentHead, Form, Link, routeAction$, routeLoader$, useNavigate, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
+import { component$, useSignal } from "@builder.io/qwik";
+import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Decimal from "decimal.js";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContentLarge from "~/components/layout/MainContentLarge";
-import TransactionAssignmentCell from "~/components/journal/TransactionAssignmentCell";
-import { formatCurrency, formatDateInputField, formatDateShort } from "~/lib/format";
+import ImportTransactionRow from "~/components/journal/ImportTransactionRow";
 import { parseLexwareTransactions } from "~/lib/lexware/parser";
 import { parseDatevTransactions } from "~/lib/datev/parser";
 import { Prisma } from "~/lib/prisma";
@@ -135,6 +134,21 @@ export const ImportTransactionsSchema = {
   }))
 };
 
+export const ImportSingleTransactionSchema = {
+  sourceId: z.string().uuid(),
+  receiptFrom: z.string().date(),
+  bookedAt: z.string().date(),
+  amount: z.string(),
+  description: z.string(),
+  reference: z.string(),
+  debitAccount: z.string().min(1),
+  creditAccount: z.string().min(1),
+  accountAssignments: z.array(z.object({
+    accountId: z.string(),
+    value: z.string()
+  })).optional()
+};
+
 export const useImportTransactionsRouteAction = routeAction$(async (args, { sharedMap, fail }) => {
   const auth = await withPermission(sharedMap, fail, Permissions.JOURNAL_IMPORT);
   if (!auth.authorized) {
@@ -239,6 +253,105 @@ export const useImportTransactionsRouteAction = routeAction$(async (args, { shar
   };
 }, zod$(ImportTransactionsSchema));
 
+export const useImportSingleTransactionRouteAction = routeAction$(async (args, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.JOURNAL_IMPORT);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
+  if (args.sourceId === '') {
+    return {
+      success: false
+    };
+  }
+
+  const transactionAccountCodes = new Set<string>();
+  transactionAccountCodes.add(args.debitAccount);
+  transactionAccountCodes.add(args.creditAccount);
+
+  const tas = await Prisma.transaction_accounts.findMany({
+    where: {
+      import_source_id: args.sourceId,
+      code: {
+        in: Array.from(transactionAccountCodes)
+      }
+    }
+  });
+
+  const m = new Map<string, string>();
+
+  for (const c of transactionAccountCodes) {
+    const ta = tas.find(x => x.code === c);
+
+    if (ta) {
+      m.set(c, ta.id);
+    } else {
+      const ta = await Prisma.transaction_accounts.create({
+        data: {
+          import_source_id: args.sourceId,
+          code: c,
+          display_name: '',
+          display_description: '',
+        }
+      });
+      tas.push(ta);
+      m.set(c, ta.id);
+    }
+  }
+
+  const assignments = args.accountAssignments ?? [];
+  const transactionAmount = new Decimal(args.amount);
+  
+  if (assignments.length > 0) {
+    const totalAssigned = assignments.reduce((sum, a) => sum.plus(new Decimal(a.value)), new Decimal(0));
+    
+    if (!totalAssigned.equals(transactionAmount)) {
+      return fail(400, {
+        success: false,
+        message: `Transaction assignments must total to ${transactionAmount.toString()}, but got ${totalAssigned.toString()}`
+      });
+    }
+  }
+
+  const transaction = await Prisma.transactions.create({
+    data: {
+      amount: P.Decimal(args.amount),
+      booked_at: new Date(args.bookedAt),
+      document_date: new Date(args.receiptFrom),
+      reference: args.reference,
+      description: args.description,
+      credit_transaction_account_id: m.get(args.creditAccount) ?? '',
+      debit_transaction_account_id: m.get(args.debitAccount) ?? '',
+      custom_id: transactionToCustomId(
+        new Date(args.bookedAt),
+        new Date(args.receiptFrom),
+        args.creditAccount,
+        args.debitAccount,
+        new Decimal(args.amount),
+        args.reference,
+        args.description
+      ),
+      assigned_account_id: null
+    }
+  });
+
+  for (const assignment of assignments) {
+    if (assignment.accountId !== 'ignore' && assignment.accountId !== '') {
+      await Prisma.transaction_account_assignments.create({
+        data: {
+          transaction_id: transaction.id,
+          account_id: assignment.accountId,
+          value: P.Decimal(assignment.value)
+        }
+      });
+    }
+  }
+
+  return {
+    success: true
+  };
+}, zod$(ImportSingleTransactionSchema));
+
 export interface Account {
   id: string;
   name: string;
@@ -296,7 +409,6 @@ export const useGetAllImportSourcesLoader = routeLoader$<ImportSource[]>(() => {
 export default component$(() => {
   const filename = useSignal<string>('');
   const fileRef = useSignal<HTMLInputElement | undefined>(undefined);
-  const nav = useNavigate();
 
   const importType = useSignal<string>('');
   const selectedSourceId = useSignal<string>('');
@@ -304,7 +416,7 @@ export default component$(() => {
   const accounts = useGetAllAccountsLoader();
   const importSources = useGetAllImportSourcesLoader();
   const uploadTransactionsAction = useUploadTransactionsRouteAction();
-  const importTransactionsAction = useImportTransactionsRouteAction();
+  const importSingleTransactionAction = useImportSingleTransactionRouteAction();
 
   const uploadLoading = useSignal<boolean>(false);
 
@@ -317,8 +429,6 @@ export default component$(() => {
     debitAccount: string;
     creditAccount: string;
   }[] | null>(null);
-
-  const assignmentValidity = useStore<{ byIndex: boolean[] }>({ byIndex: [] });
 
   return (
     <MainContentLarge>
@@ -393,10 +503,8 @@ export default component$(() => {
 
             uploadLoading.value = true;
             transactions.value = null;
-            assignmentValidity.byIndex = [];
             const { value } = await uploadTransactionsAction.submit(formData);
             transactions.value = value.result ?? [];
-            assignmentValidity.byIndex = new Array((value.result ?? []).length).fill(false);
             selectedSourceId.value = value.sourceId ?? '';
             uploadLoading.value = false;
           }
@@ -405,10 +513,7 @@ export default component$(() => {
 
       {transactions.value !== null && transactions.value.length === 0 && <p class="has-text-centered is-size-5">{_`Es wurden keine Transaktionen gefunden.`}</p>}
 
-      {transactions.value !== null && transactions.value.length > 0 && <Form action={importTransactionsAction} autocomplete="off" onSubmitCompleted$={async () => {
-        await nav('/journal');
-      }}>
-        <input hidden name="sourceId" value={selectedSourceId.value} />
+      {transactions.value !== null && transactions.value.length > 0 && <>
         <table class="table is-narrow is-fullwidth">
           <thead>
             <tr>
@@ -422,52 +527,22 @@ export default component$(() => {
             </tr>
           </thead>
           <tbody>
-            {transactions.value.map((x, i) => {
-              return <tr key={i}>
-                <td style="vertical-align: top;">
-                  <input hidden name={`transactions.${i}.bookedAt`} type="date" value={formatDateInputField(x.bookedAt)} />
-                  <input hidden name={`transactions.${i}.receiptFrom`} type="data" value={formatDateInputField(x.receiptFrom)} />
-
-                  {formatDateShort(x.bookedAt)}
-                </td>
-                <td class="has-text-right" style="vertical-align: top;">
-                  <input hidden name={`transactions.${i}.amount`} value={x.amount.toString()} />
-                  {formatCurrency(x.amount.toString())}
-                </td>
-                <td class="has-text-right" style="vertical-align: top;">
-                  <input hidden name={`transactions.${i}.debitAccount`} value={x.debitAccount} />
-                  {x.debitAccount}
-                </td>
-                <td class="has-text-right" style="vertical-align: top;">
-                  <input hidden name={`transactions.${i}.creditAccount`} value={x.creditAccount} />
-                  {x.creditAccount}
-                </td>
-                <td style="vertical-align: top;">
-                  <input hidden name={`transactions.${i}.description`} value={x.description} />
-                  {x.description}
-                </td>
-                <td style="vertical-align: top;">
-                  <input hidden name={`transactions.${i}.reference`} value={x.reference} />
-                  {x.reference}
-                </td>
-                <td style="vertical-align: top;">
-                  <TransactionAssignmentCell
-                    transactionIndex={i}
-                    transactionAmount={x.amount.toString()}
-                    accounts={accounts.value}
-                    onValidChange$={(index, isValid) => {
-                      assignmentValidity.byIndex[index] = isValid;
-                    }}
-                  />
-                </td>
-              </tr>;
-            })}
+            {transactions.value.map((x, i) => (
+              <ImportTransactionRow
+                key={`${x.bookedAt}-${x.amount}-${x.reference}-${i}`}
+                transaction={x}
+                index={i}
+                sourceId={selectedSourceId.value}
+                accounts={accounts.value}
+                importAction={importSingleTransactionAction}
+                onSuccess$={(index: number) => {
+                  transactions.value = transactions.value?.filter((_, idx) => idx !== index) ?? null;
+                }}
+              />
+            ))}
           </tbody>
         </table>
-        <div class="buttons is-right is-fullwidth">
-          <button type="submit" disabled={transactions.value.length === 0 || importTransactionsAction.isRunning || transactions.value.some((_, i) => assignmentValidity.byIndex[i] !== true)} class="button is-primary">{_`Importieren`}</button>
-        </div>
-      </Form>}
+      </>}
     </MainContentLarge >
   );
 });
