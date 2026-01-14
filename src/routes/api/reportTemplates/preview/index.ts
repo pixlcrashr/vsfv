@@ -19,7 +19,7 @@ function generateRandomBudget(minRevisions: number, maxRevisions: number): Budge
       id: faker.string.uuid(),
       date: faker.date.past(),
     }))
-  }
+  };
 }
 
 function generateRandomAccount(minChildren: number, maxChildren: number, maxDepth: number = 1, depth: number): Account {

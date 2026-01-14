@@ -49,7 +49,7 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
       }
     },
     orderBy: {
-      created_at: 'desc'
+      document_date: 'desc'
     },
     skip: (page - 1) * size,
     take: size
@@ -58,7 +58,7 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
   return ts.map(t => {
     return {
       id: t.id,
-      date: t.booked_at,
+      date: t.document_date,
       amount: t.amount.toString(),
       debitAccountCode: t.transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts.code,
       debitAccountId: t.transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts.id,
