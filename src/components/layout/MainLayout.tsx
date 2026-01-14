@@ -1,15 +1,33 @@
-import { component$, Slot, useStylesScoped$ } from "@builder.io/qwik";
+import { component$, Slot, useComputed$, useStylesScoped$ } from "@builder.io/qwik";
 import { Link, useLocation } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import MainContentContainer from "./MainContentContainer";
 import styles from "./MainLayout.scss?inline";
 import { useSession, useSignOut } from "~/routes/plugin@auth";
-import type { MenuItem } from "~/lib/auth";
+import { type MenuItem } from "~/lib/auth";
 import { useNameLoader } from "~/routes/layout-menu";
+
+
 
 interface MainLayoutProps {
   mainMenuItems: MenuItem[];
   adminMenuItems: MenuItem[];
+}
+
+export function isMenuItemActive(item: MenuItem, currentPath: string): boolean {
+  if (!currentPath.startsWith(item.path)) {
+    return false;
+  }
+  
+  if (item.excludePaths) {
+    for (const excludePath of item.excludePaths) {
+      if (currentPath.startsWith(excludePath)) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
 }
 
 export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) => {
@@ -18,6 +36,16 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
   const session = useSession();
   const signOut = useSignOut();
   const name = useNameLoader();
+
+  const currentPath = useComputed$(() => location.url.pathname);
+
+  const mainMenuActiveStates = useComputed$(() => 
+    mainMenuItems.map(item => isMenuItemActive(item, currentPath.value))
+  );
+
+  const adminMenuActiveStates = useComputed$(() => 
+    adminMenuItems.map(item => isMenuItemActive(item, currentPath.value))
+  );
 
   return (
     <div class="columns">
@@ -35,8 +63,8 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
         <aside class="menu p-4">
           {mainMenuItems.length > 0 && (
             <ul class="menu-list">
-              {mainMenuItems.map(({ name, path }) => <li key={name}>
-                <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
+              {mainMenuItems.map((item, index) => <li key={item.name}>
+                <Link class={["menu-list-link", { 'is-active': mainMenuActiveStates.value[index] }]} href={item.path} prefetch="js">{item.name}</Link>
               </li>)}
             </ul>
           )}
@@ -44,8 +72,8 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
             <>
               <p class="menu-label">{_`Administration`}</p>
               <ul class="menu-list">
-                {adminMenuItems.map(({ name, path }) => <li key={name}>
-                  <Link class={["menu-list-link", { 'is-active': location.url.pathname.startsWith(path) }]} href={path} prefetch="js">{name}</Link>
+                {adminMenuItems.map((item, index) => <li key={item.name}>
+                  <Link class={["menu-list-link", { 'is-active': adminMenuActiveStates.value[index] }]} href={item.path} prefetch="js">{item.name}</Link>
                 </li>)}
               </ul>
             </>
@@ -59,7 +87,12 @@ export default component$<MainLayoutProps>(({ mainMenuItems, adminMenuItems }) =
                 <div class="media-left">
                   {session.value.user.image && (
                     <figure class="image is-32x32">
-                      <img class="is-rounded" src={session.value.user.image} alt={session.value.user.name || 'User'} />
+                      <img
+                        class="is-rounded"
+                        height="32"
+                        width="32"
+                        src={session.value.user.image}
+                        alt={session.value.user.name || 'User'} />
                     </figure>
                   )}
                 </div>

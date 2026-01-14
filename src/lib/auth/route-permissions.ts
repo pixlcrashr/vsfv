@@ -2,10 +2,13 @@ import { checkPermission } from './rbac';
 import { Permissions } from './permissions';
 import { _ } from 'compiled-i18n';
 
+
+
 export interface MenuItem {
   name: string;
   path: string;
   permission?: { resource: string; action: string };
+  excludePaths?: string[];
 }
 
 export const menuItems: MenuItem[] = [
@@ -27,6 +30,12 @@ export const menuItems: MenuItem[] = [
   {
     name: _`Konten`,
     path: '/accounts',
+    permission: Permissions.ACCOUNTS_READ,
+    excludePaths: ['/accounts/compare']
+  },
+  {
+    name: _`Kontenvergleich`,
+    path: '/accounts/compare',
     permission: Permissions.ACCOUNTS_READ
   },
   {

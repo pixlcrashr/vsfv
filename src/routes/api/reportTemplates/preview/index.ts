@@ -1,5 +1,5 @@
 import { type RequestHandler } from "@builder.io/qwik-city";
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { faker } from '@faker-js/faker';
 import { Account, Budget, renderReport } from "~/lib/reports/render";
 import { requirePermission, Permissions } from "~/lib/auth";

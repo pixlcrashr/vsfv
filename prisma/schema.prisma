@@ -279,6 +279,7 @@ model user_groups {
   name        String
   description String   @default("")
   is_system   Boolean  @default(false)
+  is_default  Boolean  @default(false)
   created_at  DateTime @default(now()) @db.Timestamp(6)
   updated_at  DateTime @default(now()) @db.Timestamp(6)
 

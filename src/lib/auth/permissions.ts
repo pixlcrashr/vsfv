@@ -131,12 +131,34 @@ export const Permissions = {
     name: _`Transaktionen importieren`,
     description: _`Buchungen aus externen Quellen importieren`
   }),
+
+  // Transactions
+  TRANSACTIONS_READ: permission(Resources.TRANSACTIONS, Actions.READ, {
+    category: _`Transaktionen`,
+    name: _`Transaktionen anzeigen`,
+    description: _`Transaktionen ansehen`
+  }),
+  TRANSACTIONS_UPDATE: permission(Resources.TRANSACTIONS, Actions.UPDATE, {
+    category: _`Transaktionen`,
+    name: _`Transaktionen bearbeiten`,
+    description: _`Transaktionen ändern`
+  }),
+  TRANSACTIONS_DELETE: permission(Resources.TRANSACTIONS, Actions.DELETE, {
+    category: _`Transaktionen`,
+    name: _`Transaktionen löschen`,
+    description: _`Transaktionen entfernen`
+  }),
   
   // Matrix
   MATRIX_READ: permission(Resources.MATRIX, Actions.READ, {
     category: _`Matrix`,
     name: _`Matrix anzeigen`,
     description: _`Matrixansicht der Konten und Buchungen ansehen`
+  }),
+  MATRIX_UPDATE: permission(Resources.MATRIX, Actions.UPDATE, {
+    category: _`Matrix`,
+    name: _`Matrix bearbeiten`,
+    description: _`Sollwerte in der Matrixansicht ändern`
   }),
   
   // Reports

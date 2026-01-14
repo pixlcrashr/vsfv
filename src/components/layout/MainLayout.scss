@@ -30,6 +30,31 @@
     margin: 0;
     position: relative;
 
+    .menu-label {
+        color: #888;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .menu-list-link {
+        color: #b0b0b0;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: background-color 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            color: #fff;
+            background-color: #333;
+        }
+
+        &.is-active {
+            color: #fff;
+            background-color: #3273dc;
+            font-weight: 600;
+        }
+    }
+
     .nav-menu-footer {
         position: absolute;
         bottom: 0;
@@ -37,5 +62,6 @@
         font-size: 7pt;
         text-align: center;
         padding: 1rem;
+        color: #666;
     }
 }

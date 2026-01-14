@@ -1,10 +1,11 @@
 import { QwikAuth$ } from "@auth/qwik";
 import type { Provider } from "@auth/core/providers";
 import { Prisma } from "~/lib/prisma";
-import { isFirstUser, assignSystemRoleToUser, setupSystemRole } from "~/lib/auth/setup-roles";
-import { isBrowser, isServer } from "@builder.io/qwik";
+import { isFirstUser, assignSystemRoleToUser, setupSystemRole, setupDefaultRole, assignDefaultRoleToUser } from "~/lib/auth/setup-roles";
+import { isBrowser } from "@builder.io/qwik";
 
 let systemRoleInitialized = false;
+let defaultRoleInitialized = false;
 
 export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
   (req) => ({
@@ -50,6 +51,11 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
             systemRoleInitialized = true;
           }
 
+          if (!defaultRoleInitialized) {
+            await setupDefaultRole();
+            defaultRoleInitialized = true;
+          }
+
           const existingUser = await Prisma.users.findUnique({
             where: { email: user.email },
           });
@@ -79,7 +85,10 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
               await assignSystemRoleToUser(newUser.id);
               console.log(`First user ${newUser.email} assigned system role`);
             }
+
+            await assignDefaultRoleToUser(newUser.id);
           } else {
+            await assignDefaultRoleToUser(existingUser.id);
             if (account) {
               const existingIdentity = await Prisma.user_identities.findUnique({
                 where: {
@@ -109,7 +118,11 @@ export const { onRequest, useSession, useSignIn, useSignOut } = QwikAuth$(
         }
       },
       async jwt({ token, user }) {
-        if (isServer && user?.email) {
+        if (isBrowser) {
+          return token;
+        }
+
+        if (user?.email) {
           const dbUser = await Prisma.users.findUnique({
             where: { email: user.email },
           });

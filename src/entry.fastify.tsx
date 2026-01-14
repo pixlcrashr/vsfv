@@ -14,7 +14,7 @@ import Fastify from "fastify";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import FastifyQwik from "./plugins/fastify-qwik";
-import { setupSystemRole } from "./lib/auth/setup-roles";
+import { setupSystemRole, setupDefaultRole } from "./lib/auth/setup-roles";
 
 declare global {
   type QwikCityPlatform = PlatformNode;
@@ -29,8 +29,9 @@ async function serve(opts?: { port?: number; host?: string }) {
   const port = opts?.port ?? Number.parseInt(process.env.PORT ?? "3000", 10);
   const host = opts?.host ?? process.env.HOST ?? "0.0.0.0";
 
-  // Setup system role and permissions
+  // Setup system role and default role with permissions
   await setupSystemRole();
+  await setupDefaultRole();
 
   // Create the fastify server
   // https://fastify.dev/docs/latest/Guides/Getting-Started/

@@ -10,7 +10,7 @@ import MainContent from "~/components/layout/MainContent";
 import MainContentMenu from "~/components/layout/MainContentMenu";
 import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { Prisma } from "~/lib/prisma";
-import { accountsModel } from "~/lib/prisma/generated/models";
+import { type accountsModel } from "~/lib/prisma/generated/models";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 import styles from "./index@menu.scss?inline";
 import { requirePermission, withPermission, Permissions, checkPermissions } from "~/lib/auth";
@@ -199,7 +199,7 @@ export const AccountRow = component$<AccountRowProps>((props) => {
           </div>
         </td>
       </tr>
-      {props.account.children.map(x => <AccountRow canUpdate={props.canUpdate} canDelete={props.canDelete} editMenuAccountId={props.editMenuAccountId} menuStatus={props.menuStatus} maxDepth={props.maxDepth} account={x} />)}
+      {props.account.children.map(x => <AccountRow key={x.id} canUpdate={props.canUpdate} canDelete={props.canDelete} editMenuAccountId={props.editMenuAccountId} menuStatus={props.menuStatus} maxDepth={props.maxDepth} account={x} />)}
     </>
   );
 });
@@ -271,7 +271,7 @@ export default component$(() => {
                 </td>
               </tr>
             )}
-            {accounts.value.map((account) => <AccountRow canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} editMenuAccountId={editMenuAccountId} menuStatus={menuStatus} maxDepth={maxDepth.value} account={account} />)}
+            {accounts.value.map((account) => <AccountRow key={account.id} canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} editMenuAccountId={editMenuAccountId} menuStatus={menuStatus} maxDepth={maxDepth.value} account={account} />)}
           </tbody>
         </table>
       </MainContent>
