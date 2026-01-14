@@ -1,7 +1,7 @@
 import { component$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeLoader$, useNavigate, useLocation, type RequestHandler } from "@builder.io/qwik-city";
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
-import { Decimal } from "decimal.js/decimal";
+import { Decimal } from "decimal.js";
 import { buildTreeFromDB, Node as AccountNode } from "~/lib/accounts/tree";
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -339,15 +339,13 @@ export default component$(() => {
                   <div class="control">
                     <div class="select is-small">
                       <select onChange$={(_, el) => nav(`${loc.url.pathname}?revisionId=${el.value}`)}>
-                        {budgetStats.map(stat => (
-                          <option
-                            key={stat.revisionId}
-                            value={stat.revisionId}
-                            selected={stat.revisionId === selectedBudgetRevisionId}
-                          >
-                            {stat.budgetName} {stat.revisionName}
-                          </option>
-                        ))}
+                        {budgetStats.map(stat => (<option
+                          key={stat.revisionId}
+                          value={stat.revisionId}
+                          selected={stat.revisionId === selectedBudgetRevisionId}
+                        >
+                          {`${stat.budgetName} ${stat.revisionName}`}
+                        </option>))}
                       </select>
                     </div>
                   </div>
