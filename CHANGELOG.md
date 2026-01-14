@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.4.1](https://github.com/pixlcrashr/vsfv/compare/v1.4.0...v1.4.1) (2026-01-14)
+
+
+### Bug Fixes
+
+* **journal:** correct period closed logic for transaction edit/delete buttons ([8faca4c](https://github.com/pixlcrashr/vsfv/commit/8faca4ccccdaa9871b6745ccc53f0e4df6c65c72))
+
 ## [1.4.0](https://github.com/pixlcrashr/vsfv/compare/v1.3.1...v1.4.0) (2026-01-14)
 
 
