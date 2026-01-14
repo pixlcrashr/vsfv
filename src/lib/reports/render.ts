@@ -1,9 +1,7 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { formatCurrency, formatDateShort } from "../format";
 import { createHtm2PdfClient } from "../html2pdf";
 import Handlebars from "handlebars";
-import { writeFile } from "node:fs";
-import path from "node:path";
 
 
 

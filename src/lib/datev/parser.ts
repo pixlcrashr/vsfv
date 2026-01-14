@@ -1,5 +1,5 @@
 import { parse } from "csv-parse/browser/esm";
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { Transaction } from "../transaction";
 
 export async function parseDatevTransactions(d: Blob): Promise<Transaction[]> {

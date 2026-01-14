@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { Prisma } from "~/lib/prisma";
 import { accountsModel } from "~/lib/prisma/generated/models";
 import { Prisma as P } from "~/lib/prisma/generated/client";

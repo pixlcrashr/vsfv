@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 
 export function formatUuid(id: string, format?: 'short' | 'separatorless'): string {
   switch (format) {

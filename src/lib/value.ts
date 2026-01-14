@@ -1,4 +1,4 @@
-import { Decimal } from 'decimal.js/decimal';
+import { Decimal } from 'decimal.js';
 
 export interface DecimalValueChange {
   old: Decimal;

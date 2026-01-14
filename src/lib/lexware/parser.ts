@@ -1,5 +1,5 @@
 import { parse } from "csv-parse/browser/esm";
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { parseGermanDate } from "../format";
 import { Transaction } from "../transaction";
 
