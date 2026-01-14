@@ -90,7 +90,7 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
     const documentYear = t.document_date.getFullYear();
     const importSource = t.transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts.import_sources;
     const importSourcePeriod = importSource?.importSourcePeriods.find(p => p.year === documentYear);
-    const canDelete = !importSourcePeriod?.is_closed;
+    const isPeriodClosed = !!importSourcePeriod?.is_closed;
 
     return {
       id: t.id,
@@ -106,7 +106,7 @@ async function getTransactions(page: number, size: number): Promise<Transaction[
       description: t.description,
       assignedAccountId: t.assigned_account_id,
       assignedAccountName: t.accounts ? getFullAccountName(t.accounts.id) : null,
-      canDelete,
+      isPeriodClosed,
       accountAssignments: t.transaction_account_assignments.map(a => ({
         id: a.id,
         accountId: a.account_id,
@@ -248,10 +248,10 @@ export default component$(() => {
                 </td>
                 <td class="is-vcentered">
                   <div class="buttons are-small is-right">
-                    {permissions.value.canEditTransactions && x.isPeriodClosed && (
+                    {permissions.value.canEditTransactions && !x.isPeriodClosed && (
                       <Link href={`/transactions/${x.id}`} class="button is-info is-outlined">{_`Bearbeiten`}</Link>
                     )}
-                    {permissions.value.canDeleteTransactions && x.isPeriodClosed && (
+                    {permissions.value.canDeleteTransactions && !x.isPeriodClosed && (
                       <Link href={`/transactions/${x.id}/delete`} class="button is-danger is-outlined">{_`Entfernen`}</Link>
                     )}
                   </div>
