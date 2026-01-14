@@ -17,6 +17,23 @@ interface MonthPoint {
   count: number;
 }
 
+interface MonthValue {
+  label: string;
+  value: number;
+}
+
+interface RootAccountMonthlyData {
+  accountId: string;
+  accountName: string;
+  accountCode: string;
+  months: MonthValue[];
+}
+
+const CHART_COLORS = [
+  '#3e8ed0', '#48c78e', '#f14668', '#ffdd57', '#7957d5',
+  '#00d1b2', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'
+];
+
 interface OverviewStats {
   budgets: {
     open: number;
@@ -34,6 +51,7 @@ interface OverviewStats {
     unassigned: number;
     last12Months: MonthPoint[];
   };
+  rootAccountMonthly: RootAccountMonthlyData[];
 }
 
 function toMonthKey(date: Date) {
@@ -82,6 +100,59 @@ export const useOverviewStats = routeLoader$<OverviewStats>(async () => {
     count,
   }));
 
+  const allAccounts = await Prisma.accounts.findMany();
+  const rootAccounts = allAccounts.filter(a => a.parent_account_id === null);
+
+  const getDescendantIds = (accountId: string): string[] => {
+    const descendants: string[] = [accountId];
+    const children = allAccounts.filter(a => a.parent_account_id === accountId);
+    for (const child of children) {
+      descendants.push(...getDescendantIds(child.id));
+    }
+    return descendants;
+  };
+
+  const rootAccountMonthly: RootAccountMonthlyData[] = [];
+
+  for (const rootAccount of rootAccounts) {
+    const descendantIds = getDescendantIds(rootAccount.id);
+
+    const assignments = await Prisma.transaction_account_assignments.findMany({
+      where: {
+        account_id: { in: descendantIds },
+        transactions: {
+          document_date: { gte: start }
+        }
+      },
+      include: {
+        transactions: true
+      }
+    });
+
+    const monthValueMap = new Map<string, number>();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+      monthValueMap.set(toMonthKey(d), 0);
+    }
+
+    for (const a of assignments) {
+      const key = toMonthKey(a.transactions.document_date);
+      const currentValue = monthValueMap.get(key) ?? 0;
+      monthValueMap.set(key, currentValue + parseFloat(a.value.toString()));
+    }
+
+    const sortedMonths = Array.from(monthValueMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([label, value]) => ({ label, value }));
+
+    rootAccountMonthly.push({
+      accountId: rootAccount.id,
+      accountName: rootAccount.display_name,
+      accountCode: rootAccount.display_code,
+      months: sortedMonths
+    });
+  }
+
   return {
     budgets: {
       open: budgetsOpen,
@@ -99,6 +170,7 @@ export const useOverviewStats = routeLoader$<OverviewStats>(async () => {
       unassigned: transactionsTotal - transactionsAssigned,
       last12Months,
     },
+    rootAccountMonthly,
   };
 });
 
@@ -153,31 +225,6 @@ export default component$(() => {
     ],
   };
 
-  const assignmentsChartData = {
-    labels: [_`Zugeordnet`, _`Nicht zugeordnet`],
-    datasets: [
-      {
-        label: _`Journalbuchungen`,
-        data: [stats.value.transactions.assigned, stats.value.transactions.unassigned],
-        backgroundColor: ["#00d1b2", "#ffdd57"],
-      },
-    ],
-  };
-
-  const transactionsByMonthData = {
-    labels: stats.value.transactions.last12Months.map((m) => m.label),
-    datasets: [
-      {
-        label: _`Buchungen pro Monat`,
-        data: stats.value.transactions.last12Months.map((m) => m.count),
-        borderColor: "#7957d5",
-        backgroundColor: "rgba(121, 87, 213, 0.25)",
-        fill: true,
-        tension: 0.25,
-      },
-    ],
-  };
-
   return (
     <>
       <MainContent>
@@ -198,59 +245,61 @@ export default component$(() => {
         <div class="columns is-multiline">
           <div class="column is-12">
             <div class="columns is-multiline">
-              <div class="column is-4">
+              <div class="column is-6">
                 <div class="box">
                   <p class="title is-6">{_`Haushaltspläne`}</p>
                   <p class="subtitle is-7">{_`Gesamt`}: {stats.value.budgets.total}</p>
                   <ChartCanvas type="doughnut" data={budgetsChartData} />
                 </div>
               </div>
-              <div class="column is-4">
+              <div class="column is-6">
                 <div class="box">
                   <p class="title is-6">{_`Haushaltskonten`}</p>
                   <p class="subtitle is-7">{_`Gesamt`}: {stats.value.accounts.total}</p>
                   <ChartCanvas type="doughnut" data={accountsChartData} />
                 </div>
               </div>
-              <div class="column is-4">
-                <div class="box">
-                  <p class="title is-6">{_`Journal`}</p>
-                  <p class="subtitle is-7">{_`Gesamt`}: {stats.value.transactions.total}</p>
-                  <ChartCanvas type="pie" data={assignmentsChartData} />
-                </div>
-              </div>
             </div>
           </div>
 
-          <div class="column is-12">
-            <div class="box">
-              <p class="title is-6">{_`Trend`}</p>
-              <p class="subtitle is-7">{_`Buchungen der letzten 12 Monate`}</p>
-              <div style="height: 260px">
-                <ChartCanvas
-                  type="line"
-                  data={transactionsByMonthData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: {
-                        display: true,
-                      },
-                    },
-                    scales: {
-                      y: {
-                        beginAtZero: true,
-                        ticks: {
-                          precision: 0,
+          {stats.value.rootAccountMonthly.length > 0 && (
+            <div class="column is-12">
+              <div class="box">
+                <p class="title is-6">{_`Buchungen der letzten 12 Monate`}</p>
+                <div style="height: 300px">
+                  <ChartCanvas
+                    type="line"
+                    data={{
+                      labels: stats.value.rootAccountMonthly[0]?.months.map((m) => m.label) ?? [],
+                      datasets: stats.value.rootAccountMonthly.map((rootAccount, index) => ({
+                        label: `${rootAccount.accountCode} - ${rootAccount.accountName}`,
+                        data: rootAccount.months.map((m) => m.value),
+                        borderColor: CHART_COLORS[index % CHART_COLORS.length],
+                        backgroundColor: `${CHART_COLORS[index % CHART_COLORS.length]}40`,
+                        fill: false,
+                        tension: 0.25,
+                      })),
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'bottom',
                         },
                       },
-                    },
-                  }}
-                />
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                        },
+                      },
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </MainContent>
     </>
