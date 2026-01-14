@@ -11,7 +11,9 @@ export interface ImportTransaction {
   description: string;
   amount: string;
   debitAccount: string;
+  debitAccountName: string;
   creditAccount: string;
+  creditAccountName: string;
 }
 
 export interface ImportTransactionRowProps {
@@ -42,10 +44,10 @@ export default component$<ImportTransactionRowProps>(({
         {formatCurrency(transaction.amount.toString())}
       </td>
       <td class="has-text-right" style="vertical-align: top;">
-        {transaction.debitAccount}
+        {transaction.debitAccount}{transaction.debitAccountName && ` (${transaction.debitAccountName})`}
       </td>
       <td class="has-text-right" style="vertical-align: top;">
-        {transaction.creditAccount}
+        {transaction.creditAccount}{transaction.creditAccountName && ` (${transaction.creditAccountName})`}
       </td>
       <td style="vertical-align: top;">
         {transaction.description}

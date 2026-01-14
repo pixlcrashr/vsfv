@@ -1,7 +1,7 @@
 import { component$, useSignal } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -50,6 +50,9 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
     const source = await Prisma.import_sources.findFirst({
       where: {
         id: args.sourceId
+      },
+      include: {
+        importSourcePeriods: true
       }
     });
     if (source === null) {
@@ -85,7 +88,24 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
       }
     });
 
-    const res = ts.filter((t) => matchingTransactions.every((x) => x.custom_id !== transactionToCustomId(
+    const closedYears = new Set(
+      source.importSourcePeriods.filter(p => p.is_closed).map(p => p.year)
+    );
+
+    const transactionAccounts = await Prisma.transaction_accounts.findMany({
+      where: { import_source_id: args.sourceId }
+    });
+    const getAccountName = (code: string): string => {
+      const ta = transactionAccounts.find(x => x.code === code);
+      return ta?.display_name || '';
+    };
+
+    const res = ts.filter((t) => {
+      const year = t.receiptFrom.getFullYear();
+      if (closedYears.has(year)) {
+        return false;
+      }
+      return matchingTransactions.every((x) => x.custom_id !== transactionToCustomId(
         t.bookedAt,
         t.receiptFrom,
         t.creditAccount,
@@ -93,7 +113,8 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
         t.amount,
         `${t.receiptNumberGroup ?? ''}${t.receiptNumber ?? ''}`,
         t.description
-      ))).map((t) => ({
+      ));
+    }).map((t) => ({
       custom_id: transactionToCustomId(
         t.bookedAt,
         t.receiptFrom,
@@ -109,14 +130,17 @@ export const useUploadTransactionsRouteAction = routeAction$(async (args, { shar
       description: t.description,
       amount: t.amount.toString(),
       debitAccount: t.debitAccount,
+      debitAccountName: getAccountName(t.debitAccount),
       creditAccount: t.creditAccount,
+      creditAccountName: getAccountName(t.creditAccount),
     }));
     res.sort((a: any, b: any) => a.receiptFrom.getTime() - b.receiptFrom.getTime());
 
     return {
       success: true,
       result: res,
-      sourceId: source.id
+      sourceId: source.id,
+      closedYearsCount: closedYears.size > 0 ? ts.filter(t => closedYears.has(t.receiptFrom.getFullYear())).length : 0
     };
   }
 
@@ -168,6 +192,36 @@ export const useImportTransactionsRouteAction = routeAction$(async (args, { shar
     return {
       success: false
     };
+  }
+
+  const source = await Prisma.import_sources.findFirst({
+    where: { id: args.sourceId },
+    include: { importSourcePeriods: true }
+  });
+
+  if (!source) {
+    return fail(400, { success: false, message: 'Import source not found' });
+  }
+
+  const yearsNeeded = new Set(args.transactions.map(t => new Date(t.receiptFrom).getFullYear()));
+
+  for (const year of yearsNeeded) {
+    const existingPeriod = source.importSourcePeriods.find(p => p.year === year);
+    if (existingPeriod?.is_closed) {
+      return fail(400, {
+        success: false,
+        message: `Die Importperiode für das Jahr ${year} ist geschlossen. Import nicht möglich.`
+      });
+    }
+    if (!existingPeriod) {
+      await Prisma.import_source_periods.create({
+        data: {
+          import_source_id: args.sourceId,
+          year: year,
+          is_closed: false
+        }
+      });
+    }
   }
 
   const transactionAccountCodes = new Set<string>();
@@ -272,6 +326,35 @@ export const useImportSingleTransactionRouteAction = routeAction$(async (args, {
     return {
       success: false
     };
+  }
+
+  const source = await Prisma.import_sources.findFirst({
+    where: { id: args.sourceId },
+    include: { importSourcePeriods: true }
+  });
+
+  if (!source) {
+    return fail(400, { success: false, message: 'Import source not found' });
+  }
+
+  const year = new Date(args.receiptFrom).getFullYear();
+  const existingPeriod = source.importSourcePeriods.find(p => p.year === year);
+
+  if (existingPeriod?.is_closed) {
+    return fail(400, {
+      success: false,
+      message: `Die Importperiode für das Jahr ${year} ist geschlossen. Import nicht möglich.`
+    });
+  }
+
+  if (!existingPeriod) {
+    await Prisma.import_source_periods.create({
+      data: {
+        import_source_id: args.sourceId,
+        year: year,
+        is_closed: false
+      }
+    });
   }
 
   const transactionAccountCodes = new Set<string>();
@@ -437,7 +520,9 @@ export default component$(() => {
     description: string;
     amount: string;
     debitAccount: string;
+    debitAccountName: string;
     creditAccount: string;
+    creditAccountName: string;
   }[] | null>(null);
 
   return (
