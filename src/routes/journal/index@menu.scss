@@ -1,0 +1,23 @@
+.budget-account-name {
+  font-size: 9pt;
+  line-height: 9pt;
+}
+
+.budget-item-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .budget-account-item {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.budget-account-prefix {
+  display: block;
+  font-size: 9pt;
+  line-height: 9pt;
+  color: #888;
+  line-height: 1.2;
+}
