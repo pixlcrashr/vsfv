@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.4.0](https://github.com/pixlcrashr/vsfv/compare/v1.3.1...v1.4.0) (2026-01-14)
+
+
+### Features
+
+* **account-groups:** show budget revision stats ([c364f1c](https://github.com/pixlcrashr/vsfv/commit/c364f1c512669c39a84a2d15dd4a815c091da128))
+* **accounts:** add account comparison view ([06350ae](https://github.com/pixlcrashr/vsfv/commit/06350ae33abae657ad9ef1399c7f413fcf4a35da))
+* **auth:** add default role and expand RBAC permissions ([65d94e4](https://github.com/pixlcrashr/vsfv/commit/65d94e4bf4f454d5c10b3a6f582ec01330e03ced))
+* **import-sources:** seed missing periods and allow closing periods ([f7af4e7](https://github.com/pixlcrashr/vsfv/commit/f7af4e724656e119d6127d6aac456ef75e6d6d14))
+* **journal:** support assignment-aware imports and skip closed periods ([ddec9a8](https://github.com/pixlcrashr/vsfv/commit/ddec9a821374925ac66e60464aab16116b5363dd))
+* **matrix:** allow editing targets for latest revision and improve table UX ([60b36cb](https://github.com/pixlcrashr/vsfv/commit/60b36cb5e1577dfb406fc29b790466c06ffc4eb0))
+* **overview:** add root account monthly trend chart ([da6a5cd](https://github.com/pixlcrashr/vsfv/commit/da6a5cd880bf4c31f029d0732dee44b434acbfdb))
+* **transactions:** add edit/delete screens and block changes for closed periods ([362e6e7](https://github.com/pixlcrashr/vsfv/commit/362e6e7739c226d0710318a138ac33f7911ccb04))
+
+
+### Bug Fixes
+
+* change transaction ordering and date field from created_at/booked_at to document_date ([fb2a673](https://github.com/pixlcrashr/vsfv/commit/fb2a673e6944c969f876f6e4e4e2fc76f94cf876))
+
 ## [1.3.1](https://github.com/pixlcrashr/vsfv/compare/v1.3.0...v1.3.1) (2026-01-08)
 
 ## [1.3.0](https://github.com/pixlcrashr/vsfv/compare/v1.2.8...v1.3.0) (2026-01-08)
