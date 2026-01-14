@@ -1,7 +1,7 @@
 import { component$, QRL, useSignal, useTask$ } from "@builder.io/qwik";
 import DecimalInput, { OnChangeEvent } from "./DecimalInput";
 import { serializeDecimalValueChange } from "~/lib/value";
-import { Decimal } from 'decimal.js/decimal';
+import { Decimal } from 'decimal.js';
 import { Prisma } from "~/lib/prisma";
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { server$ } from "@builder.io/qwik-city";

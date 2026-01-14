@@ -2,7 +2,7 @@ import { component$, Signal, useComputed$, useStore, useStylesScoped$, useTask$ 
 import { formatCurrency } from "~/lib/format";
 import { Account, Budget, Matrix } from "~/routes/matrix/index@menu";
 import TargetValueInput from "./TargetValueInput";
-import { Decimal } from 'decimal.js/decimal';
+import { Decimal } from 'decimal.js';
 import styles from "./MatrixTable.scss?inline";
 
 
@@ -16,6 +16,7 @@ export interface MatrixTableProps {
   matrix: Signal<Matrix>;
   allBudgets: Budget[];
   allAccounts: Account[];
+  canEdit?: boolean;
 }
 
 export type StringMap = { [key: string]: string };
@@ -81,8 +82,13 @@ export default component$<MatrixTableProps>(({
   showOnlyLatestRevision,
   matrix,
   allBudgets,
-  allAccounts
+  allAccounts,
+  canEdit = false
 }) => {
+  const budgetClosedMap = new Map<string, boolean>();
+  allBudgets.forEach(b => {
+    budgetClosedMap.set(b.id, b.isClosed);
+  });
   useStylesScoped$(styles);
 
   const budgetRevisionIdToBudgetIdMap = new Map<string, string>();
@@ -154,6 +160,16 @@ export default component$<MatrixTableProps>(({
     return false;
   };
 
+  // Helper to check if a revision is editable (user has permission and budget is not closed)
+  const isRevisionEditable = (revisionId: string, budgetIndex: number) => {
+    if (!canEdit) return false;
+    const header = matrix.value.headers[budgetIndex];
+    if (!header) return false;
+    const isClosed = budgetClosedMap.get(header.budgetId) ?? false;
+    if (isClosed) return false;
+    return isLatestRevision(revisionId, budgetIndex);
+  };
+
   return <>
     <table class="table is-bordered">
       <thead>
@@ -181,10 +197,10 @@ export default component$<MatrixTableProps>(({
           <td>{row.accountName}</td>
           {showDescription?.value && <td class="description-cell" title={row.accountDescription}>{row.accountDescription}</td>}
           {row.values.map((value, i) => <>
-            {showTarget?.value && getFilteredRevisions(value.revisions, i).map((revision) => <td class="p-0 is-vcentered" key={revision.revisionId}>
+            {showTarget?.value && getFilteredRevisions(value.revisions, i).map((revision) => <td class={["p-0", "is-vcentered", { "editable-cell": isRevisionEditable(revision.revisionId, i) && !row.isGroup }]} key={revision.revisionId}>
               {row.isGroup ?
                 <p class="pl-2 pr-2">{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</p> :
-                (isLatestRevision(revision.revisionId, i) ?
+                (isRevisionEditable(revision.revisionId, i) ?
                   <TargetValueInput
                     tabIndex={10 + i}
                     value={targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0'}

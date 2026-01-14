@@ -1,15 +1,15 @@
-import { $, component$, useOnDocument, useSignal, useStylesScoped$, useVisibleTask$ } from "@builder.io/qwik";
+import { $, component$, isServer, useOnDocument, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import { DocumentHead, routeLoader$, server$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
-import { Decimal } from 'decimal.js/decimal';
+import { Decimal } from 'decimal.js';
 import { Prisma } from "~/lib/prisma";
 import { type accountsModel } from "~/lib/prisma/generated/models";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 import styles from "./index@menu.scss?inline";
 import MatrixTable from "~/components/matrix/MatrixTable";
 import { buildTreeFromDB, Node as AccountNode, sortedFlatAccountIterator } from "~/lib/accounts/tree";
-import { requirePermission, Permissions } from "~/lib/auth";
+import { requirePermission, Permissions, checkPermissions } from "~/lib/auth";
 
 
 
@@ -246,6 +246,7 @@ GROUP BY f1.budget_id, f1.account_id`;
 export interface Budget {
   id: string;
   name: string;
+  isClosed: boolean;
   revisions: {
     id: string;
     date: Date;
@@ -272,6 +273,7 @@ async function getBudgets(): Promise<Budget[]> {
     return {
       id: b.id,
       name: b.display_name,
+      isClosed: b.is_closed,
       revisions: b.budget_revisions.map(r => {
         return {
           id: r.id,
@@ -326,6 +328,13 @@ export interface Data {
   selectedAccountIds: string[];
 }
 
+export const useMatrixPermissions = routeLoader$(async ({ sharedMap }) => {
+  const userId = sharedMap.get('userId') as string | undefined;
+  return await checkPermissions(userId, {
+    canEdit: Permissions.MATRIX_UPDATE
+  });
+});
+
 export const useGetDataLoader = routeLoader$<Data>(async () => {
   // TODO: add params for selected routes
   const budgets = await getBudgets();
@@ -357,6 +366,7 @@ export default component$(() => {
   useStylesScoped$(styles);
 
   const data = useGetDataLoader();
+  const permissions = useMatrixPermissions();
 
   const showTarget = useSignal(true);
   const showActual = useSignal(false);
@@ -373,7 +383,11 @@ export default component$(() => {
   const selectedAccountIds = useSignal<string[]>(data.value.selectedAccountIds);
   const matrix = useSignal<Matrix>(data.value.matrix);
 
-  useVisibleTask$(({ track }) => {
+  useTask$(({ track }) => {
+    if (isServer) {
+      return;
+    }
+
     track(() => selectedBudgetIds.value);
     track(() => selectedAccountIds.value);
 
@@ -491,7 +505,8 @@ export default component$(() => {
         showDescription={showDescription}
         showDiff={showDiff}
         showTarget={showTarget}
-        showOnlyLatestRevision={showOnlyLatestRevision} />
+        showOnlyLatestRevision={showOnlyLatestRevision}
+        canEdit={permissions.value.canEdit} />
     </main>
   </div>);
 });
