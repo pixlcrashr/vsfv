@@ -123,7 +123,7 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li><Link href="/admin/settings">{_`Einstellungen`}</Link></li>
+              <li>{_`Admin`}</li>
               <li><Link href="/admin/groups">{_`Gruppen`}</Link></li>
               <li class="is-active"><Link href="#" aria-current="page">{data.value.groupName}</Link></li>
             </ul>

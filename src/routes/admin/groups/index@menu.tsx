@@ -17,6 +17,7 @@ interface Group {
   name: string;
   description: string;
   isSystem: boolean;
+  isDefault: boolean;
   userCount: number;
 }
 
@@ -36,6 +37,7 @@ async function getGroups(): Promise<Group[]> {
         name: group.name,
         description: group.description,
         isSystem: group.is_system,
+        isDefault: group.is_default,
         userCount: users.length
       };
     })
@@ -113,6 +115,10 @@ export const useDeleteGroupAction = routeAction$(async (values, { sharedMap, fai
     return fail(400, { message: 'Systemgruppen können nicht gelöscht werden' });
   }
 
+  if (group.is_default) {
+    return fail(400, { message: 'Die Standardgruppe kann nicht gelöscht werden' });
+  }
+
   // Delete all permissions for this role using Casbin API
   await deleteAllPermissionsForRole(values.id);
   
@@ -159,7 +165,7 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li><Link href="/admin/settings">{_`Einstellungen`}</Link></li>
+              <li>{_`Admin`}</li>
               <li class="is-active"><Link href="#" aria-current="page">{_`Gruppen`}</Link></li>
             </ul>
           </nav>
@@ -187,6 +193,7 @@ export default component$(() => {
           <thead>
             <tr>
               <th>{_`ID`}</th>
+              <th>{_`Typ`}</th>
               <th>{_`Name`}</th>
               <th>{_`Beschreibung`}</th>
               <th>{_`Anzahl Benutzer`}</th>
@@ -198,7 +205,10 @@ export default component$(() => {
               <tr key={group.id}>
                 <td>
                   <code>{group.id}</code>
-                  {group.isSystem && <span class="tag is-info ml-2">{_`System`}</span>}
+                </td>
+                <td>
+                  {group.isSystem && <span class="tag is-info">{_`System`}</span>}
+                  {group.isDefault && <span class="tag is-warning">{_`Standard`}</span>}
                 </td>
                 <td><strong>{group.name}</strong></td>
                 <td class="has-text-grey">{group.description || '-'}</td>
@@ -213,7 +223,7 @@ export default component$(() => {
                         <span>{_`Bearbeiten`}</span>
                       </Link>
                     )}
-                    {!group.isSystem && permissions.value.canDelete && (
+                    {!group.isSystem && !group.isDefault && permissions.value.canDelete && (
                       <Form action={deleteAction}>
                         <input type="hidden" name="id" value={group.id} />
                         <button type="submit" class="button is-small is-danger" disabled={deleteAction.isRunning}>

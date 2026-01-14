@@ -109,7 +109,7 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li><Link href="/admin/settings">{_`Einstellungen`}</Link></li>
+              <li>{_`Admin`}</li>
               <li><Link href="/admin/users">{_`Benutzer`}</Link></li>
               <li class="is-active"><Link href="#" aria-current="page">{data.value.user.name}</Link></li>
             </ul>
