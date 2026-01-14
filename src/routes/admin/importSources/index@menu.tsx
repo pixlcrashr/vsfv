@@ -129,7 +129,7 @@ export default component$(() => {
           </tr>
         </thead>
         <tbody>
-          {importSources.value.map((importSource) => <tr>
+          {importSources.value.map((importSource) => <tr key={importSource.id}>
             <td>{importSource.name}</td>
             <td>{importSource.description}</td>
             <td>{formatDateShort(importSource.created_at)}</td>

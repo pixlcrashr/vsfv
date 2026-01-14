@@ -179,6 +179,13 @@ export const useSaveImportSourceAction = routeAction$(async (args, { sharedMap, 
   }
 }, zod$(SaveImportSourceSchema));
 
+function formatPeriodPattern(date: Date): string  {
+  const day = date.getDate().toString().padStart(2, '0');
+  const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const month = months[date.getMonth()];
+  return `${day}. ${month}`;
+};
+
 export default component$(() => {
   const getImportLoader = useGetImportSourceLoader();
   const saveAction = useSaveImportSourceAction();
@@ -212,7 +219,10 @@ export default component$(() => {
           </div>
         </div>
 
-        <p>{_`Periodenstart`}: {formatDateShort(periodStart)}, {_`Periodenende`}: {formatDateShort(periodEnd)}</p>
+        <p class="mb-3">
+          <strong>{_`Periodenformat`}:</strong> {formatPeriodPattern(periodStart)} - {formatPeriodPattern(periodEnd)}<br />
+          <strong>{_`Gültig ab`}:</strong> {formatDateShort(periodStart)}
+        </p>
 
         <div class="field">
           <label class="label">{_`Beschreibung`}</label>
@@ -228,16 +238,20 @@ export default component$(() => {
               <tr>
                 <th>{_`Jahr`}</th>
                 <th>{_`Ist Abgeschlossen?`}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {getImportLoader.value.periods.map((period, i) => <tr key={period.year}>
+              {getImportLoader.value.periods.map((period) => <tr key={period.year}>
                 <td class="is-vcentered">
-                  <input hidden type="text" name={`periods.${i}.id`} value={period.id} />
-                  <input hidden type="text" name={`periods.${i}.isClosed`} value={period.isClosed ? 'true' : 'false'} />
                   {period.year}
                 </td>
                 <td class="is-vcentered">{period.isClosed ? _`Ja` : _`Nein`}</td>
+                <td class="is-vcentered has-text-right">
+                  {!period.isClosed && (
+                    <Link href={`/admin/importSourcePeriods/${period.id}/close`} class="button is-small is-danger">{_`Abschließen`}</Link>
+                  )}
+                </td>
               </tr>)}
             </tbody>
           </table>
@@ -254,7 +268,7 @@ export default component$(() => {
                 </tr>
               </thead>
               <tbody>
-                {getImportLoader.value.transactionAccounts.map((transactionAccount, i) => <tr>
+                {getImportLoader.value.transactionAccounts.map((transactionAccount, i) => <tr key={transactionAccount.id}>
                   <td class="is-vcentered has-text-right">
                     <input hidden type="text" name={`transactionAccounts.${i}.id`} value={transactionAccount.id} />
                     {transactionAccount.code}
@@ -280,7 +294,7 @@ export default component$(() => {
           </table>
         </div>
         <div class="buttons is-right">
-          <button class="button is-warning" type="submit">{_`Speichern`}</button>
+          <button class={['button', 'is-warning', { 'is-loading': saveAction.isRunning }]} type="submit" disabled={saveAction.isRunning}>{_`Speichern`}</button>
         </div>
       </Form>
     </MainContent>
