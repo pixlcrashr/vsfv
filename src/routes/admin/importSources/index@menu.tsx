@@ -107,7 +107,8 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-                <li class="is-active"><Link href="#" aria-current="page">{_`Importquellen`}</Link></li>
+              <li><a href="#">{_`Admin`}</a></li>
+              <li class="is-active"><Link href="#" aria-current="page">{_`Importquellen`}</Link></li>
             </ul>
           </nav>
         </HeaderTitle>

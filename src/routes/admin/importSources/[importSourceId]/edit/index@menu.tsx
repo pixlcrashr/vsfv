@@ -203,6 +203,7 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
+              <li><a href="#">{_`Admin`}</a></li>
               <li><Link href="/admin/importSources">{_`Importquellen`}</Link></li>
               <li class="is-active"><Link href="#" aria-current="page">{getImportLoader.value.name} {_`bearbeiten`}</Link></li>
             </ul>

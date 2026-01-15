@@ -105,6 +105,7 @@ export default component$(() => {
             <HeaderTitle>
               <nav class="breadcrumb" aria-label="breadcrumbs">
                 <ul>
+                  <li><a href="#">{_`Admin`}</a></li>
                   <li><Link href="/admin/importSources">{_`Importquellen`}</Link></li>
                   <li><Link href={`/admin/importSources/${period.value.importSourceId}/edit`}>{period.value.importSourceName}</Link></li>
                   <li class="is-active"><Link href="#" aria-current="page">{_`Periode ${period.value.year} abschließen`}</Link></li>
