@@ -1,4 +1,5 @@
 import { getEnforcer } from './enforcer';
+import { Permission } from './permissions';
 
 export async function assignRole(userId: string, role: string): Promise<void> {
   const enforcer = await getEnforcer();
@@ -27,6 +28,15 @@ export async function checkPermission(
 ): Promise<boolean> {
   const enforcer = await getEnforcer();
   return await enforcer.enforce(userId, resource, action);
+}
+
+export async function hasPermission(
+  userId: string,
+  permission: Permission
+): Promise<boolean> {
+  const enforcer = await getEnforcer();
+
+  return await enforcer.enforce(userId, permission.resource, permission.action);
 }
 
 export async function addPermission(

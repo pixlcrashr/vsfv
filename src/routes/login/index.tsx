@@ -2,14 +2,19 @@ import { component$ } from "@builder.io/qwik";
 import { useSignIn, useSession } from "../plugin@auth";
 import { useNavigate, DocumentHead, RequestHandler, Form } from "@builder.io/qwik-city";
 import { _ } from "compiled-i18n";
+import { hasPermission, Permissions } from "~/lib/auth";
 
 
 
-export const onRequest: RequestHandler = ({ sharedMap, redirect }) => {
+export const onRequest: RequestHandler = async ({ sharedMap, redirect }) => {
   const userId = sharedMap.get('userId') as string | undefined;
   
   if (userId) {
-    throw redirect(302, '/overview');
+    if (await hasPermission(userId, Permissions.OVERVIEW_READ)) {
+      throw redirect(307, "/overview");
+    }
+  
+    throw redirect(307, "/matrix");
   }
 }
 
