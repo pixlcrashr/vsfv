@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.5.0](https://github.com/pixlcrashr/vsfv/compare/v1.4.1...v1.5.0) (2026-01-16)
+
+
+### Features
+
+* **accountGroups:** move edit functionality to dedicated route page ([4ae7617](https://github.com/pixlcrashr/vsfv/commit/4ae7617f3a2d6c240f17f1e678380dc065ededfb))
+* **accounts:** move edit functionality to dedicated route page ([4dbe951](https://github.com/pixlcrashr/vsfv/commit/4dbe951000615700df0c01d320d6f37a63fdf88a))
+* **admin:** add Admin breadcrumb link to users pages ([a2f085f](https://github.com/pixlcrashr/vsfv/commit/a2f085ffc2a9ed960aa491ab2a64490566095b13))
+* **auth:** add permission-based routing and hasPermission helper ([fca3570](https://github.com/pixlcrashr/vsfv/commit/fca357008883a09a84f9c7d2deab826bbbd628b1))
+* **budgets:** move edit functionality to dedicated route page ([a4b78a2](https://github.com/pixlcrashr/vsfv/commit/a4b78a24b75530adad86c36cdda98c5081c25467))
+* **matrix:** optimize rendering performance and add HTML export functionality ([cc33926](https://github.com/pixlcrashr/vsfv/commit/cc339269941b2b14187f49fb002f45b6d4cce054))
+* **permissions:** rename OVERVIEW to DASHBOARD and add SETTINGS permissions ([9b1837c](https://github.com/pixlcrashr/vsfv/commit/9b1837c11228a86dfc409d99e1ab0ad9e9f6cf01))
+* **reports:** refactor export to use dynamic route with type parameter ([f0071b7](https://github.com/pixlcrashr/vsfv/commit/f0071b78a1be210b1beff8171d2b60740a3d5207))
+* **routes:** rename overview route to dashboard ([2d80f2a](https://github.com/pixlcrashr/vsfv/commit/2d80f2a2791ea3160758951083becb3344aa7692))
+* **settings:** add settings table and admin settings page ([3786990](https://github.com/pixlcrashr/vsfv/commit/378699092e513290873c6f289ccf37311c355882))
+
+
+### Bug Fixes
+
+* **admin:** add Admin breadcrumb link to import sources pages ([6c24c6a](https://github.com/pixlcrashr/vsfv/commit/6c24c6a57ce1aaec1aade0f5a045e8e7e1ac9bf9))
+
 ## [1.4.1](https://github.com/pixlcrashr/vsfv/compare/v1.4.0...v1.4.1) (2026-01-14)
 
 
