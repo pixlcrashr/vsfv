@@ -13,22 +13,24 @@ export default component$<RenderReportMenuProps>((props) => {
   const selectedBudgetIds = useSignal<string[]>(props.budgets.length > 0 ? [props.budgets[0].id] : []);
   const selectedAccountIds = useSignal<string[]>(props.accounts.map(x => x.id));
   const selectedReportTemplateId = useSignal<string>('');
+  const selectedExportType = useSignal<string>('pdf');
   const isFormValid = useComputed$(() => selectedReportTemplateId.value !== '');
+  const formAction = useComputed$(() => `/reports/export/${selectedExportType.value}`);
 
   return <>
-    <form method="POST" action="/api/reports/render" target="_blank">
-      <div class="field">
-        <label class="label">Export-Typ</label>
-        <div class="control">
-          <div class="select is-small">
-            <select name="exportType">
-              <option value="pdf" selected>PDF</option>
-              <option value="html">HTML</option>
-            </select>
-          </div>
+    <div class="field">
+      <label class="label">Export-Typ</label>
+      <div class="control">
+        <div class="select is-small">
+          <select value={selectedExportType.value} onChange$={(e) => selectedExportType.value = (e.target as HTMLSelectElement).value}>
+            <option value="pdf">PDF</option>
+            <option value="html">HTML</option>
+          </select>
         </div>
       </div>
+    </div>
 
+    <form method="POST" action={formAction.value} target="_blank">
       <div class="field">
         <label class="label">Berichtsvorlage</label>
         <div class="control">
