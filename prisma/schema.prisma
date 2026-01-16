@@ -302,3 +302,18 @@ model casbin_rule {
   @@index([v2], map: "idx_casbin_rule_v2")
 }
 
+model settings {
+  id            String   @id
+  type          String   @db.VarChar(16)
+  value_float   Float?
+  value_int     BigInt?
+  value_text    String?
+  value_bool    Boolean?
+  value_decimal Decimal? @db.Decimal
+  value_uuid    String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  updated_at    DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([type], map: "idx_settings_type")
+}
+
