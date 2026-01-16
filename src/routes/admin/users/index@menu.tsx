@@ -9,6 +9,8 @@ import { Prisma } from "~/lib/prisma";
 import { requirePermission, Permissions, checkPermissions } from "~/lib/auth";
 import { _ } from "compiled-i18n";
 
+
+
 export const onRequest: RequestHandler = requirePermission(Permissions.USERS_READ);
 
 interface User {
@@ -52,7 +54,7 @@ export default component$(() => {
         <HeaderTitle>
           <nav class="breadcrumb" aria-label="breadcrumbs">
             <ul>
-              <li>{_`Admin`}</li>
+              <li><Link href="#">{_`Admin`}</Link></li>
               <li class="is-active"><Link href="#" aria-current="page">{_`Benutzer`}</Link></li>
             </ul>
           </nav>
