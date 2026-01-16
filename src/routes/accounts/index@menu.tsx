@@ -1,4 +1,4 @@
-import { component$, Signal, useComputed$, useStylesScoped$ } from "@builder.io/qwik";
+import { component$, useComputed$, useStylesScoped$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";

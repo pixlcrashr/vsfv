@@ -1,4 +1,4 @@
-import { component$, Resource, useResource$ } from "@builder.io/qwik";
+import { component$ } from "@builder.io/qwik";
 import { DocumentHead, Form, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";

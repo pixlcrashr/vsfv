@@ -148,7 +148,7 @@ export default component$<MatrixTableProps>(({
   const editableRevisionIds = useComputed$(() => {
     if (!canEdit) return new Set<string>();
     const editable = new Set<string>();
-    matrix.value.headers.forEach((h, i) => {
+    matrix.value.headers.forEach((h) => {
       const isClosed = budgetClosedMap.get(h.budgetId) ?? false;
       if (!isClosed && h.budgetRevisions.length > 0) {
         editable.add(h.budgetRevisions[h.budgetRevisions.length - 1].id);

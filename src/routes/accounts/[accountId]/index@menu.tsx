@@ -20,13 +20,6 @@ interface AccountDetails {
   parentAccountId: string | null;
 }
 
-interface FlatAccount {
-  id: string;
-  code: string;
-  name: string;
-  depth: number;
-}
-
 async function getAccountDetails(id: string): Promise<AccountDetails | null> {
   try {
     const m = await Prisma.accounts.findUnique({
