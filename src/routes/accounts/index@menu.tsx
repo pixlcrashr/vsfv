@@ -1,8 +1,7 @@
-import { component$, Signal, useComputed$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
+import { component$, Signal, useComputed$, useStylesScoped$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";
-import EditAccountMenu from "~/components/accounts/EditAccountMenu";
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
@@ -115,7 +114,6 @@ export const useSaveAccountAction = routeAction$(async (values, { sharedMap, fai
 
 enum MenuStatus {
   None,
-  Edit,
   Create
 }
 
@@ -168,8 +166,6 @@ export const useAccountPermissions = routeLoader$(async ({ sharedMap }) => {
 export interface AccountRowProps {
   account: Account;
   maxDepth: number;
-  editMenuAccountId: Signal<string>;
-  menuStatus: Signal<MenuStatus>;
   canUpdate: boolean;
   canDelete: boolean;
 }
@@ -185,10 +181,7 @@ export const AccountRow = component$<AccountRowProps>((props) => {
         <td class="is-vcentered">
           <div class="buttons are-small is-flex-wrap-nowrap is-right">
             {props.canUpdate && (
-              <button class="button" onClick$={() => {
-                props.editMenuAccountId.value = props.account.id;
-                props.menuStatus.value = MenuStatus.Edit;
-              }}>{_`Bearbeiten`}</button>
+              <Link class="button" href={`/accounts/${props.account.id}`}>{_`Bearbeiten`}</Link>
             )}
             {props.canUpdate && (
               <button class="button is-warning is-outlined">{_`Archivieren`}</button>
@@ -199,7 +192,7 @@ export const AccountRow = component$<AccountRowProps>((props) => {
           </div>
         </td>
       </tr>
-      {props.account.children.map(x => <AccountRow key={x.id} canUpdate={props.canUpdate} canDelete={props.canDelete} editMenuAccountId={props.editMenuAccountId} menuStatus={props.menuStatus} maxDepth={props.maxDepth} account={x} />)}
+      {props.account.children.map(x => <AccountRow key={x.id} canUpdate={props.canUpdate} canDelete={props.canDelete} maxDepth={props.maxDepth} account={x} />)}
     </>
   );
 });
@@ -217,9 +210,7 @@ export default component$(() => {
     return traverseDepth(accounts.value);
   });
 
-  const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
-  const editMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Edit);
-  const editMenuAccountId = useSignal<string>('');
+  const menuStatus = useComputed$(() => MenuStatus.None);
   const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
 
   const flatAccounts = useComputed$(() => {
@@ -271,17 +262,10 @@ export default component$(() => {
                 </td>
               </tr>
             )}
-            {accounts.value.map((account) => <AccountRow key={account.id} canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} editMenuAccountId={editMenuAccountId} menuStatus={menuStatus} maxDepth={maxDepth.value} account={account} />)}
+            {accounts.value.map((account) => <AccountRow key={account.id} canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} maxDepth={maxDepth.value} account={account} />)}
           </tbody>
         </table>
       </MainContent>
-      <MainContentMenu isShown={editMenuShown}>
-        <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          {_`Haushaltskonto bearbeiten`}
-        </MainContentMenuHeader>
-
-        <EditAccountMenu accounts={accounts} accountId={editMenuAccountId}></EditAccountMenu>
-      </MainContentMenu>
       <MainContentMenu isShown={createMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
           {_`Haushaltskonto hinzufügen`}
