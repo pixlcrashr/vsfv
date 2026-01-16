@@ -10,7 +10,6 @@ import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { Prisma } from "~/lib/prisma";
 import styles from "./index@menu.scss?inline";
 import CreateAccountGroupMenu from "~/components/accountGroups/CreateAccountGroupMenu";
-import EditAccountGroupMenu from "~/components/accountGroups/EditAccountGroupMenu";
 import { checkPermission, requirePermission, Permissions, checkPermissions } from "~/lib/auth";
 
 
@@ -50,78 +49,9 @@ export const useCreateAccountGroupRouteAction = routeAction$(async (args, { shar
   };
 }, zod$(CreateAccountGroupSchema));
 
-export const SaveAccountGroupSchema = {
-  id: z.string().uuid(),
-  name: z.string().min(1),
-  description: z.string(),
-  assignments: z.array(z.object({
-    accountId: z.string().uuid(),
-    mode: z.string()
-  })).optional()
-};
-
-async function saveAccountGroup(
-  id: string,
-  name: string,
-  description: string,
-  assignments: { accountId: string; mode: string }[]
-): Promise<void> {
-  await Prisma.account_groups.update({
-    where: {
-      id: id
-    },
-    data: {
-      display_name: name,
-      display_description: description
-    }
-  });
-
-  await Prisma.account_group_assignments.deleteMany({
-    where: {
-      account_group_id: id
-    }
-  });
-
-  const filteredAssignments = assignments.filter(a => a.mode === 'positive' || a.mode === 'negative');
-  if (filteredAssignments.length > 0) {
-    await Prisma.account_group_assignments.createMany({
-      data: filteredAssignments.map(a => ({
-        account_group_id: id,
-        account_id: a.accountId,
-        negate: a.mode === 'negative'
-      }))
-    });
-  }
-}
-
-export const useSaveAccountGroupRouteAction = routeAction$(async (values, { sharedMap, fail }) => {
-  const userId = sharedMap.get('userId') as string | undefined;
-  
-  if (!userId) {
-    return fail(401, { message: 'Unauthorized' });
-  }
-  
-  const canUpdate = await checkPermission(userId, 'accountGroups', 'update');
-  if (!canUpdate) {
-    return fail(403, { message: 'Forbidden: Insufficient permissions to update account groups' });
-  }
-  
-  await saveAccountGroup(
-    values.id,
-    values.name,
-    values.description,
-    values.assignments ?? []
-  );
-
-  return {
-    status: "success"
-  };
-}, zod$(SaveAccountGroupSchema));
-
 export enum MenuStatus {
   None,
-  Create,
-  Edit
+  Create
 }
 
 interface AccountGroup {
@@ -171,8 +101,6 @@ export default component$(() => {
   const permissions = useAccountGroupPermissions();
   const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
   const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
-  const editMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Edit);
-  const editMenuAccountGroupId = useSignal<string>('');
 
   return (
     <>
@@ -211,10 +139,7 @@ export default component$(() => {
                   <p class="buttons are-small is-right">
                     <Link class="button is-info is-outlined" href={`/accountGroups/${group.id}`}>{_`Statistik`}</Link>
                     {permissions.value.canUpdate && (
-                      <button class="button" onClick$={() => {
-                        editMenuAccountGroupId.value = group.id;
-                        menuStatus.value = MenuStatus.Edit;
-                      }}>{_`Bearbeiten`}</button>
+                      <Link class="button" href={`/accountGroups/${group.id}/edit`}>{_`Bearbeiten`}</Link>
                     )}
                     {permissions.value.canDelete && (
                       <Link class="button is-danger is-outlined" href={`/accountGroups/${group.id}/delete`}>{_`Entfernen`}</Link>
@@ -233,14 +158,6 @@ export default component$(() => {
           </tbody>
         </table>
       </MainContent>
-
-      <MainContentMenu isShown={editMenuShown}>
-        <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          {_`Kontengruppe bearbeiten`}
-        </MainContentMenuHeader>
-
-        <EditAccountGroupMenu accountGroupId={editMenuAccountGroupId}></EditAccountGroupMenu>
-      </MainContentMenu>
 
       <MainContentMenu isShown={createMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
