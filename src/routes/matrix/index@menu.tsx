@@ -13,6 +13,8 @@ import { requirePermission, Permissions, checkPermissions } from "~/lib/auth";
 
 
 
+const SETTING_DEFAULT_REPORT_TEMPLATE_ID = 'default_report_template_id';
+
 export const onRequest: RequestHandler = requirePermission(Permissions.MATRIX_READ);
 
 export interface Item {
@@ -335,6 +337,17 @@ export const useMatrixPermissions = routeLoader$(async ({ sharedMap }) => {
   });
 });
 
+export const useDefaultReportTemplate = routeLoader$(async () => {
+  try {
+    const setting = await Prisma.settings.findUnique({
+      where: { id: SETTING_DEFAULT_REPORT_TEMPLATE_ID }
+    });
+    return setting?.value_uuid ?? null;
+  } catch {
+    return null;
+  }
+});
+
 export const useGetDataLoader = routeLoader$<Data>(async () => {
   // TODO: add params for selected routes
   const budgets = await getBudgets();
@@ -367,6 +380,7 @@ export default component$(() => {
 
   const data = useGetDataLoader();
   const permissions = useMatrixPermissions();
+  const defaultReportTemplateId = useDefaultReportTemplate();
 
   const showTarget = useSignal(true);
   const showActual = useSignal(false);
@@ -494,6 +508,29 @@ export default component$(() => {
             </table>
           </div>
         </div>
+      </div>
+
+      <div class="buttons are-small">
+        {defaultReportTemplateId.value && (
+          <form method="post" action="/matrix/export/html" target="_blank">
+            {selectedBudgetIds.value.map(id => (
+              <input key={id} type="hidden" name="selectedBudgetIds[]" value={id} />
+            ))}
+            {selectedAccountIds.value.map(id => (
+              <input key={id} type="hidden" name="selectedAccountIds[]" value={id} />
+            ))}
+            <input type="hidden" name="targetValuesEnabled" value={showTarget.value ? "on" : ""} />
+            <input type="hidden" name="actualValuesEnabled" value={showActual.value ? "on" : ""} />
+            <input type="hidden" name="differenceValuesEnabled" value={showDiff.value ? "on" : ""} />
+            <input type="hidden" name="accountDescriptionsEnabled" value={showDescription.value ? "on" : ""} />
+            <button type="submit" class="button is-small is-link is-outlined">
+              <span class="icon is-small">
+                <i class="fa fa-file-export" aria-hidden="true"></i>
+              </span>
+              <span>{_`Exportieren`}</span>
+            </button>
+          </form>
+        )}
       </div>
     </header>
     <main class="matrix-content">

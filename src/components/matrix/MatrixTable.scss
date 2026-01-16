@@ -5,20 +5,26 @@ table {
 
     .disabled-cell {
         text-align: right;
-        color: #888;
-        background-color: #f5f5f5;
+        color: var(--bulma-text-weak);
+        background-color: var(--bulma-scheme-main-bis);
     }
 
     td {
         p {
             text-align: right;
-            color: #888;
+            color: var(--bulma-text-weak);
         }
     }
 
     .editable-cell {
-        background-color: #fff;
-        border: 2px solid #3273dc !important;
+        background-color: var(--bulma-scheme-main);
+        border: 2px solid var(--bulma-link) !important;
+    }
+
+    .readonly-cell {
+        text-align: right;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
     }
 
     .description-cell {

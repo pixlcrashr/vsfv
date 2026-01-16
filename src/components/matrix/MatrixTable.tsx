@@ -137,38 +137,42 @@ export default component$<MatrixTableProps>(({
     }));
   });
 
-  // Helper to get filtered revisions for an item's values
-  const getFilteredRevisions = (revisions: { revisionId: string; targetValue: string; diffValue: string; }[], budgetIndex: number) => {
-    if (showOnlyLatestRevision?.value) {
-      const header = matrix.value.headers[budgetIndex];
-      if (header && header.budgetRevisions.length > 0) {
-        const latestRevisionId = header.budgetRevisions[header.budgetRevisions.length - 1].id;
-        const latestRevision = revisions.find(r => r.revisionId === latestRevisionId);
-        return latestRevision ? [latestRevision] : [];
+  // Precompute latest revision IDs per budget index
+  const latestRevisionIds = useComputed$(() => {
+    return matrix.value.headers.map(h => 
+      h.budgetRevisions.length > 0 ? h.budgetRevisions[h.budgetRevisions.length - 1].id : null
+    );
+  });
+
+  // Precompute editable revision IDs (set for fast lookup)
+  const editableRevisionIds = useComputed$(() => {
+    if (!canEdit) return new Set<string>();
+    const editable = new Set<string>();
+    matrix.value.headers.forEach((h, i) => {
+      const isClosed = budgetClosedMap.get(h.budgetId) ?? false;
+      if (!isClosed && h.budgetRevisions.length > 0) {
+        editable.add(h.budgetRevisions[h.budgetRevisions.length - 1].id);
       }
-      return [];
-    }
-    return revisions;
-  };
+    });
+    return editable;
+  });
 
-  // Helper to check if a revision is the latest (editable) - last in ASC-sorted array
-  const isLatestRevision = (revisionId: string, budgetIndex: number) => {
-    const header = matrix.value.headers[budgetIndex];
-    if (header && header.budgetRevisions.length > 0) {
-      return header.budgetRevisions[header.budgetRevisions.length - 1].id === revisionId;
-    }
-    return false;
-  };
-
-  // Helper to check if a revision is editable (user has permission and budget is not closed)
-  const isRevisionEditable = (revisionId: string, budgetIndex: number) => {
-    if (!canEdit) return false;
-    const header = matrix.value.headers[budgetIndex];
-    if (!header) return false;
-    const isClosed = budgetClosedMap.get(header.budgetId) ?? false;
-    if (isClosed) return false;
-    return isLatestRevision(revisionId, budgetIndex);
-  };
+  // Precompute filtered revisions for each item and budget
+  const filteredItemRevisions = useComputed$(() => {
+    return matrix.value.items.map(row => 
+      row.values.map((value, i) => {
+        if (showOnlyLatestRevision?.value) {
+          const latestId = latestRevisionIds.value[i];
+          if (latestId) {
+            const latestRevision = value.revisions.find(r => r.revisionId === latestId);
+            return latestRevision ? [latestRevision] : [];
+          }
+          return [];
+        }
+        return value.revisions;
+      })
+    );
+  });
 
   return <>
     <table class="table is-bordered">
@@ -190,41 +194,55 @@ export default component$<MatrixTableProps>(({
         </tr>
       </thead>
       <tbody>
-        {matrix.value.items.map((row) => <tr key={row.accountId}>
-          {Array.from({ length: matrix.value.maxDepth + 1 }).map((_, j) => <td class="is-vcentered" key={j}>
-            {j === row.depth ? row.accountCode : ''}
-          </td>)}
-          <td>{row.accountName}</td>
-          {showDescription?.value && <td class="description-cell" title={row.accountDescription}>{row.accountDescription}</td>}
-          {row.values.map((value, i) => <>
-            {showTarget?.value && getFilteredRevisions(value.revisions, i).map((revision) => <td class={["p-0", "is-vcentered", { "editable-cell": isRevisionEditable(revision.revisionId, i) && !row.isGroup }]} key={revision.revisionId}>
-              {row.isGroup ?
-                <p class="pl-2 pr-2">{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</p> :
-                (isRevisionEditable(revision.revisionId, i) ?
-                  <TargetValueInput
-                    tabIndex={10 + i}
-                    value={targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0'}
-                    accountId={row.accountId}
-                    budgetRevisionId={revision.revisionId}
-                    onSaved$={(event) => {
-                      propagateMatrixValues(
-                        budgetRevisionIdToBudgetIdMap,
-                        targetValues,
-                        actualValues,
-                        diffValues,
-                        allAccounts,
-                        revision.revisionId,
-                        row.parentAccountId,
-                        event.change.diff
-                      );
-                    }} /> :
-                  <p class="pl-2 pr-2">{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</p>)
-              }
-            </td>)}
-            {showActual?.value && <td class="disabled-cell">{formatCurrency(actualValues[actualValueKey(row.accountId, matrix.value.headers[i].budgetId)] ?? '0')}</td>}
-            {showDiff?.value && getFilteredRevisions(value.revisions, i).map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(diffValues[`${row.accountId}:${revision.revisionId}`] ?? '0')}</td>)}
-          </>)}
-        </tr>)}
+        {matrix.value.items.map((row, rowIndex) => {
+          const rowFilteredRevisions = filteredItemRevisions.value[rowIndex];
+          return (
+            <tr key={row.accountId}>
+              {Array.from({ length: matrix.value.maxDepth + 1 }).map((_, j) => <td class="is-vcentered" key={j}>
+                {j === row.depth ? row.accountCode : ''}
+              </td>)}
+              <td>{row.accountName}</td>
+              {showDescription?.value && <td class="description-cell" title={row.accountDescription}>{row.accountDescription}</td>}
+              {row.values.map((value, i) => {
+                const revisions = rowFilteredRevisions[i];
+                return (<>
+                  {showTarget?.value && revisions.map((revision) => {
+                    const isEditable = editableRevisionIds.value.has(revision.revisionId);
+                    const showInput = isEditable && !row.isGroup;
+                    return (
+                      <td class={["is-vcentered", { "p-0": showInput, "editable-cell": showInput, "readonly-cell": !showInput }]} key={revision.revisionId}>
+                        {row.isGroup ?
+                          <span>{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</span> :
+                          (isEditable ?
+                            <TargetValueInput
+                              tabIndex={10 + i}
+                              value={targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0'}
+                              accountId={row.accountId}
+                              budgetRevisionId={revision.revisionId}
+                              onSaved$={(event) => {
+                                propagateMatrixValues(
+                                  budgetRevisionIdToBudgetIdMap,
+                                  targetValues,
+                                  actualValues,
+                                  diffValues,
+                                  allAccounts,
+                                  revision.revisionId,
+                                  row.parentAccountId,
+                                  event.change.diff
+                                );
+                              }} /> :
+                            <span>{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</span>)
+                        }
+                      </td>
+                    );
+                  })}
+                  {showActual?.value && <td class="disabled-cell">{formatCurrency(actualValues[actualValueKey(row.accountId, matrix.value.headers[i].budgetId)] ?? '0')}</td>}
+                  {showDiff?.value && revisions.map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(diffValues[`${row.accountId}:${revision.revisionId}`] ?? '0')}</td>)}
+                </>);
+              })}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   </>;
