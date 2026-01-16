@@ -1,17 +1,16 @@
-import { component$, useComputed$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
+import { component$, useComputed$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
 import { DocumentHead, Link, routeAction$, routeLoader$, zod$, z, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
 import MainContent from "~/components/layout/MainContent";
-import MainContentMenu from "~/components/layout/MainContentMenu";
-import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import styles from "./index@menu.scss?inline";
 import CreateBudgetMenu from "~/components/budgets/CreateBudgetMenu";
-import EditBudgetMenu from "~/components/budgets/EditBudgetMenu";
+import MainContentMenu from "~/components/layout/MainContentMenu";
+import MainContentMenuHeader from "~/components/layout/MainContentMenuHeader";
 import { requirePermission, withPermission, Permissions, checkPermissions } from "~/lib/auth";
 
 
@@ -170,8 +169,7 @@ export const useSaveBudgetRouteAction = routeAction$(async (values, { sharedMap,
 
 export enum MenuStatus {
   None,
-  Create,
-  Edit
+  Create
 }
 
 interface Budget {
@@ -217,16 +215,6 @@ export default component$(() => {
   const permissions = useBudgetPermissions();
   const menuStatus = useSignal<MenuStatus>(MenuStatus.None);
   const createMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Create);
-  const editMenuShown = useComputed$(() => menuStatus.value === MenuStatus.Edit);
-  const editMenuBudgetId = useSignal<string>('');
-
-  useTask$(({ track }) => {
-    track(() => menuStatus.value);
-
-    if (menuStatus.value !== MenuStatus.Edit) {
-      editMenuBudgetId.value = '';
-    }
-  });
 
   return (
     <>
@@ -269,10 +257,7 @@ export default component$(() => {
                 <td class="is-vcentered">
                   <p class="buttons are-small is-right">
                     {permissions.value.canUpdate && (
-                      <button class="button" onClick$={() => {
-                        editMenuBudgetId.value = budget.id;
-                        menuStatus.value = MenuStatus.Edit;
-                      }}>{_`Bearbeiten`}</button>
+                      <Link class="button" href={`/budgets/${budget.id}`}>{_`Bearbeiten`}</Link>
                     )}
                     {permissions.value.canDelete && (
                       <Link class="button is-danger is-outlined" href={`/budgets/${budget.id}/delete`}>{_`Entfernen`}</Link>
@@ -291,14 +276,6 @@ export default component$(() => {
           </tbody>
         </table>
       </MainContent>
-
-      <MainContentMenu isShown={editMenuShown}>
-        <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
-          {_`Haushaltsplan bearbeiten`}
-        </MainContentMenuHeader>
-
-        <EditBudgetMenu budgetId={editMenuBudgetId}></EditBudgetMenu>
-      </MainContentMenu>
 
       <MainContentMenu isShown={createMenuShown}>
         <MainContentMenuHeader onClose$={() => menuStatus.value = MenuStatus.None}>
