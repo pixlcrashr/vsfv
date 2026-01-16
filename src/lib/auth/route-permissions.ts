@@ -13,9 +13,9 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   {
-    name: _`Übersicht`,
-    path: '/overview',
-    permission: Permissions.OVERVIEW_READ
+    name: _`Dashboard`,
+    path: '/dashboard',
+    permission: Permissions.DASHBOARD_READ
   },
   {
     name: _`Matrix`,
@@ -61,6 +61,11 @@ export const menuItems: MenuItem[] = [
 ];
 
 export const menuItemsAdmin: MenuItem[] = [
+  {
+    name: _`Einstellungen`,
+    path: '/admin/settings',
+    permission: Permissions.SETTINGS_READ
+  },
   {
     name: _`Benutzer`,
     path: '/admin/users',

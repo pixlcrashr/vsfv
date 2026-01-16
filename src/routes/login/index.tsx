@@ -10,8 +10,8 @@ export const onRequest: RequestHandler = async ({ sharedMap, redirect }) => {
   const userId = sharedMap.get('userId') as string | undefined;
   
   if (userId) {
-    if (await hasPermission(userId, Permissions.OVERVIEW_READ)) {
-      throw redirect(307, "/overview");
+    if (await hasPermission(userId, Permissions.DASHBOARD_READ)) {
+      throw redirect(307, "/dashboard");
     }
   
     throw redirect(307, "/matrix");

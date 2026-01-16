@@ -10,7 +10,7 @@ import Chart from 'chart.js/auto';
 
 
 
-export const onRequest: RequestHandler = requirePermission(Permissions.OVERVIEW_READ);
+export const onRequest: RequestHandler = requirePermission(Permissions.DASHBOARD_READ);
 
 interface MonthPoint {
   label: string;
@@ -234,7 +234,7 @@ export default component$(() => {
               <ul>
                 <li class="is-active">
                   <Link href="#" aria-current="page">
-                    {_`Übersicht`}
+                    {_`Dashboard`}
                   </Link>
                 </li>
               </ul>
@@ -307,6 +307,6 @@ export default component$(() => {
 });
 
 export const head: DocumentHead = {
-  title: _`VSFV | Übersicht`,
+  title: _`VSFV | Dashboard`,
   meta: [],
 };

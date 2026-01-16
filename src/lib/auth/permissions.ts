@@ -1,7 +1,7 @@
 import { _ } from 'compiled-i18n';
 
 export const Resources = {
-  OVERVIEW: 'overview',
+  DASHBOARD: 'dashboard',
   ACCOUNTS: 'accounts',
   ACCOUNT_GROUPS: 'accountGroups',
   BUDGETS: 'budgets',
@@ -47,10 +47,10 @@ export const permission = (
 });
 
 export const Permissions = {
-  // Overview
-  OVERVIEW_READ: permission(Resources.OVERVIEW, Actions.READ, {
-    category: _`Übersicht`,
-    name: _`Übersicht anzeigen`,
+  // Dashboard
+  DASHBOARD_READ: permission(Resources.DASHBOARD, Actions.READ, {
+    category: _`Dashboard`,
+    name: _`Dashboard anzeigen`,
     description: _`Dashboard mit Statistiken und Übersichten ansehen`
   }),
   
@@ -249,5 +249,17 @@ export const Permissions = {
     category: _`Gruppen`,
     name: _`Gruppen löschen`,
     description: _`Gruppen entfernen`
+  }),
+
+  // Settings
+  SETTINGS_READ: permission(Resources.SETTINGS, Actions.READ, {
+    category: _`Einstellungen`,
+    name: _`Einstellungen anzeigen`,
+    description: _`Systemeinstellungen ansehen`
+  }),
+  SETTINGS_UPDATE: permission(Resources.SETTINGS, Actions.UPDATE, {
+    category: _`Einstellungen`,
+    name: _`Einstellungen bearbeiten`,
+    description: _`Systemeinstellungen ändern`
   }),
 } as const;
