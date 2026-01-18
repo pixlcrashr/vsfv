@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.7.1](https://github.com/pixlcrashr/vsfv/compare/v1.7.0...v1.7.1) (2026-01-18)
+
+
+### Bug Fixes
+
+* **reports:** filter accounts by both target and actual values in report generation ([3cad7ec](https://github.com/pixlcrashr/vsfv/commit/3cad7eca1a2481b916ce796bbf8578ebc331895f))
+
 ## [1.7.0](https://github.com/pixlcrashr/vsfv/compare/v1.6.2...v1.7.0) (2026-01-18)
 
 
