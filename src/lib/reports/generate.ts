@@ -234,7 +234,30 @@ GROUP BY f1.budget_id, f1.account_id`;
     return sum;
   };
 
-  const buildReportAccountTree = (node: AccountNode): ReportAccount => {
+  // Check if an account (or any descendant for group accounts) has any non-zero target values
+  const hasNonZeroTargetValues = (node: AccountNode): boolean => {
+    const isGroup = node.children.length > 0;
+
+    if (isGroup) {
+      // For group accounts, check if any child has non-zero values
+      return node.children.some(child => hasNonZeroTargetValues(child as AccountNode));
+    }
+
+    // For leaf accounts, check if any budget revision has a non-zero value
+    return budgets.some(b =>
+      b.budget_revisions.some(r => {
+        const brav = bravs.find(br => br.account_id === node.account.id && br.budget_revision_id === r.id);
+        return brav && !new Decimal(brav.value).isZero();
+      })
+    );
+  };
+
+  const buildReportAccountTree = (node: AccountNode): ReportAccount | null => {
+    // Skip accounts (and their parents) with no non-zero budget revision values
+    if (!hasNonZeroTargetValues(node)) {
+      return null;
+    }
+
     const isGroup = node.children.length > 0;
 
     budgets.forEach(b => {
@@ -270,7 +293,10 @@ GROUP BY f1.budget_id, f1.account_id`;
     const sortedChildren = node.getSortedChildren();
 
     for (let i = 0; i < sortedChildren.length; i++) {
-      children.push(buildReportAccountTree(sortedChildren[i] as AccountNode));
+      const child = buildReportAccountTree(sortedChildren[i] as AccountNode);
+      if (child !== null) {
+        children.push(child);
+      }
     }
 
     return {
@@ -287,7 +313,10 @@ GROUP BY f1.budget_id, f1.account_id`;
   const rootAccountsForReport: ReportAccount[] = [];
 
   tree.getSortedChildren().forEach(rootNode => {
-    rootAccountsForReport.push(buildReportAccountTree(rootNode as AccountNode));
+    const account = buildReportAccountTree(rootNode as AccountNode);
+    if (account !== null) {
+      rootAccountsForReport.push(account);
+    }
   });
 
   const accountsForReport: ReportAccount[] = [{
