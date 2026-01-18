@@ -42,7 +42,8 @@ export const onPost: RequestHandler = async ({ send, env, request, params }) => 
           checkboxEnabled("targetValuesEnabled"),
           checkboxEnabled("differenceValuesEnabled"),
           checkboxEnabled("accountDescriptionsEnabled"),
-          checkboxEnabled("budgetDescriptionsEnabled")
+          checkboxEnabled("budgetDescriptionsEnabled"),
+          checkboxEnabled("latestRevisionOnly")
         );
 
         const headers = new Headers();
@@ -64,7 +65,8 @@ export const onPost: RequestHandler = async ({ send, env, request, params }) => 
           checkboxEnabled("targetValuesEnabled"),
           checkboxEnabled("differenceValuesEnabled"),
           checkboxEnabled("accountDescriptionsEnabled"),
-          checkboxEnabled("budgetDescriptionsEnabled")
+          checkboxEnabled("budgetDescriptionsEnabled"),
+          checkboxEnabled("latestRevisionOnly")
         );
 
         const headers = new Headers();

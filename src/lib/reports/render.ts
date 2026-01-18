@@ -7,6 +7,8 @@ import Handlebars from "handlebars";
 
 export interface BudgetRevision {
   id: string;
+  name: string;
+  description: string;
   date: Date;
 }
 
@@ -21,6 +23,7 @@ export interface Budget {
 
 export interface Account {
   id: string;
+  isLeaf: boolean;
   depth: number;
   name: string;
   code: string;
@@ -95,6 +98,10 @@ function buildReportHtml(
       result += block.fn(i);
     }
     return result;
+  });
+  Handlebars.registerHelper('countTrue', function (...bs: any[]) {
+    bs.pop();
+    return bs.filter(v => !!v).length;
   });
   Handlebars.registerHelper('add', function (a: any, b: any) {
     const na = Number(a);

@@ -355,7 +355,7 @@ export const useGetDataLoader = routeLoader$<Data>(async () => {
 
   const selectedBudgetIds = budgets.length > 0 ? [budgets[0].id] : [];
   const selectedAccountIds = accounts.map(a => a.id);
-  
+
   return {
     matrix: await getMatrix(selectedBudgetIds, selectedAccountIds),
     budgets,
@@ -523,6 +523,8 @@ export default component$(() => {
             <input type="hidden" name="actualValuesEnabled" value={showActual.value ? "on" : ""} />
             <input type="hidden" name="differenceValuesEnabled" value={showDiff.value ? "on" : ""} />
             <input type="hidden" name="accountDescriptionsEnabled" value={showDescription.value ? "on" : ""} />
+            <input type="hidden" name="budgetDescriptionsEnabled" value={showDescription.value ? "on" : ""} />
+            <input type="hidden" name="latestRevisionOnly" value={showOnlyLatestRevision.value ? "on" : ""} />
             <button type="submit" class="button is-small is-link is-outlined">
               <span class="icon is-small">
                 <i class="fa fa-file-export" aria-hidden="true"></i>

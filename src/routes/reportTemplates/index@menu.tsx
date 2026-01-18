@@ -106,7 +106,7 @@ export default component$(() => {
                 <td class="is-vcentered">{reportTemplate.name}</td>
                 <td class="is-vcentered">{formatDateShort(reportTemplate.createdAt)}</td>
                 <td class="is-vcentered">
-                  <p class="buttons are-small is-right">
+                  <div class="buttons are-small is-right">
                     {permissions.value.canUpdate && (
                       <Link href={`/reportTemplates/${reportTemplate.id}/edit`} class="button">{_`Bearbeiten`}</Link>
                     )}
@@ -116,7 +116,7 @@ export default component$(() => {
                         <button type="submit" class="button is-danger is-outlined" disabled={deleteAction.isRunning}>{_`Entfernen`}</button>
                       </Form>
                     )}
-                  </p>
+                  </div>
                 </td>
               </tr>
             ))}

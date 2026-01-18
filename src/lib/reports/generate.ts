@@ -5,6 +5,7 @@ import { Prisma as P } from "~/lib/prisma/generated/client";
 import { Decimal as PDecimal } from "@prisma/client/runtime/library";
 import { Account as ReportAccount, renderReport, renderReportHtml } from "~/lib/reports/render";
 import { buildTreeFromDB, Node as AccountNode } from "~/lib/accounts/tree";
+import { describe } from "node:test";
 
 
 
@@ -70,6 +71,8 @@ interface ReportRenderData {
       periodEnd: Date;
       revisions: {
         id: string;
+        name: string;
+        description: string;
         date: Date;
       }[];
     }[];
@@ -92,7 +95,8 @@ async function buildReportRenderData(
   targetValuesEnabled: boolean,
   differenceValuesEnabled: boolean,
   accountDescriptionsEnabled: boolean,
-  budgetDescriptionsEnabled: boolean
+  budgetDescriptionsEnabled: boolean,
+  latestRevisionOnly: boolean
 ): Promise<ReportRenderData> {
   const reportTemplate = await Prisma.report_templates.findUnique({
     where: {
@@ -104,16 +108,30 @@ async function buildReportRenderData(
     throw new Error('Report template not found');
   }
 
-  const budgets = await Prisma.budgets.findMany({
+  const budgetsRaw = await Prisma.budgets.findMany({
     where: {
       id: {
         in: selectedBudgetIds
       }
     },
     include: {
-      budget_revisions: true
+      budget_revisions: {
+        orderBy: {
+          date: 'desc'
+        }
+      }
     }
   });
+
+  const budgets = budgetsRaw.map(b => ({
+    ...b,
+    budget_revisions: latestRevisionOnly && b.budget_revisions.length > 0
+      ? [ { ...b.budget_revisions[0], idx: b.budget_revisions.length - 1 } ]
+      : b.budget_revisions.map((x, i) => ({
+        ...x,
+        idx: i,
+      }))
+  }));
 
   const allAccounts = filterReachableAccounts(await Prisma.accounts.findMany({
     orderBy: {
@@ -257,6 +275,7 @@ GROUP BY f1.budget_id, f1.account_id`;
 
     return {
       id: node.account.id,
+      isLeaf: !isGroup,
       code: node.account.code,
       name: node.account.name,
       depth: node.depth + 1,
@@ -273,6 +292,7 @@ GROUP BY f1.budget_id, f1.account_id`;
 
   const accountsForReport: ReportAccount[] = [{
     id: 'root',
+    isLeaf: rootAccountsForReport.length === 0,
     code: '',
     name: '',
     depth: 0,
@@ -307,8 +327,10 @@ GROUP BY f1.budget_id, f1.account_id`;
         description: x.display_description,
         periodStart: x.period_start,
         periodEnd: x.period_end,
-        revisions: x.budget_revisions.map(x => ({
+        revisions: x.budget_revisions.map((x) => ({
           id: x.id,
+          name: `Rev. ${x.idx + 1}`,
+          description: x.display_description,
           date: x.date
         }))
       })),
@@ -326,7 +348,8 @@ export async function generateReportPdf(
   targetValuesEnabled: boolean,
   differenceValuesEnabled: boolean,
   accountDescriptionsEnabled: boolean,
-  budgetDescriptionsEnabled: boolean
+  budgetDescriptionsEnabled: boolean,
+  latestRevisionOnly: boolean
 ): Promise<Blob> {
   const data = await buildReportRenderData(
     reportTemplateId,
@@ -336,7 +359,8 @@ export async function generateReportPdf(
     targetValuesEnabled,
     differenceValuesEnabled,
     accountDescriptionsEnabled,
-    budgetDescriptionsEnabled
+    budgetDescriptionsEnabled,
+    latestRevisionOnly
   );
 
   const d = await renderReport(
@@ -356,7 +380,8 @@ export async function generateReportHtml(
   targetValuesEnabled: boolean,
   differenceValuesEnabled: boolean,
   accountDescriptionsEnabled: boolean,
-  budgetDescriptionsEnabled: boolean
+  budgetDescriptionsEnabled: boolean,
+  latestRevisionOnly: boolean
 ): Promise<string> {
   const data = await buildReportRenderData(
     reportTemplateId,
@@ -366,7 +391,8 @@ export async function generateReportHtml(
     targetValuesEnabled,
     differenceValuesEnabled,
     accountDescriptionsEnabled,
-    budgetDescriptionsEnabled
+    budgetDescriptionsEnabled,
+    latestRevisionOnly
   );
 
   return renderReportHtml(
