@@ -4,9 +4,25 @@
     width: 100%;
 
     .columns {
+
         iframe {
             width: 100%;
             height: 100%;
+        }
+    }
+
+    .preview-container-content {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+
+        .preview-frame-container {
+            flex: 1;
+
+            iframe {
+                background-color: white;
+            }
         }
     }
 }
