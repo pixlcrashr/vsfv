@@ -117,7 +117,7 @@ async function buildReportRenderData(
     include: {
       budget_revisions: {
         orderBy: {
-          date: 'desc'
+          date: 'asc'
         }
       }
     }
@@ -126,7 +126,7 @@ async function buildReportRenderData(
   const budgets = budgetsRaw.map(b => ({
     ...b,
     budget_revisions: latestRevisionOnly && b.budget_revisions.length > 0
-      ? [ { ...b.budget_revisions[0], idx: b.budget_revisions.length - 1 } ]
+      ? [ { ...b.budget_revisions[b.budget_revisions.length - 1], idx: b.budget_revisions.length - 1 } ]
       : b.budget_revisions.map((x, i) => ({
         ...x,
         idx: i,
