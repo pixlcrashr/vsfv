@@ -234,27 +234,39 @@ GROUP BY f1.budget_id, f1.account_id`;
     return sum;
   };
 
-  // Check if an account (or any descendant for group accounts) has any non-zero target values
-  const hasNonZeroTargetValues = (node: AccountNode): boolean => {
+  // Check if an account (or any descendant for group accounts) has any non-zero target or actual values
+  const hasNonZeroValues = (node: AccountNode): boolean => {
     const isGroup = node.children.length > 0;
 
     if (isGroup) {
       // For group accounts, check if any child has non-zero values
-      return node.children.some(child => hasNonZeroTargetValues(child as AccountNode));
+      return node.children.some(child => hasNonZeroValues(child as AccountNode));
     }
 
-    // For leaf accounts, check if any budget revision has a non-zero value
-    return budgets.some(b =>
+    // For leaf accounts, check if any budget revision has a non-zero target value
+    const hasNonZeroTarget = budgets.some(b =>
       b.budget_revisions.some(r => {
         const brav = bravs.find(br => br.account_id === node.account.id && br.budget_revision_id === r.id);
         return brav && !new Decimal(brav.value).isZero();
       })
     );
+
+    if (hasNonZeroTarget) {
+      return true;
+    }
+
+    // Also check if any budget has a non-zero actual value
+    const hasNonZeroActual = budgets.some(b => {
+      const av = avs.find(av => av.account_id === node.account.id && av.budget_id === b.id);
+      return av && !new Decimal(av.amount).isZero();
+    });
+
+    return hasNonZeroActual;
   };
 
   const buildReportAccountTree = (node: AccountNode): ReportAccount | null => {
-    // Skip accounts (and their parents) with no non-zero budget revision values
-    if (!hasNonZeroTargetValues(node)) {
+    // Skip accounts (and their parents) with no non-zero target or actual values
+    if (!hasNonZeroValues(node)) {
       return null;
     }
 
