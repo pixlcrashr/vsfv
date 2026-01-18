@@ -5,7 +5,6 @@ import { Decimal } from "decimal.js";
 import { buildTreeFromDB, Node as AccountNode } from "~/lib/accounts/tree";
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
-import MainContent from "~/components/layout/MainContent";
 import { formatCurrency } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";

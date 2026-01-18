@@ -1,4 +1,4 @@
-import { $, component$, isServer, QRL, Resource, useResource$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
+import { component$, isServer, QRL, Resource, useResource$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
 import styles from "./PreviewEditor.scss?inline";
 import { Editor } from "@monaco-editor/react";
 import { qwikify$ } from "@builder.io/qwik-react";
@@ -7,8 +7,6 @@ import { _ } from 'compiled-i18n';
 
 
 export const QEditor = qwikify$(Editor);
-
-type PreviewType = 'html' | 'pdf';
 
 export interface PreviewEditorProps {
   height?: string;
