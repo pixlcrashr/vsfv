@@ -3,10 +3,10 @@ import { DocumentHead, Form, Link, routeAction$, routeLoader$, z, zod$, type Req
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderTitle from "~/components/layout/HeaderTitle";
-import MainContent from "~/components/layout/MainContent";
 import { buildTreeFromDB, sortedFlatAccountIterator } from "~/lib/accounts/tree";
 import { Prisma } from "~/lib/prisma";
 import { checkPermission, requirePermission, Permissions } from "~/lib/auth";
+import MainContent from "~/components/layout/MainContent";
 
 
 

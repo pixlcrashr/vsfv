@@ -11,6 +11,7 @@ import { Prisma } from "~/lib/prisma";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 import { requirePermission, Permissions } from "~/lib/auth";
 import { _ } from "compiled-i18n";
+import MainContentLarge from "~/components/layout/MainContentLarge";
 
 
 
@@ -311,7 +312,7 @@ export default component$(() => {
 
   return (
     <>
-      <MainContent>
+      <MainContentLarge>
         <Header>
           <HeaderTitle>
             <nav class="breadcrumb" aria-label="breadcrumbs">
@@ -421,7 +422,7 @@ export default component$(() => {
             )}
           </div>
         </div>
-      </MainContent>
+      </MainContentLarge>
     </>
   );
 });

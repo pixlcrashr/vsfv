@@ -133,7 +133,7 @@ export default component$(() => {
             {accountGroups.value.map((group) => (
               <tr key={group.id}>
                 <td class="is-vcentered">{group.displayName}</td>
-                <td class="is-vcentered">{group.displayDescription}</td>
+                <td class="is-vcentered" style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={group.displayDescription}>{group.displayDescription}</td>
                 <td class="is-vcentered">{group.assignmentCount}</td>
                 <td class="is-vcentered">
                   <p class="buttons are-small is-right">
