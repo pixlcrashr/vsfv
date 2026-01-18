@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.6.2](https://github.com/pixlcrashr/vsfv/compare/v1.6.1...v1.6.2) (2026-01-18)
+
+
+### Bug Fixes
+
+* **reports:** correct budget revision ordering and latest revision selection ([30b7b94](https://github.com/pixlcrashr/vsfv/commit/30b7b945b19e2ad794ae5d9fc1eca3fd4b9c2e21))
+
 ## [1.6.1](https://github.com/pixlcrashr/vsfv/compare/v1.6.0...v1.6.1) (2026-01-18)
 
 ## [1.6.0](https://github.com/pixlcrashr/vsfv/compare/v1.5.1...v1.6.0) (2026-01-18)
