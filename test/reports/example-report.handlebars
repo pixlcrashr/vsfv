@@ -11,6 +11,7 @@ html, body {
 table {
   border-collapse: collapse;
   font-size: 8pt;
+  border: 1 px solid black !important;
   margin: 0;                   /* no extra margin that would cause overflow */
 }
 
@@ -22,12 +23,25 @@ table thead {
 /* Cells */
 table th,
 table td {
-  border: 1px solid #000;
+  border: none;
   padding: 2px 4px;
   vertical-align: top;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
+
+.fw-bold {
+  font-weight: 600;
+}
+
+.fw-normal {
+  font-weight: normal;
+}
+
+.align-bottom {
+  vertical-align: bottom;
+}
+
 
 /* Striping */
 tbody tr:nth-child(odd) {
@@ -37,6 +51,10 @@ tbody tr:nth-child(odd) {
 /* Special cells */
 .prefix-cell {
   min-width: 20px !important;
+}
+
+.value-cell {
+  min-width: 80px !important;
 }
 
 .description-cell {
@@ -58,10 +76,74 @@ tbody tr:nth-child(odd) {
   text-align: right;
 }
 
+.text-nowrap {
+  white-space: nowrap;
+}
+
+/* Border color helpers */
+.b-black {
+  border: 1px solid #000;
+}
+
+.b-grey {
+  border: 1px solid #999;
+}
+
+.bt-black {
+  border-top: 1px solid #000;
+}
+
+.bt-grey {
+  border-top: 1px solid #999;
+}
+
+.br-black {
+  border-right: 1px solid #000;
+}
+
+.br-grey {
+  border-right: 1px solid #999;
+}
+
+.bb-black {
+  border-bottom: 1px solid #000;
+}
+
+.bb-grey {
+  border-bottom: 1px solid #999;
+}
+
+.bl-black {
+  border-left: 1px solid #000;
+}
+
+.bl-grey {
+  border-left: 1px solid #999;
+}
+
 /* PRINT RULES */
 @media print {
   @page {
     size: A3 landscape;
+    margin-top: 2.5cm;
+    margin-bottom: 2.5cm;
+
+    /* CSS Paged Media margin boxes - works in PDF generators like wkhtmltopdf/WeasyPrint */
+    @top-left {
+      content: 'Haushaltsübersicht';
+      font-size: 8pt;
+    }
+
+    @bottom-left {
+      content: 'Studierendenschaft der TUHH\A Am Schwarzenberg-Campus 3\A 21073 Hamburg';
+      white-space: pre-wrap;
+      font-size: 8pt;
+    }
+
+    @bottom-right {
+      content: counter(page) ' von ' counter(pages);
+      font-size: 8pt;
+    }
   }
 
   /* Make thead behave as repeating header */
@@ -93,16 +175,15 @@ tbody tr:nth-child(odd) {
         </style>
     </head>
     <body>
-        
-<table class="border border-black">
-  <thead class="border-bottom border-black">
+<table>
+  <thead>
     <tr>
-      <th colspan="{{maxAccountDepth}}" rowspan="2" class="fw-bold align-bottom">
+      <th colspan="{{maxAccountDepth}}" class="fw-bold align-bottom br-black">
         Konto / Titel
       </th>
 
       {{#if @root.options.accountDescriptionsEnabled}}
-        <th rowspan="2" class="border-start border-black align-bottom description-cell">
+        <th class="align-bottom description-cell br-black">
           Anmerkung / Beschreibung
         </th>
       {{/if}}
@@ -111,7 +192,7 @@ tbody tr:nth-child(odd) {
       {{#each budgets}}
         <th
           colspan="{{budgetColspan revisions.length}}"
-          class="fw-bold text-nowrap border-start border-end border-black align-bottom text-center"
+          class="fw-bold text-nowrap align-bottom text-center {{#unless @last}}br-black{{/unless}}"
         >
           {{name}}
           {{#if @root.options.budgetDescriptionsEnabled}}
@@ -123,49 +204,79 @@ tbody tr:nth-child(odd) {
     </tr>
 
     <tr>
-      {{!-- Second header row: revisions per budget with Soll/Ist/Diff columns --}}
+      {{#times maxAccountDepth}}
+        <th class="prefix-cell"></th>
+      {{/times}}
+      {{#if @root.options.accountDescriptionsEnabled}}
+        <th class="bl-black br-black"></th>
+      {{/if}}
+      {{!-- Second header row: revision groups --}}
       {{#each budgets}}
-        {{#if @root.options.targetValuesEnabled}}
-          {{#each revisions}}
-            <th class="fw-bold align-bottom border-start border-end border-black">
-              <p class="m-0 text-nowrap">
-                Rev {{add @index 1}} Soll
-                <span class="font-weight-normal">
-                  <br />
-                  <i>{{formatDateShort date}}</i>
-                </span>
-              </p>
-            </th>
-          {{/each}}
-        {{/if}}
+        {{#each revisions}}
+          <th
+            colspan="{{countTrue @root.options.targetValuesEnabled @root.options.actualValuesEnabled @root.options.differenceValuesEnabled}}"
+            class="align-bottom text-center {{#unless @root.options.accountDescriptionsEnabled}}{{#if @../first}}{{#if @first}}bl-black{{/if}}{{/if}}{{/unless}} {{#if @../last}}{{#if @last}}{{else}}br-black{{/if}}{{else}}br-black{{/if}}"
+          >
+            <span class="text-nowrap">
+              {{name}}<br />
+              {{formatDateShort date}}
+            </span>
+            {{#if @root.options.budgetDescriptionsEnabled}}
+              <br />
+              <span class="fw-normal"><small>{{description}}</small></span>
+            {{/if}}
+          </th>
+        {{/each}}
+      {{/each}}
+    </tr>
 
-        {{#if @root.options.actualValuesEnabled}}
-          {{#each revisions}}
-            <th class="fw-bold align-bottom border-start border-end border-black">
-              <p class="m-0 text-nowrap">
-                Rev {{add @index 1}} Ist
-                <span class="font-weight-normal">
-                  <br />
-                  <i>{{formatDateShort date}}</i>
-                </span>
-              </p>
+    <tr class="bb-black">
+      {{#times maxAccountDepth}}
+        <th class="prefix-cell"></th>
+      {{/times}}
+      {{#if @root.options.accountDescriptionsEnabled}}
+        <th class="bl-black br-black"></th>
+      {{/if}}
+      {{#each budgets}}
+        {{#each revisions}}
+          {{#if @root.options.targetValuesEnabled}}
+            <th class="fw-bold align-bottom value-cell {{#if @../first}}
+  {{#if @first}}
+    {{#unless @root.options.accountDescriptionsEnabled}}
+      bl-black
+    {{/unless}}
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}">
+              <p class="text-nowrap">Soll</p>
             </th>
-          {{/each}}
-        {{/if}}
-
-        {{#if @root.options.differenceValuesEnabled}}
-          {{#each revisions}}
-            <th class="fw-bold align-bottom border-start border-end border-black">
-              <p class="m-0 text-nowrap">
-                Rev {{add @index 1}} Diff
-                <span class="font-weight-normal">
-                  <br />
-                  <i>{{formatDateShort date}}</i>
-                </span>
-              </p>
+          {{/if}}
+          {{#if @root.options.actualValuesEnabled}}
+            <th class="fw-bold align-bottom value-cell {{#if @root.options.targetValuesEnabled}}
+  bl-grey
+{{else}}
+  bl-black
+{{/if}}">
+              <p class="text-nowrap">Ist</p>
             </th>
-          {{/each}}
-        {{/if}}
+          {{/if}}
+          {{#if @root.options.differenceValuesEnabled}}
+            <th class="fw-bold align-bottom value-cell {{#if @root.options.targetValuesEnabled}}
+  {{#if @root.options.actualValuesEnabled}}
+    bl-grey
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}">
+              <p class="text-nowrap">Diff.</p>
+            </th>
+          {{/if}}
+        {{/each}}
       {{/each}}
     </tr>
   </thead>
@@ -212,21 +323,22 @@ tbody tr:nth-child(odd) {
 {{#*inline "rowFragment"}}
   {{!-- MAIN ROW FOR THIS NODE --}}
   <tr>
-    {{!-- Indent by (depth - 1) prefix cells so depth 1 starts at column 0 --}}
-    {{#times (subtract node.depth 1)}}
-      <td class="prefix-cell"></td>
-    {{/times}}
+    {{#if (subtract node.depth 1)}}
+      <td class="prefix-cell" colspan="{{subtract node.depth 1}}"></td>
+    {{/if}}
 
     {{!-- Total Konto/Titel columns = maxAccountDepth.
          Content span = maxAccountDepth - (depth - 1). --}}
     <td colspan="{{subtract @root.maxAccountDepth (subtract node.depth 1)}}" class="align-bottom">
-      <span class="{{#if node.children.length}}fw-bold{{/if}}">
+      {{#if node.isLeaf }}
         {{node.code}} – {{node.name}}
-      </span>
+      {{else}}
+        <b>{{node.code}} – {{node.name}}</b>
+      {{/if}}
     </td>
 
     {{#if @root.options.accountDescriptionsEnabled}}
-      <td class="border-start border-black description-cell align-bottom">
+      <td class="bl-black br-black description-cell align-bottom">
         {{node.description}}
       </td>
     {{/if}}
@@ -234,29 +346,45 @@ tbody tr:nth-child(odd) {
     {{!-- Per (budget, revision) we now have up to three separate cells: first all Soll, then all Ist, then all Diff --}}
     {{#with node.id as |accountId|}}
       {{#each @root.budgets}}
-        {{#if @root.options.targetValuesEnabled}}
-          {{#each revisions}}
-            <td class="amount-cell text-end align-bottom border-start border-end border-black">
-              {{formatCurrency (getTargetValue id accountId)}}
+        {{#each revisions}}
+          {{#if @root.options.targetValuesEnabled}}
+            <td class="amount-cell text-end align-bottom {{#if @../first}}
+  {{#if @first}}
+    {{#unless @root.options.accountDescriptionsEnabled}}
+      bl-black
+    {{/unless}}
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}">
+              {{#if ../../../node.isLeaf}}{{formatCurrency (getTargetValue id accountId)}}{{/if}}
             </td>
-          {{/each}}
-        {{/if}}
-
-        {{#if @root.options.actualValuesEnabled}}
-          {{#each revisions}}
-            <td class="amount-cell text-end align-bottom border-start border-end border-black">
-              {{formatCurrency (getActualValue ../id accountId)}}
+          {{/if}}
+          {{#if @root.options.actualValuesEnabled}}
+            <td class="amount-cell text-end align-bottom {{#if @root.options.targetValuesEnabled}}
+  bl-grey
+{{else}}
+  bl-black
+{{/if}}">
+              {{#if ../../../node.isLeaf}}{{formatCurrency (getActualValue ../id accountId)}}{{/if}}
             </td>
-          {{/each}}
-        {{/if}}
-
-        {{#if @root.options.differenceValuesEnabled}}
-          {{#each revisions}}
-            <td class="amount-cell text-end align-bottom border-start border-end border-black">
-              {{formatCurrency (getDiffValue id accountId)}}
+          {{/if}}
+          {{#if @root.options.differenceValuesEnabled}}
+            <td class="amount-cell text-end align-bottom {{#if @root.options.targetValuesEnabled}}
+  {{#if @root.options.actualValuesEnabled}}
+    bl-grey
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}">
+              {{#if ../../../node.isLeaf}}{{formatCurrency (getDiffValue id accountId)}}{{/if}}
             </td>
-          {{/each}}
-        {{/if}}
+          {{/if}}
+        {{/each}}
       {{/each}}
     {{/with}}
   </tr>
@@ -269,44 +397,106 @@ tbody tr:nth-child(odd) {
 
     {{!-- OPTIONAL SIMPLE Σ ROW: sum of children for non‑leaf accounts --}}
     <tr>
-      {{#times (subtract node.depth 1)}}
-        <td class="prefix-cell"></td>
-      {{/times}}
+      {{#if (subtract node.depth 1)}}
+        <td class="prefix-cell" colspan="{{subtract node.depth 1}}"></td>
+      {{/if}}
 
-      <td colspan="{{subtract @root.maxAccountDepth (subtract node.depth 1)}}" class="fw-bold align-bottom">
-        Summe Σ ({{node.code}} – {{node.name}})
+      <td colspan="{{subtract @root.maxAccountDepth (subtract node.depth 1)}}" class="align-bottom br-black">
+        <b>Summe Σ ({{node.code}} – {{node.name}})</b>
       </td>
 
       {{#if @root.options.accountDescriptionsEnabled}}
-        <td class="border-start border-black"></td>
+        <td class="br-black"></td>
       {{/if}}
 
       {{#with node.id as |accountId|}}
         {{#each @root.budgets}}
-          {{!-- Σ row with separate Soll/Ist/Diff blocks, ordered by metric then revision --}}
-          {{#if @root.options.targetValuesEnabled}}
-            {{#each revisions}}
-              <td class="amount-cell text-end fw-bold align-bottom border-start border-end border-black">
-                {{formatCurrency (getTargetValue id accountId)}}
+          {{!-- Σ row with separate Soll/Ist/Diff blocks, ordered by revision --}}
+          {{#each revisions}}
+            {{#if @root.options.targetValuesEnabled}}
+              <td class="amount-cell align-bottom {{#if @../first}}
+  {{#if @first}}
+    {{#unless @root.options.accountDescriptionsEnabled}}
+      bl-black
+    {{/unless}}
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}">
+                <b>{{formatCurrency (getTargetValue id accountId)}}</b>
               </td>
-            {{/each}}
-          {{/if}}
+            {{/if}}
+            {{#if @root.options.actualValuesEnabled}}
+              <td class="amount-cell align-bottom {{#if @root.options.targetValuesEnabled}}
+  bl-grey
+{{else}}
+  bl-black
+{{/if}}">
+                <b>{{formatCurrency (getActualValue ../id accountId)}}</b>
+              </td>
+            {{/if}}
+            {{#if @root.options.differenceValuesEnabled}}
+              <td class="amount-cell align-bottom {{#if @root.options.targetValuesEnabled}}
+  {{#if @root.options.actualValuesEnabled}}
+    bl-grey
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}">
+                <b>{{formatCurrency (getDiffValue id accountId)}}</b>
+              </td>
+            {{/if}}
+          {{/each}}
+        {{/each}}
+      {{/with}}
+    </tr>
 
-          {{#if @root.options.actualValuesEnabled}}
-            {{#each revisions}}
-              <td class="amount-cell text-end fw-bold align-bottom border-start border-end border-black">
-                {{formatCurrency (getActualValue ../id accountId)}}
-              </td>
-            {{/each}}
-          {{/if}}
+    <tr class="empty-row">
+      <td class="prefix-cell" colspan="{{@root.maxAccountDepth}}"></td>
 
-          {{#if @root.options.differenceValuesEnabled}}
-            {{#each revisions}}
-              <td class="amount-cell text-end fw-bold align-bottom border-start border-end border-black">
-                {{formatCurrency (getDiffValue id accountId)}}
-              </td>
-            {{/each}}
-          {{/if}}
+      {{#if @root.options.accountDescriptionsEnabled}}
+        <td class="bl-black br-black description-cell align-bottom"></td>
+      {{/if}}
+
+      {{#with node.id as |accountId|}}
+        {{#each @root.budgets}}
+          {{#each revisions}}
+            {{#if @root.options.targetValuesEnabled}}
+              <td class="{{#if @../first}}
+  {{#if @first}}
+    {{#unless @root.options.accountDescriptionsEnabled}}
+      bl-black
+    {{/unless}}
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}"></td>
+            {{/if}}
+            {{#if @root.options.actualValuesEnabled}}
+              <td class="{{#if @root.options.targetValuesEnabled}}
+  bl-grey
+{{else}}
+  bl-black
+{{/if}}"></td>
+            {{/if}}
+            {{#if @root.options.differenceValuesEnabled}}
+              <td class="{{#if @root.options.targetValuesEnabled}}
+  {{#if @root.options.actualValuesEnabled}}
+    bl-grey
+  {{else}}
+    bl-black
+  {{/if}}
+{{else}}
+  bl-black
+{{/if}}"></td>
+            {{/if}}
+          {{/each}}
         {{/each}}
       {{/with}}
     </tr>
