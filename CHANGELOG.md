@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.6.0](https://github.com/pixlcrashr/vsfv/compare/v1.5.1...v1.6.0) (2026-01-18)
+
+
+### Features
+
+* **reports:** add preview type selector and improve preview editor UX ([b7d8515](https://github.com/pixlcrashr/vsfv/commit/b7d85159a00a00d3781a575238a9c575303af2ab))
+* **reports:** add revision details and latest-only filtering to report generation ([acc1f93](https://github.com/pixlcrashr/vsfv/commit/acc1f93cbe523ab5d051f855b1aadb0899730aa0))
+* **reports:** improve report template styling and layout structure ([51fbebe](https://github.com/pixlcrashr/vsfv/commit/51fbebe73b2781c8779538b0e3766dbc668c2e9d))
+
 ## [1.5.1](https://github.com/pixlcrashr/vsfv/compare/v1.5.0...v1.5.1) (2026-01-16)
 
 ## [1.5.0](https://github.com/pixlcrashr/vsfv/compare/v1.4.1...v1.5.0) (2026-01-16)
