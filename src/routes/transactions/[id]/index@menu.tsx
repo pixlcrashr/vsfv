@@ -169,7 +169,7 @@ export const useUpdateTransactionAction = routeAction$(async (args, req) => {
   }
 
   const transactionAmount = new Decimal(transaction.amount.toString());
-  const assignments = args.accountAssignments.filter(a => a.accountId !== '' && a.accountId !== 'ignore');
+  const assignments = args.accountAssignments.filter(a => a.accountId !== '');
 
   if (assignments.length > 0) {
     const totalAssigned = assignments.reduce((sum, a) => sum.plus(new Decimal(a.value)), new Decimal(0));
@@ -185,6 +185,10 @@ export const useUpdateTransactionAction = routeAction$(async (args, req) => {
   });
 
   for (const assignment of assignments) {
+    if (assignment.accountId === 'ignore') {
+      continue;
+    }
+
     await Prisma.transaction_account_assignments.create({
       data: {
         transaction_id: transactionId,
