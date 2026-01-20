@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.7.2](https://github.com/pixlcrashr/vsfv/compare/v1.7.1...v1.7.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* **transactions:** skip creating assignments for ignored accounts ([7de64d8](https://github.com/pixlcrashr/vsfv/commit/7de64d810cd3e85582c7f81eb689dc35da014242))
+
 ## [1.7.1](https://github.com/pixlcrashr/vsfv/compare/v1.7.0...v1.7.1) (2026-01-18)
 
 
