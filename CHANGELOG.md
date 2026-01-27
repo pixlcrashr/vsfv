@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.8.0](https://github.com/pixlcrashr/vsfv/compare/v1.7.2...v1.8.0) (2026-01-27)
+
+
+### Features
+
+* add is_archived property to account tree ([ca97862](https://github.com/pixlcrashr/vsfv/commit/ca97862084d355946110483339bb0d88c92c0178))
+
+
+### Bug Fixes
+
+* lint optimizations ([c0ae42f](https://github.com/pixlcrashr/vsfv/commit/c0ae42f6ecbf6510c361315f1be5f54fcf6d2a04))
+* show correct revision number ([5b6d8ec](https://github.com/pixlcrashr/vsfv/commit/5b6d8ec868efcf75017bf30daff26158b27db68a))
+
 ## [1.7.2](https://github.com/pixlcrashr/vsfv/compare/v1.7.1...v1.7.2) (2026-01-20)
 
 
