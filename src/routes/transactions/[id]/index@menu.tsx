@@ -233,27 +233,47 @@ export default component$(() => {
   const isLoading = useMinLoading($(() => updateAction.isRunning));
 
   const assignments = useStore<{ value: Array<{ accountId: string; value: string }> }>({
-    value: transaction.value.accountAssignments.length > 0
-      ? transaction.value.accountAssignments.map(a => ({ accountId: a.accountId, value: a.value }))
-      : [{ accountId: '', value: transaction.value.amount }]
+    value: (() => {
+      if (transaction.value.accountAssignments.length === 0) {
+        return [{ accountId: '', value: transaction.value.amount }];
+      }
+
+      const existingAssignments = transaction.value.accountAssignments.map(a => ({
+        accountId: a.accountId,
+        value: a.value
+      }));
+
+      // Calculate if there's an unassigned amount
+      const transactionAmount = parseDecimalValue(transaction.value.amount);
+      const totalAssigned = existingAssignments.reduce((sum, a) => sum + parseDecimalValue(a.value), 0);
+      const unassignedAmount = transactionAmount - totalAssigned;
+
+      // If there's an unassigned amount, add an ignored row
+      if (unassignedAmount > 0.01) {
+        existingAssignments.push({ accountId: 'ignore', value: unassignedAmount.toFixed(2) });
+      }
+
+      return existingAssignments;
+    })()
   });
 
   const transactionAmount = parseFloat(transaction.value.amount);
-  const totalAssigned = useComputed$(async () => {
+  const totalAssigned = useComputed$(() => {
     return assignments.value
       .filter(a => a.accountId !== '' && a.accountId !== 'ignore')
       .reduce((sum, a) => sum + parseDecimalValue(a.value), 0);
   });
-  const diff = useComputed$(() => totalAssigned.value - transactionAmount);
-  const diffIsZero = useComputed$(() => Math.abs(diff.value) < 0.01);
-  const remainingAmount = useComputed$(() => transactionAmount - totalAssigned.value);
   const ignoredValue = useComputed$(() => {
-    const ignored = assignments.value
+    return assignments.value
       .filter(a => a.accountId === 'ignore')
       .reduce((sum, a) => sum + parseDecimalValue(a.value), 0);
-    return ignored;
   });
+  const totalWithIgnored = useComputed$(() => totalAssigned.value + ignoredValue.value);
+  const diff = useComputed$(() => totalWithIgnored.value - transactionAmount);
+  const diffIsZero = useComputed$(() => Math.abs(diff.value) < 0.01);
+  const remainingAmount = useComputed$(() => transactionAmount - totalWithIgnored.value);
   const hasIgnoredValue = useComputed$(() => ignoredValue.value > 0.01);
+  const hasUnselectedAssignment = useComputed$(() => assignments.value.some(a => a.accountId === ''));
 
   return (
     <>
@@ -425,7 +445,7 @@ export default component$(() => {
             <button
               type="submit"
               class={['button', 'is-primary', { 'is-loading': isLoading.value }]}
-              disabled={!diffIsZero.value || !transaction.value.canDelete}
+              disabled={!diffIsZero.value || !transaction.value.canDelete || hasUnselectedAssignment.value}
             >
               {_`Speichern`}
             </button>
