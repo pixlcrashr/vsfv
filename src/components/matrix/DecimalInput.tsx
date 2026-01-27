@@ -40,7 +40,7 @@ export default component$<DecimalInputProps>(({ tabIndex, value, loading, onChan
   return <input
     tabIndex={tabIndex}
     ref={ref}
-    class={["input", "is-small", {
+    class={["decimal-input", {
       "is-loading": loading
     }]}
     value={formatCurrency(value ?? '0')}

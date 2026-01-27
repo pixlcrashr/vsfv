@@ -1,8 +1,15 @@
 
-.input {
+.decimal-input {
   border-radius: 0;
   border: none;
+  padding: 0px;
   font-size: 9pt;
   line-height: 9pt;
   text-align: right;
+  background-color: transparent;
+  color: var(--bulma-text);
+
+  &:active, &:focus {
+    outline: none;
+  }
 }
