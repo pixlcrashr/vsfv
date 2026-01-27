@@ -42,6 +42,7 @@ export interface Matrix {
     budgetName: string;
     budgetRevisions: {
       id: string;
+      number: number;
       description: string;
       date: Date;
       displayName: string;
@@ -266,6 +267,7 @@ GROUP BY f1.budget_id, f1.account_id`;
             : `Soll (Rev. ${revisionNumber}, ${dateStr})`;
           return {
             id: r.id,
+            number: revisionNumber,
             description: r.display_description,
             date: r.date,
             displayName: displayName
@@ -816,7 +818,8 @@ export default component$(() => {
         showDiff={showDiff}
         showTarget={showTarget}
         showOnlyLatestRevision={showOnlyLatestRevision}
-        canEdit={permissions.value.canEdit} />
+        canEdit={permissions.value.canEdit}
+        hasEditPermission={permissions.value.canEdit} />
     </main>
   </div>);
 });

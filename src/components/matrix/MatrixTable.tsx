@@ -17,6 +17,7 @@ export interface MatrixTableProps {
   allBudgets: Budget[];
   allAccounts: Account[];
   canEdit?: boolean;
+  hasEditPermission?: boolean;
 }
 
 export type StringMap = { [key: string]: string };
@@ -83,7 +84,8 @@ export default component$<MatrixTableProps>(({
   matrix,
   allBudgets,
   allAccounts,
-  canEdit = false
+  canEdit = false,
+  hasEditPermission = false
 }) => {
   const budgetClosedMap = new Map<string, boolean>();
   allBudgets.forEach(b => {
@@ -208,7 +210,7 @@ export default component$<MatrixTableProps>(({
 
               return <>
                 <th class="revision-th-cell" colSpan={colSpan + (colSpan === 2 ? 1 : 0)}>
-                  Revision {i + 1}<br />
+                  Revision {r.number}<br />
                   <i>{formatDateShort(r.date)}</i>
                 </th>
                 <th class="border-cell-dark"></th>
@@ -269,7 +271,7 @@ export default component$<MatrixTableProps>(({
                   const revisions = rowFilteredRevisions[i];
                   return (<>
                     {revisions.map(r => {
-                      const isEditable = editableRevisionIds.value.has(r.revisionId);
+                      const isEditable = hasEditPermission && editableRevisionIds.value.has(r.revisionId);
                       const showInput = isEditable && !row.isGroup;
 
                       return <>
