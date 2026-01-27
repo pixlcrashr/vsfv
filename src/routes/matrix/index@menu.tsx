@@ -8,7 +8,7 @@ import { type accountsModel } from "~/lib/prisma/generated/models";
 import { Prisma as P } from "~/lib/prisma/generated/client";
 import styles from "./index@menu.scss?inline";
 import MatrixTable from "~/components/matrix/MatrixTable";
-import { buildTreeFromDB, Node as AccountNode, sortedFlatAccountIterator } from "~/lib/accounts/tree";
+import { buildTreeFromDB, Node as AccountNode, sortedFlatAccountIterator, type FlatAccount } from "~/lib/accounts/tree";
 import { requirePermission, Permissions, checkPermissions } from "~/lib/auth";
 
 
@@ -23,6 +23,7 @@ export interface Item {
   accountCode: string;
   accountDescription: string;
   depth: number;
+  isSum: boolean;
   isGroup: boolean;
   parentAccountId: string | null;
   values: {
@@ -174,16 +175,20 @@ GROUP BY f1.budget_id, f1.account_id`;
     return sum;
   };
 
-  for (const flatAccount of sortedFlatAccountIterator(tree)) {
-    const isGroup = flatAccount.isGroup;
+  // Stack to track group items for sum row insertion
+  const groupStack: Item[] = [];
+  let previousWasLeaf = false;
 
-    const item: Item = {
+  const createItem = (flatAccount: FlatAccount, isSum: boolean): Item => {
+    const isGroup = flatAccount.isGroup;
+    return {
       accountId: flatAccount.id,
       accountCode: flatAccount.code,
       accountDescription: flatAccount.description,
       accountName: flatAccount.name,
       depth: flatAccount.depth,
       parentAccountId: flatAccount.parentAccountId,
+      isSum: isSum,
       isGroup: isGroup,
       values: bs.map(b => {
         let actualValue = '0';
@@ -216,7 +221,35 @@ GROUP BY f1.budget_id, f1.account_id`;
         };
       })
     };
+  };
+
+  for (const flatAccount of sortedFlatAccountIterator(tree)) {
+    const isGroup = flatAccount.isGroup;
+
+    // When transitioning from leaf to group (or to a shallower depth),
+    // insert sum rows for groups that are being closed
+    if (previousWasLeaf && (isGroup || flatAccount.depth < (groupStack[groupStack.length - 1]?.depth ?? 0) + 1)) {
+      // Pop and insert sum rows for all groups at depth >= current item's depth
+      while (groupStack.length > 0 && groupStack[groupStack.length - 1].depth >= flatAccount.depth) {
+        const closedGroup = groupStack.pop()!;
+        items.push({ ...closedGroup, isSum: true });
+      }
+    }
+
+    const item = createItem(flatAccount, false);
     items.push(item);
+
+    if (isGroup) {
+      groupStack.push(item);
+    }
+
+    previousWasLeaf = !isGroup;
+  }
+
+  // After iteration, close any remaining groups with sum rows
+  while (groupStack.length > 0) {
+    const closedGroup = groupStack.pop()!;
+    items.push({ ...closedGroup, isSum: true });
   }
 
   return {
@@ -292,6 +325,7 @@ export interface Account {
   name: string;
   depth: number;
   parentAccountId: string | null;
+  isArchived: boolean;
 }
 
 async function getAccounts(): Promise<Account[]> {
@@ -303,6 +337,17 @@ async function getAccounts(): Promise<Account[]> {
 
   as.sort((a, b) => a.display_code.localeCompare(b.display_code, undefined, { numeric: true }));
 
+  // Helper to check if account or any parent is archived
+  const isEffectivelyArchived = (accountId: string): boolean => {
+    const account = as.find(a => a.id === accountId);
+    if (!account) return false;
+    if (account.is_archived) return true;
+    if (account.parent_account_id) {
+      return isEffectivelyArchived(account.parent_account_id);
+    }
+    return false;
+  };
+
   const flatAccounts: Account[] = [];
 
   const dfs = (account: accountsModel, depth: number) => {
@@ -311,7 +356,8 @@ async function getAccounts(): Promise<Account[]> {
       code: account.display_code,
       name: account.display_name,
       depth: depth,
-      parentAccountId: account.parent_account_id
+      parentAccountId: account.parent_account_id,
+      isArchived: isEffectivelyArchived(account.id)
     });
 
     as.filter(x => x.parent_account_id === account.id).forEach(x => dfs(x, depth + 1));
@@ -320,6 +366,36 @@ async function getAccounts(): Promise<Account[]> {
   as.filter(x => x.parent_account_id === null).forEach(dfs, 0);
 
   return flatAccounts;
+}
+
+async function getAccountsWithAssignmentTotals(budgetIds: string[]): Promise<Map<string, number>> {
+  if (budgetIds.length === 0) return new Map();
+  
+  const budgets = await Prisma.budgets.findMany({
+    where: { id: { in: budgetIds } }
+  });
+  
+  const assignments = await Prisma.transaction_account_assignments.findMany({
+    include: {
+      transactions: true
+    }
+  });
+  
+  const totals = new Map<string, number>();
+  
+  for (const assignment of assignments) {
+    const docDate = assignment.transactions.document_date;
+    const matchesBudget = budgets.some(b => 
+      docDate >= b.period_start && docDate <= b.period_end
+    );
+    
+    if (matchesBudget) {
+      const current = totals.get(assignment.account_id) ?? 0;
+      totals.set(assignment.account_id, current + Number(assignment.value));
+    }
+  }
+  
+  return totals;
 }
 
 export interface Data {
@@ -354,7 +430,18 @@ export const useGetDataLoader = routeLoader$<Data>(async () => {
   const accounts = await getAccounts();
 
   const selectedBudgetIds = budgets.length > 0 ? [budgets[0].id] : [];
-  const selectedAccountIds = accounts.map(a => a.id);
+  
+  // Get assignment totals to determine if archived accounts should be selected
+  const assignmentTotals = await getAccountsWithAssignmentTotals(selectedBudgetIds);
+  
+  // Select all non-archived accounts, and archived accounts only if they have assignments > 0
+  const selectedAccountIds = accounts
+    .filter(a => {
+      if (!a.isArchived) return true;
+      const total = assignmentTotals.get(a.id) ?? 0;
+      return total > 0;
+    })
+    .map(a => a.id);
 
   return {
     matrix: await getMatrix(selectedBudgetIds, selectedAccountIds),
@@ -373,6 +460,180 @@ export const getMatrixFromServer = server$(async (
     selectedBudgetIds,
     selectedAccountIds
   );
+});
+
+export interface ImportSourcePeriod {
+  id: string;
+  year: number;
+  importSourceId: string;
+  importSourceName: string;
+  isClosed: boolean;
+}
+
+export const getImportSourcePeriodsFromServer = server$(async (): Promise<ImportSourcePeriod[]> => {
+  const periods = await Prisma.import_source_periods.findMany({
+    include: {
+      import_sources: true
+    },
+    orderBy: [
+      { year: 'desc' },
+      { import_sources: { display_name: 'asc' } }
+    ]
+  });
+
+  return periods.filter(p => p.import_sources !== null).map(p => ({
+    id: p.id,
+    year: p.year,
+    importSourceId: p.import_source_id,
+    importSourceName: p.import_sources!.display_name,
+    isClosed: p.is_closed
+  }));
+});
+
+export interface AccountAssignment {
+  id: string;
+  accountId: string;
+  accountName: string;
+  value: string;
+}
+
+export interface AccountTransaction {
+  id: string;
+  documentDate: Date;
+  amount: string;
+  description: string;
+  debitAccountCode: string;
+  creditAccountCode: string;
+  assignments: AccountAssignment[];
+}
+
+export const getAccountTransactionsFromServer = server$(async (
+  accountId: string,
+  importSourcePeriodId: string
+): Promise<AccountTransaction[]> => {
+  const period = await Prisma.import_source_periods.findUnique({
+    where: { id: importSourcePeriodId }
+  });
+
+  if (!period) return [];
+
+  // Get all accounts for name lookup
+  const allAccounts = await Prisma.accounts.findMany();
+  const accountMap = new Map(allAccounts.map(a => [a.id, a]));
+  
+  const getFullAccountName = (accId: string): string => {
+    const acc = accountMap.get(accId);
+    if (!acc) return '';
+    const parts: string[] = [acc.display_name];
+    let current = acc;
+    while (current.parent_account_id) {
+      const parent = accountMap.get(current.parent_account_id);
+      if (!parent) break;
+      parts.unshift(parent.display_name);
+      current = parent;
+    }
+    return parts.join(' / ');
+  };
+
+  // Get assignments for this account to find relevant transactions
+  const assignments = await Prisma.transaction_account_assignments.findMany({
+    where: {
+      account_id: accountId
+    },
+    include: {
+      transactions: {
+        include: {
+          transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts: true,
+          transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts: {
+            include: {
+              import_sources: true
+            }
+          },
+          transaction_account_assignments: true
+        }
+      }
+    }
+  });
+
+  // Filter by period and group by transaction
+  const transactionMap = new Map<string, AccountTransaction>();
+  
+  for (const a of assignments) {
+    const t = a.transactions;
+    const year = t.document_date.getFullYear();
+    const importSourceId = t.transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts.import_source_id;
+    
+    if (year !== period.year || importSourceId !== period.import_source_id) continue;
+    
+    if (!transactionMap.has(t.id)) {
+      transactionMap.set(t.id, {
+        id: t.id,
+        documentDate: t.document_date,
+        amount: t.amount.toString(),
+        description: t.description,
+        debitAccountCode: t.transaction_accounts_transactions_debit_transaction_account_idTotransaction_accounts.code,
+        creditAccountCode: t.transaction_accounts_transactions_credit_transaction_account_idTotransaction_accounts.code,
+        assignments: t.transaction_account_assignments.map(assign => ({
+          id: assign.id,
+          accountId: assign.account_id,
+          accountName: getFullAccountName(assign.account_id),
+          value: assign.value.toString()
+        }))
+      });
+    }
+  }
+
+  return Array.from(transactionMap.values());
+});
+
+export const removeAccountAssignmentFromServer = server$(async (assignmentId: string): Promise<boolean> => {
+  try {
+    await Prisma.transaction_account_assignments.delete({
+      where: { id: assignmentId }
+    });
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+export const updateAccountAssignmentFromServer = server$(async (
+  assignmentId: string,
+  newAccountId: string,
+  newValue?: string
+): Promise<boolean> => {
+  try {
+    const data: { account_id?: string; value?: any } = {};
+    if (newAccountId) data.account_id = newAccountId;
+    if (newValue !== undefined) data.value = parseFloat(newValue.replace(',', '.'));
+    
+    await Prisma.transaction_account_assignments.update({
+      where: { id: assignmentId },
+      data
+    });
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+export const createAccountAssignmentFromServer = server$(async (
+  transactionId: string,
+  accountId: string,
+  value: string
+): Promise<{ success: boolean; id?: string }> => {
+  try {
+    const assignment = await Prisma.transaction_account_assignments.create({
+      data: {
+        transaction_id: transactionId,
+        account_id: accountId,
+        value: parseFloat(value.replace(',', '.'))
+      }
+    });
+    return { success: true, id: assignment.id };
+  } catch {
+    return { success: false };
+  }
 });
 
 export default component$(() => {
@@ -396,6 +657,7 @@ export default component$(() => {
   const selectedBudgetIds = useSignal<string[]>(data.value.selectedBudgetIds);
   const selectedAccountIds = useSignal<string[]>(data.value.selectedAccountIds);
   const matrix = useSignal<Matrix>(data.value.matrix);
+  const isLoading = useSignal<boolean>(false);
 
   useTask$(({ track }) => {
     if (isServer) {
@@ -405,6 +667,7 @@ export default component$(() => {
     track(() => selectedBudgetIds.value);
     track(() => selectedAccountIds.value);
 
+    isLoading.value = true;
     getMatrixFromServer(
       selectedBudgetIds.value,
       selectedAccountIds.value
@@ -412,6 +675,8 @@ export default component$(() => {
       matrix.value = m;
     }).catch((e) => {
       console.log(e)
+    }).finally(() => {
+      isLoading.value = false;
     });
   });
 
@@ -494,8 +759,11 @@ export default component$(() => {
           <div class="dropdown-content">
             <table class="table is-narrow is-hoverable">
               <tbody>
-                {data.value.accounts.map(a => <tr key={a.id}>
-                  <td>{`${"\u00A0".repeat(a.depth * 6)}${a.depth === 0 ? '' : '└─ '}${a.code} | ${a.name}`}</td>
+                {data.value.accounts.map(a => <tr key={a.id} class={{ 'is-archived': a.isArchived }}>
+                  <td>
+                    {`${"\u00A0".repeat(a.depth * 6)}${a.depth === 0 ? '' : '└─ '}${a.code} | ${a.name}`}
+                    {a.isArchived && <span class="tag is-warning is-light ml-1" style="font-size: 0.65rem; padding: 0 0.4em; height: 1.2em;">{_`Archiviert`}</span>}
+                  </td>
                   <td><input type="checkbox" checked={selectedAccountIds.value.includes(a.id)} onInput$={() => {
                     if (selectedAccountIds.value.includes(a.id)) {
                       selectedAccountIds.value = selectedAccountIds.value.filter(x => x !== a.id);
@@ -511,6 +779,9 @@ export default component$(() => {
       </div>
 
       <div class="buttons are-small">
+        {isLoading.value && (
+          <button class="button is-small is-loading" disabled></button>
+        )}
         {defaultReportTemplateId.value && (
           <form method="post" action="/matrix/export/html" target="_blank">
             {selectedBudgetIds.value.map(id => (
