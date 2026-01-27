@@ -28,6 +28,7 @@ export interface Account {
   name: string;
   code: string;
   description: string;
+  isArchived?: boolean;
   children: Account[];
 }
 

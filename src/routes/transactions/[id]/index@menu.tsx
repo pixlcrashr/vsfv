@@ -36,6 +36,7 @@ interface TransactionDetails {
 interface Account {
   id: string;
   name: string;
+  isArchived?: boolean;
 }
 
 async function getTransaction(id: string): Promise<TransactionDetails | null> {
@@ -105,10 +106,25 @@ async function getAllAccounts(): Promise<Account[]> {
     return getNamePrefix(a?.parent_account_id ?? null) + a?.display_name + ' / ';
   };
 
-  return as.filter(x => as.every(y => y.parent_account_id !== x.id)).map(x => ({
-    id: x.id,
-    name: `${getCodePrefix(x.parent_account_id)}${x.display_code} | ${getNamePrefix(x.parent_account_id)}${x.display_name}`
-  }));
+  // Check if account or any parent is archived
+  const isEffectivelyArchived = (accountId: string): boolean => {
+    const account = as.find(x => x.id === accountId);
+    if (!account) return false;
+    if (account.is_archived) return true;
+    if (account.parent_account_id) {
+      return isEffectivelyArchived(account.parent_account_id);
+    }
+    return false;
+  };
+
+  // Return all leaf accounts with archived status
+  return as
+    .filter(x => as.every(y => y.parent_account_id !== x.id))
+    .map(x => ({
+      id: x.id,
+      name: `${getCodePrefix(x.parent_account_id)}${x.display_code} | ${getNamePrefix(x.parent_account_id)}${x.display_name}`,
+      isArchived: isEffectivelyArchived(x.id)
+    }));
 }
 
 export const useGetTransaction = routeLoader$<TransactionDetails>(async (req) => {
@@ -198,7 +214,9 @@ export const useUpdateTransactionAction = routeAction$(async (args, req) => {
     });
   }
 
-  throw req.redirect(307, "/journal");
+  // Redirect to returnUrl if provided, otherwise to /journal
+  const returnUrl = req.url.searchParams.get('returnUrl') || '/journal';
+  throw req.redirect(307, returnUrl);
 }, zod$(UpdateTransactionSchema));
 
 function parseDecimalValue(value: string): number {
@@ -222,11 +240,20 @@ export default component$(() => {
 
   const transactionAmount = parseFloat(transaction.value.amount);
   const totalAssigned = useComputed$(async () => {
-    return assignments.value.reduce((sum, a) => sum + parseDecimalValue(a.value), 0);
+    return assignments.value
+      .filter(a => a.accountId !== '' && a.accountId !== 'ignore')
+      .reduce((sum, a) => sum + parseDecimalValue(a.value), 0);
   });
   const diff = useComputed$(() => totalAssigned.value - transactionAmount);
   const diffIsZero = useComputed$(() => Math.abs(diff.value) < 0.01);
   const remainingAmount = useComputed$(() => transactionAmount - totalAssigned.value);
+  const ignoredValue = useComputed$(() => {
+    const ignored = assignments.value
+      .filter(a => a.accountId === 'ignore')
+      .reduce((sum, a) => sum + parseDecimalValue(a.value), 0);
+    return ignored;
+  });
+  const hasIgnoredValue = useComputed$(() => ignoredValue.value > 0.01);
 
   return (
     <>
@@ -366,9 +393,20 @@ export default component$(() => {
                 </span>
                 <span>{_`Zuweisung hinzufügen`}</span>
               </button>
+
+              {hasIgnoredValue.value && (
+                <div class="notification is-light is-warning mt-3 py-2 px-3">
+                  <span class="icon-text">
+                    <span class="icon"><i class="fas fa-info-circle"></i></span>
+                    <span><em>{_`Ignoriert`}:</em> {formatCurrency(ignoredValue.value.toFixed(2))}</span>
+                  </span>
+                </div>
+              )}
+
               <div class="has-text-right pb-2" style="padding-right: 2rem;">
                 <div class="is-size-7">
                   <div>{formatCurrency(totalAssigned.value.toFixed(2))}</div>
+                  {hasIgnoredValue.value && <div>+ {formatCurrency(ignoredValue.value.toFixed(2))} ({_`Ignoriert`})</div>}
                   <hr class="my-1" />
                   <div>- {formatCurrency(transaction.value.amount)}</div>
                   <div class={{ "has-text-success": diffIsZero.value, "has-text-danger": !diffIsZero.value }}>= {formatCurrency(diff.value.toFixed(2))}</div>

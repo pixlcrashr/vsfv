@@ -447,6 +447,7 @@ export const useImportSingleTransactionRouteAction = routeAction$(async (args, {
 export interface Account {
   id: string;
   name: string;
+  isArchived?: boolean;
 }
 
 async function getAllAccounts(): Promise<Account[]> {
@@ -472,10 +473,25 @@ async function getAllAccounts(): Promise<Account[]> {
     return getNamePrefix(a?.parent_account_id ?? null) + a?.display_name + ' / ';
   };
 
-  return as.filter(x => as.every(y => y.parent_account_id !== x.id)).map(x => ({
-    id: x.id,
-    name: `${getCodePrefix(x.parent_account_id)}${x.display_code} | ${getNamePrefix(x.parent_account_id)}${x.display_name}`
-  }));
+  // Check if account or any parent is archived
+  const isEffectivelyArchived = (accountId: string): boolean => {
+    const account = as.find(x => x.id === accountId);
+    if (!account) return false;
+    if (account.is_archived) return true;
+    if (account.parent_account_id) {
+      return isEffectivelyArchived(account.parent_account_id);
+    }
+    return false;
+  };
+
+  // Return all leaf accounts with archived status
+  return as
+    .filter(x => as.every(y => y.parent_account_id !== x.id))
+    .map(x => ({
+      id: x.id,
+      name: `${getCodePrefix(x.parent_account_id)}${x.display_code} | ${getNamePrefix(x.parent_account_id)}${x.display_name}`,
+      isArchived: isEffectivelyArchived(x.id)
+    }));
 }
 
 export const useGetAllAccountsLoader = routeLoader$<Account[]>(() => {

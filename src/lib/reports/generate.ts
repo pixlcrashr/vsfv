@@ -318,7 +318,8 @@ GROUP BY f1.budget_id, f1.account_id`;
       name: node.account.name,
       depth: node.depth + 1,
       children,
-      description: node.account.description
+      description: node.account.description,
+      isArchived: node.account.isArchived
     };
   };
 

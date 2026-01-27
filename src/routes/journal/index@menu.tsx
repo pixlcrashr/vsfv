@@ -1,9 +1,10 @@
-import { component$, Resource, useResource$, useSignal, useStylesScoped$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeLoader$, server$, type RequestHandler } from "@builder.io/qwik-city";
+import { component$, Resource, useResource$, useSignal, useStylesScoped$, useTask$ } from "@builder.io/qwik";
+import { DocumentHead, Link, routeLoader$, server$, useLocation, useNavigate, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import Header from "~/components/layout/Header";
 import HeaderButtons from "~/components/layout/HeaderButtons";
 import HeaderTitle from "~/components/layout/HeaderTitle";
+import { Decimal } from "decimal.js";
 import { formatCurrency, formatDateShort } from "~/lib/format";
 import { Prisma } from "~/lib/prisma";
 import { requirePermission, Permissions, checkPermissions } from "~/lib/auth";
@@ -137,12 +138,31 @@ export default component$(() => {
   useStylesScoped$(styles);
 
   const permissions = useJournalPermissions();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const initialPage = parseInt(location.url.searchParams.get('page') || '1', 10);
   const page = useSignal<{
     page: number;
     size: number;
   }>({
-    page: 1,
+    page: isNaN(initialPage) || initialPage < 1 ? 1 : initialPage,
     size: 100
+  });
+
+  useTask$(({ track }) => {
+    const currentPage = track(() => page.value.page);
+    const url = new URL(location.url);
+    
+    if (currentPage === 1) {
+      url.searchParams.delete('page');
+    } else {
+      url.searchParams.set('page', currentPage.toString());
+    }
+    
+    if (url.toString() !== location.url.toString()) {
+      navigate(url.pathname + url.search, { replaceState: true });
+    }
   });
 
   const transactionsResource = useResource$(async ({ track }) => {
@@ -230,26 +250,44 @@ export default component$(() => {
                         <Link class="budget-account-name" href={`/accounts/${x.assignedAccountId}`}>{x.assignedAccountName?.split(' / ').pop()}</Link>
                       </div>
                     )
-                  ) : (
-                    <div class="budget-item-container">
-                      {x.accountAssignments.map((assignment) => (
-                        <div key={assignment.id} class="mb-1 budget-account-item">
-                          {assignment.accountName.split(' / ').slice(0, -1).length > 0 && (
-                            <span class="budget-account-prefix">{assignment.accountName.split(' / ').slice(0, -1).join(' / ')}</span>
-                          )}
-                          <span class="budget-account-name">
-                            <Link href={`/accounts/${assignment.accountId}`}>{assignment.accountName.split(' / ').pop()}</Link>
-                            <span class="has-text-grey"> ({formatCurrency(assignment.value)})</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  ) : (() => {
+                    const totalAssigned = x.accountAssignments.reduce(
+                      (sum, a) => sum.plus(new Decimal(a.value)), 
+                      new Decimal(0)
+                    );
+                    const transactionAmount = new Decimal(x.amount);
+                    const ignoredValue = transactionAmount.minus(totalAssigned);
+                    const hasIgnoredValue = ignoredValue.greaterThan(0);
+                    
+                    return (
+                      <div class="budget-item-container">
+                        {x.accountAssignments.map((assignment) => (
+                          <div key={assignment.id} class="mb-1 budget-account-item">
+                            {assignment.accountName.split(' / ').slice(0, -1).length > 0 && (
+                              <span class="budget-account-prefix">{assignment.accountName.split(' / ').slice(0, -1).join(' / ')}</span>
+                            )}
+                            <span class="budget-account-name">
+                              <Link href={`/accounts/${assignment.accountId}`}>{assignment.accountName.split(' / ').pop()}</Link>
+                              <span class="has-text-grey"> ({formatCurrency(assignment.value)})</span>
+                            </span>
+                          </div>
+                        ))}
+                        {hasIgnoredValue && (
+                          <div class="mb-1 budget-account-item">
+                            <span class="budget-account-name has-text-grey-light">
+                              <em>{_`Ignoriert`}</em>
+                              <span> ({formatCurrency(ignoredValue.toString())})</span>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td class="is-vcentered">
                   <div class="buttons are-small is-right">
                     {permissions.value.canEditTransactions && !x.isPeriodClosed && (
-                      <Link href={`/transactions/${x.id}`} class="button is-info is-outlined">{_`Bearbeiten`}</Link>
+                      <Link href={`/transactions/${x.id}?returnUrl=${encodeURIComponent(location.url.pathname + location.url.search)}`} class="button is-info is-outlined">{_`Bearbeiten`}</Link>
                     )}
                     {permissions.value.canDeleteTransactions && !x.isPeriodClosed && (
                       <Link href={`/transactions/${x.id}/delete`} class="button is-danger is-outlined">{_`Entfernen`}</Link>

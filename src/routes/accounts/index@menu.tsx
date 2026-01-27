@@ -1,5 +1,5 @@
 import { component$, useComputed$, useStylesScoped$ } from "@builder.io/qwik";
-import { DocumentHead, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
+import { DocumentHead, Form, Link, routeAction$, routeLoader$, z, zod$, type RequestHandler } from "@builder.io/qwik-city";
 import { _ } from 'compiled-i18n';
 import CreateAccountMenu from "~/components/accounts/CreateAccountMenu";
 import Header from "~/components/layout/Header";
@@ -41,8 +41,26 @@ export const useCreateAccountAction = routeAction$(async (values, { sharedMap, f
     return auth.result;
   }
   
+  const parentAccountId = (values.parentAccountId === '' || !values.parentAccountId) ? null : values.parentAccountId;
+  
+  if (parentAccountId) {
+    const assignmentsCount = await Prisma.transaction_account_assignments.count({
+      where: {
+        account_id: parentAccountId
+      }
+    });
+    
+    if (assignmentsCount > 0) {
+      return fail(400, {
+        fieldErrors: {
+          parentAccountId: 'Das ausgewählte Gruppenkonto hat Transaktionen zugewiesen. Bitte wählen Sie ein Konto ohne Transaktionszuweisungen.'
+        }
+      });
+    }
+  }
+  
   await createAccount(
-    (values.parentAccountId === '' || !values.parentAccountId) ? null : values.parentAccountId,
+    parentAccountId,
     values.name,
     values.code
   );
@@ -112,6 +130,27 @@ export const useSaveAccountAction = routeAction$(async (values, { sharedMap, fai
   };
 }, zod$(SaveAccountActionSchema));
 
+export const ToggleArchiveActionSchema = {
+  id: z.string().uuid(),
+  archive: z.coerce.boolean()
+};
+
+export const useToggleArchiveAction = routeAction$(async (values, { sharedMap, fail }) => {
+  const auth = await withPermission(sharedMap, fail, Permissions.ACCOUNTS_UPDATE);
+  if (!auth.authorized) {
+    return auth.result;
+  }
+  
+  await Prisma.accounts.update({
+    where: { id: values.id },
+    data: { is_archived: values.archive }
+  });
+
+  return {
+    success: true
+  };
+}, zod$(ToggleArchiveActionSchema));
+
 enum MenuStatus {
   None,
   Create
@@ -123,6 +162,7 @@ interface Account {
   code: string;
   description: string;
   depth: number;
+  isArchived: boolean;
   children: Account[];
 }
 
@@ -144,6 +184,7 @@ async function getAccounts(): Promise<Account[]> {
         code: x.display_code,
         description: x.display_description,
         depth: depth,
+        isArchived: x.is_archived,
         children: cs
       };
     });
@@ -168,23 +209,41 @@ export interface AccountRowProps {
   maxDepth: number;
   canUpdate: boolean;
   canDelete: boolean;
+  parentIsArchived?: boolean;
 }
 
 export const AccountRow = component$<AccountRowProps>((props) => {
+  const toggleArchiveAction = useToggleArchiveAction();
+  // Account is effectively archived if it or any parent is archived
+  const isEffectivelyArchived = props.account.isArchived || props.parentIsArchived;
+  
   return (
     <>
-      <tr key={props.account.id}>
+      <tr key={props.account.id} class={{ 'is-archived': isEffectivelyArchived }}>
         {Array.from({ length: props.maxDepth + 1 }).map((_, index) => <td class="is-vcentered" key={index}>
           {index === props.account.depth ? props.account.code : ''}
         </td>)}
-        <td class="is-vcentered">{props.account.name}</td>
+        <td class="is-vcentered">
+          {props.account.name}
+          {props.account.isArchived && <span class="tag is-warning is-light ml-2">{_`Archiviert`}</span>}
+          {!props.account.isArchived && props.parentIsArchived && <span class="tag is-warning is-light ml-2">{_`Archiviert (Eltern)`}</span>}
+        </td>
         <td class="is-vcentered">
           <div class="buttons are-small is-flex-wrap-nowrap is-right">
             {props.canUpdate && (
               <Link class="button" href={`/accounts/${props.account.id}`}>{_`Bearbeiten`}</Link>
             )}
             {props.canUpdate && (
-              <button class="button is-warning is-outlined">{_`Archivieren`}</button>
+              <Form action={toggleArchiveAction}>
+                <input type="hidden" name="id" value={props.account.id} />
+                <input type="hidden" name="archive" value={props.account.isArchived ? 'false' : 'true'} />
+                <button 
+                  type="submit" 
+                  class={["button", "is-outlined", { "is-warning": !props.account.isArchived, "is-success": props.account.isArchived, "is-loading": toggleArchiveAction.isRunning }]}
+                >
+                  {props.account.isArchived ? _`Entarchivieren` : _`Archivieren`}
+                </button>
+              </Form>
             )}
             {props.canDelete && (
               <Link class="button is-danger is-outlined" href={`/accounts/${props.account.id}/delete`}>{_`Entfernen`}</Link>
@@ -192,7 +251,7 @@ export const AccountRow = component$<AccountRowProps>((props) => {
           </div>
         </td>
       </tr>
-      {props.account.children.map(x => <AccountRow key={x.id} canUpdate={props.canUpdate} canDelete={props.canDelete} maxDepth={props.maxDepth} account={x} />)}
+      {props.account.children.map(x => <AccountRow key={x.id} canUpdate={props.canUpdate} canDelete={props.canDelete} maxDepth={props.maxDepth} account={x} parentIsArchived={isEffectivelyArchived} />)}
     </>
   );
 });
@@ -262,7 +321,7 @@ export default component$(() => {
                 </td>
               </tr>
             )}
-            {accounts.value.map((account) => <AccountRow key={account.id} canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} maxDepth={maxDepth.value} account={account} />)}
+            {accounts.value.map((account) => <AccountRow key={account.id} canUpdate={permissions.value.canUpdate} canDelete={permissions.value.canDelete} maxDepth={maxDepth.value} account={account} parentIsArchived={false} />)}
           </tbody>
         </table>
       </MainContent>

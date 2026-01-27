@@ -1,10 +1,13 @@
 import { accountsModel } from "../prisma/generated/models";
 
+
+
 export interface Account {
   id: string;
   code: string;
   name: string;
   description: string;
+  isArchived: boolean;
 }
 
 export interface FlatAccount extends Account {
@@ -32,6 +35,7 @@ export function sortedFlatAccountIterator(rootNode: RootNode): Iterable<FlatAcco
           code: node.account.code,
           name: node.account.name,
           description: node.account.description,
+          isArchived: node.account.isArchived,
           depth: node.depth,
           isGroup: node.children.length > 0,
           parentAccountId: node.parentNode?.account.id ?? null,
@@ -115,6 +119,7 @@ function iterateChildren(accounts: accountsModel[], parentNode: Node | null, acc
       code: account.display_code,
       name: account.display_name,
       description: account.display_description,
+      isArchived: account.is_archived,
     },
     parentNode,
     depth,

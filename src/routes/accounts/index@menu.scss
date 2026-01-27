@@ -1,4 +1,12 @@
-
 .cell-spaced {
     width: 100%;
+}
+
+tr.is-archived {
+    background-color: #f5f5f5;
+    opacity: 0.7;
+    
+    td {
+        color: #7a7a7a;
+    }
 }
