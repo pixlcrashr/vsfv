@@ -1,4 +1,4 @@
-import { component$, useSignal, useComputed$, $, type QRL, useStyles$, useStylesScoped$ } from "@builder.io/qwik";
+import { component$, useSignal, useComputed$, $, type QRL, useStylesScoped$ } from "@builder.io/qwik";
 import { _ } from "compiled-i18n";
 import styles from "./VirtualizedAccountDropdown.scss?inline";
 

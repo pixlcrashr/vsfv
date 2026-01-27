@@ -1,4 +1,4 @@
-import { component$, useSignal, useComputed$, useVisibleTask$, $, type QRL, useStylesScoped$, useStyles$ } from "@builder.io/qwik";
+import { component$, useSignal, useComputed$, useVisibleTask$, $, type QRL, useStylesScoped$ } from "@builder.io/qwik";
 import { _ } from "compiled-i18n";
 import VirtualizedAccountDropdown from "./VirtualizedAccountDropdown";
 import styles from "./VirtualizedAccountSelect.scss?inline";
@@ -25,7 +25,7 @@ export default component$<VirtualizedAccountSelectProps>(({ name, value, account
   const isOpen = useSignal(false);
   const containerRef = useSignal<HTMLDivElement>();
   const dropUp = useSignal(false);
-  useStyles$(styles);
+  useStylesScoped$(styles);
 
   const selectedAccount = useComputed$(() => {
     if (value === '') return { name: _`- bitte auswählen -`, isArchived: false };

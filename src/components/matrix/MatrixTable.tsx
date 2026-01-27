@@ -205,7 +205,7 @@ export default component$<MatrixTableProps>(({
             <th class="border-cell-dark"></th>
           </>}
           {filteredHeaders.value.map((h) => <>
-            {h.budgetRevisions.map((r, i) => {
+            {h.budgetRevisions.map((r) => {
               const colSpan = (showTarget?.value ? 1 : 0) + (showDiff?.value ? 1 : 0);
 
               return <>
@@ -230,7 +230,7 @@ export default component$<MatrixTableProps>(({
             <th class="border-cell-dark"></th>
           </>}
           {filteredHeaders.value.map((h) => <>
-            {h.budgetRevisions.map((r, i) => <>
+            {h.budgetRevisions.map(() => <>
               {showTarget?.value && <>
                 <th class="revision-value-type-th-cell">Soll</th>
                 <th class={{
