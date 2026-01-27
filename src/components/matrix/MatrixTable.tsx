@@ -1,5 +1,5 @@
 import { component$, Signal, useComputed$, useStore, useStylesScoped$, useTask$ } from "@builder.io/qwik";
-import { formatCurrency } from "~/lib/format";
+import { formatCurrency, formatDateShort } from "~/lib/format";
 import { Account, Budget, Matrix } from "~/routes/matrix/index@menu";
 import TargetValueInput from "./TargetValueInput";
 import { Decimal } from 'decimal.js';
@@ -123,10 +123,6 @@ export default component$<MatrixTableProps>(({
     });
   });
 
-  const budgetColSpan = useComputed$(() => {
-    return (showTarget?.value ? 1 : 0) + (showActual?.value ? 1 : 0) + (showDiff?.value ? 1 : 0);
-  });
-
   // Compute filtered headers based on showOnlyLatestRevision
   const filteredHeaders = useComputed$(() => {
     return matrix.value.headers.map(h => ({
@@ -175,72 +171,188 @@ export default component$<MatrixTableProps>(({
   });
 
   return <>
-    <table class="table is-bordered">
+    <table>
       <thead>
         <tr>
-          <th rowSpan={2} colSpan={matrix.value.maxDepth + 1}>Konto</th>
-          <th rowSpan={2}>Titel</th>
-          {showDescription?.value && <th rowSpan={2}>Beschreibung</th>}
+          <th colSpan={matrix.value.maxDepth + 1}>Konto - Titel</th>
+          <th class="border-cell-dark"></th>
+          {showDescription?.value && <>
+            <th>Beschreibung</th>
+            <th class="border-cell-dark"></th>
+          </>}
           {(showTarget?.value || showActual?.value || showDiff?.value) && <>
-            {filteredHeaders.value.map((h) => <th key={h.budgetId} colSpan={budgetColSpan.value + (h.budgetRevisions.length - 1) * ((showTarget?.value ? 1 : 0) + (showDiff?.value ? 1 : 0))}>{h.budgetName}</th>)}
+            {filteredHeaders.value.map((h) => {
+              const revisionKindCount = ((showTarget?.value ? 1 : 0) + (showDiff?.value ? 1 : 0));
+              const revisionColSpan = h.budgetRevisions.length * revisionKindCount;
+              const revisionColSpanBorder = revisionColSpan + Math.max(0, revisionColSpan - 1);
+              
+              const colSpan = revisionColSpanBorder + (showActual?.value ? 2 : 0);
+
+              return <>
+                <th class="budget-th-cell" key={h.budgetId} colSpan={colSpan}>{h.budgetName}</th>
+                <th class="border-cell-dark"></th>
+              </>;
+          })}
           </>}
         </tr>
         <tr>
+          <th colSpan={matrix.value.maxDepth + 1}></th>
+          <th class="border-cell-dark"></th>
+          {showDescription?.value && <>
+            <th></th>
+            <th class="border-cell-dark"></th>
+          </>}
           {filteredHeaders.value.map((h) => <>
-            {showTarget?.value && h.budgetRevisions.map((revision) => <th key={revision.id}>{revision.displayName}</th>)}
-            {showActual?.value && <th>Ist</th>}
-            {showDiff?.value && h.budgetRevisions.map((revision) => <th key={revision.id}>{revision.displayName.replace('Soll', 'Diff.')}</th>)}
+            {h.budgetRevisions.map((r, i) => {
+              const colSpan = (showTarget?.value ? 1 : 0) + (showDiff?.value ? 1 : 0);
+
+              return <>
+                <th class="revision-th-cell" colSpan={colSpan + (colSpan === 2 ? 1 : 0)}>
+                  Revision {i + 1}<br />
+                  <i>{formatDateShort(r.date)}</i>
+                </th>
+                <th class="border-cell-dark"></th>
+              </>;
+            })}
+            {showActual?.value && <>
+              <th></th>
+              <th class="border-cell-dark"></th>
+            </>}
+          </>)}
+        </tr>
+        <tr>
+          {Array.from({ length: matrix.value.maxDepth + 1 }).map((_, j) => <th class="title-cell" key={j}></th>)}
+          <th class="border-cell-dark"></th>
+          {showDescription?.value && <>
+            <th></th>
+            <th class="border-cell-dark"></th>
+          </>}
+          {filteredHeaders.value.map((h) => <>
+            {h.budgetRevisions.map((r, i) => <>
+              {showTarget?.value && <>
+                <th class="revision-value-type-th-cell">Soll</th>
+                <th class={{
+                    'border-cell-dark': !showDiff?.value,
+                    'border-cell-light': showDiff?.value
+                  }}></th>
+              </>}
+              {showDiff?.value && <>
+                <th class="revision-value-type-th-cell">Diff.</th>
+                <th class="border-cell-dark"></th>
+              </>}
+            </>)}
+            {showActual?.value && <>
+              <th class="revision-value-type-th-cell">Ist</th>
+              <th class="border-cell-dark"></th>
+            </>}
           </>)}
         </tr>
       </thead>
       <tbody>
         {matrix.value.items.map((row, rowIndex) => {
           const rowFilteredRevisions = filteredItemRevisions.value[rowIndex];
+
           return (
-            <tr key={row.accountId}>
-              {Array.from({ length: matrix.value.maxDepth + 1 }).map((_, j) => <td class="is-vcentered" key={j}>
-                {j === row.depth ? row.accountCode : ''}
-              </td>)}
-              <td>{row.accountName}</td>
-              {showDescription?.value && <td class="description-cell" title={row.accountDescription}>{row.accountDescription}</td>}
-              {row.values.map((value, i) => {
-                const revisions = rowFilteredRevisions[i];
-                return (<>
-                  {showTarget?.value && revisions.map((revision) => {
-                    const isEditable = editableRevisionIds.value.has(revision.revisionId);
-                    const showInput = isEditable && !row.isGroup;
-                    return (
-                      <td class={["is-vcentered", { "p-0": showInput, "editable-cell": showInput, "readonly-cell": !showInput }]} key={revision.revisionId}>
-                        {row.isGroup ?
-                          <span>{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</span> :
-                          (isEditable ?
-                            <TargetValueInput
-                              tabIndex={10 + i}
-                              value={targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0'}
-                              accountId={row.accountId}
-                              budgetRevisionId={revision.revisionId}
-                              onSaved$={(event) => {
-                                propagateMatrixValues(
-                                  budgetRevisionIdToBudgetIdMap,
-                                  targetValues,
-                                  actualValues,
-                                  diffValues,
-                                  allAccounts,
-                                  revision.revisionId,
-                                  row.parentAccountId,
-                                  event.change.diff
-                                );
-                              }} /> :
-                            <span>{formatCurrency(targetValues[targetValueKey(row.accountId, revision.revisionId)] ?? '0')}</span>)
-                        }
-                      </td>
-                    );
-                  })}
-                  {showActual?.value && <td class="disabled-cell">{formatCurrency(actualValues[actualValueKey(row.accountId, matrix.value.headers[i].budgetId)] ?? '0')}</td>}
-                  {showDiff?.value && revisions.map((revision) => <td class="disabled-cell" key={revision.revisionId}>{formatCurrency(diffValues[`${row.accountId}:${revision.revisionId}`] ?? '0')}</td>)}
-                </>);
-              })}
-            </tr>
+            <>
+              <tr key={row.accountId}>
+                {row.depth > 0 && <td colSpan={row.depth}></td>}
+                <td style={{
+                    fontWeight: row.isSum || row.isGroup ? 'bold' : 'normal'
+                  }} colSpan={matrix.value.maxDepth - row.depth + 1}>{row.isSum && <>Summe ∑ </>}{row.accountCode} &#8211; {row.accountName}</td>
+                <th class="border-cell-dark"></th>
+
+                {showDescription?.value && <>
+                  <td class="description-cell" title={row.accountDescription}>{row.accountDescription}</td>
+                  <th class="border-cell-dark"></th>
+                </>}
+                {row.values.map((value, i) => {
+                  const revisions = rowFilteredRevisions[i];
+                  return (<>
+                    {revisions.map(r => {
+                      const isEditable = editableRevisionIds.value.has(r.revisionId);
+                      const showInput = isEditable && !row.isGroup;
+
+                      return <>
+                        {showTarget?.value && <>
+                          <td class={["is-vcentered", {"p-0": showInput, "editable-cell": showInput, "readonly-cell": !showInput }]} key={r.revisionId}>
+                            {row.isGroup ?
+                              <span style={{
+                                fontWeight: row.isSum ? 'bold' : 'normal'
+                              }}>{(!row.isGroup || row.isSum) && formatCurrency(targetValues[targetValueKey(row.accountId, r.revisionId)] ?? '0')}</span> :
+                              (isEditable ?
+                                <TargetValueInput
+                                  tabIndex={10 + i}
+                                  value={targetValues[targetValueKey(row.accountId, r.revisionId)] ?? '0'}
+                                  accountId={row.accountId}
+                                  budgetRevisionId={r.revisionId}
+                                  onSaved$={(event) => {
+                                    // Update the current cell's target and diff values
+                                    const budgetId = budgetRevisionIdToBudgetIdMap.get(r.revisionId) ?? '';
+                                    const newTargetValue = event.change.new;
+                                    const actualValue = new Decimal(actualValues[actualValueKey(row.accountId, budgetId)] ?? '0');
+
+                                    targetValues[targetValueKey(row.accountId, r.revisionId)] = newTargetValue.toString();
+                                    diffValues[diffValueKey(row.accountId, r.revisionId)] = newTargetValue.sub(actualValue).toString();
+
+                                    // Propagate to parent accounts
+                                    propagateMatrixValues(
+                                      budgetRevisionIdToBudgetIdMap,
+                                      targetValues,
+                                      actualValues,
+                                      diffValues,
+                                      allAccounts,
+                                      r.revisionId,
+                                      row.parentAccountId,
+                                      event.change.diff
+                                    );
+                                  }} /> :
+                                <span>{formatCurrency(targetValues[targetValueKey(row.accountId, r.revisionId)] ?? '0')}</span>)
+                            }
+                          </td>
+                          <td class={{
+                            'border-cell-dark': !showDiff?.value,
+                            'border-cell-light': showDiff?.value
+                          }}></td>
+                        </>}
+                        {showDiff?.value && <>
+                          <td class="readonly-cell" style={{
+                              fontWeight: row.isSum ? 'bold' : 'normal'
+                            }} key={r.revisionId}>{(!row.isGroup || row.isSum) && formatCurrency(diffValues[`${row.accountId}:${r.revisionId}`] ?? '0')}</td>
+                          <td class="border-cell-dark"></td>
+                        </>}
+                      </>;
+                    })}
+                    {showActual?.value && <>
+                      <td class="readonly-cell" style={{
+                        fontWeight: row.isSum ? 'bold' : 'normal'
+                      }}><i>{(!row.isGroup || row.isSum) && formatCurrency(actualValues[actualValueKey(row.accountId, matrix.value.headers[i].budgetId)] ?? '0')}</i></td>
+                      <td class="border-cell-dark"></td>
+                    </>}
+                  </>);
+                })}
+              </tr>
+              {row.isSum && <tr class="empty-row">
+                <td colSpan={matrix.value.maxDepth + 1}></td>
+                <td class="border-cell-dark"></td>
+                {showDescription?.value && <>
+                  <td></td>
+                  <td class="border-cell-dark"></td>
+                </>}
+                {row.values.map((value, i) => {
+                  const revisions = rowFilteredRevisions[i];
+                  return (<>
+                    {revisions.map(r => <>
+                      {showTarget?.value && <><td key={r.revisionId}></td><td class={{
+                        'border-cell-dark': !showDiff?.value,
+                        'border-cell-light': showDiff?.value
+                      }}></td></>}
+                      {showDiff?.value && <><td key={r.revisionId}></td><td class="border-cell-dark"></td></>}
+                    </>)}
+                    {showActual?.value && <><td></td><td class="border-cell-dark"></td></>}
+                  </>);
+                })}
+              </tr>}
+            </>
           );
         })}
       </tbody>

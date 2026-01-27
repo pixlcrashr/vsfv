@@ -1,11 +1,25 @@
 
 table {
-    margin: 0.5rem;
     font-size: 9pt;
 
-    .disabled-cell {
-        text-align: right;
-        color: var(--bulma-text-weak);
+    .title-cell {
+        min-width: 30px;
+    }
+
+    .empty-row {
+        height: 20px;
+    }
+
+    th, td {
+        padding: 2px;
+    }
+
+    td {
+        vertical-align: middle;
+    }
+
+
+    tbody tr:nth-child(odd) {
         background-color: var(--bulma-scheme-main-bis);
     }
 
@@ -14,6 +28,31 @@ table {
             text-align: right;
             color: var(--bulma-text-weak);
         }
+    }
+
+    .budget-th-cell {
+        text-align: center;
+    }
+
+    .revision-th-cell {
+        min-width: 100px;
+        text-align: center;
+    }
+
+    .revision-value-type-th-cell {
+        min-width: 100px;
+    }
+
+    .border-cell-dark {
+        border-right: 1px solid var(--bulma-border);
+        padding: 0;
+        width: 0;
+    }
+
+    .border-cell-light {
+        border-right: 1px solid var(--bulma-border-weak);
+        padding: 0;
+        width: 0;
     }
 
     .editable-cell {
