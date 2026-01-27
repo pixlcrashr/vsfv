@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.8.1](https://github.com/pixlcrashr/vsfv/compare/v1.8.0...v1.8.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* build error ([0b7b27e](https://github.com/pixlcrashr/vsfv/commit/0b7b27ed92986cb5fa9d27f80a2c3912308e42eb))
+
 ## [1.8.0](https://github.com/pixlcrashr/vsfv/compare/v1.7.2...v1.8.0) (2026-01-27)
 
 
