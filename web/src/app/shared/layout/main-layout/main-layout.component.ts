@@ -258,6 +258,7 @@ export class MainLayoutComponent implements OnInit {
     return [
       { name: $localize`Dashboard`, path: `/organizations/${orgId}/dashboard` },
       { name: $localize`Einstellungen`, path: `/organizations/${orgId}/settings` },
+      { name: $localize`Audit-Log`, path: `/organizations/${orgId}/auditLog` },
     ];
   });
 
@@ -346,12 +347,13 @@ export class MainLayoutComponent implements OnInit {
         this.authorizationService.checkPermissions(
           `users/${user.id}`,
           '',
-          [Permissions.ORGANIZATIONS_READ, Permissions.USERS_READ, Permissions.GROUPS_READ],
+          [Permissions.ORGANIZATIONS_READ, Permissions.USERS_READ, Permissions.GROUPS_READ, Permissions.AUDIT_LOGS_READ],
         ).pipe(takeUntil(this.destroy$)).subscribe((result) => {
           this.hasAdminAccess.set(
             result[Permissions.ORGANIZATIONS_READ] ||
             result[Permissions.USERS_READ] ||
-            result[Permissions.GROUPS_READ],
+            result[Permissions.GROUPS_READ] ||
+            result[Permissions.AUDIT_LOGS_READ],
           );
         });
       }

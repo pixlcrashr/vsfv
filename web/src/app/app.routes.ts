@@ -157,6 +157,12 @@ export const routes: Routes = [
         runGuardsAndResolvers: 'paramsOrQueryParamsChange',
         loadChildren: () => import('./routes/settings/settings.routes').then((m) => m.SETTINGS_ROUTES),
       },
+      // Organization audit log
+      {
+        path: 'organizations/:orgId/auditLog',
+        runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+        loadChildren: () => import('./routes/audit-log/audit-log.routes').then((m) => m.AUDIT_LOG_ROUTES),
+      },
       // Permission denied (org-scoped)
       {
         path: 'organizations/:orgId/permission-denied',

@@ -6,6 +6,8 @@ import { GroupNewDataService } from './groups/group-new.data-service';
 import { GroupEditDataService } from './groups/group-edit.data-service';
 import { OrganizationListDataService } from './organizations/organization-list.data-service';
 import { OrganizationEditDataService } from './organizations/organization-edit.data-service';
+import { AuditLogDataService } from '../audit-log/audit-log.data-service';
+import { AuditLogQueryService } from '../audit-log/audit-log.query-service';
 import { environment } from '../../../environments/environment';
 import { requireAllGlobalPermissions, requireAnyGlobalPermission } from '../../../lib/authz/permission.guard';
 import { Permission, Permissions } from '../../../lib/authz/permissions';
@@ -101,6 +103,20 @@ export const ADMIN_ROUTES: Routes = [
           ),
         providers: [
           { provide: OrganizationEditDataService, useClass: environment.dataServices.organizationEdit },
+        ],
+      },
+      {
+        path: 'auditLog',
+        canActivate: [requireAllGlobalPermissions(Permissions.AUDIT_LOGS_READ)],
+        resolve: {
+          permissions: resolveGlobalPermissions(Permissions.AUDIT_LOGS_READ),
+        },
+        loadComponent: () =>
+          import('../audit-log/audit-log.component').then((m) => m.AuditLogComponent),
+        providers: [
+          { provide: AuditLogDataService, useClass: environment.dataServices.auditLog },
+          AuditLogQueryService,
+          { provide: OrganizationListDataService, useClass: environment.dataServices.organizationList },
         ],
       },
     ],

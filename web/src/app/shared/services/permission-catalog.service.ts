@@ -156,6 +156,12 @@ export class PermissionCatalogService {
         { id: Permissions.REIMBURSEMENTS_UPDATE_OWN, name: 'Eigene Erstattungen bearbeiten', description: 'Eigene Erstattungen ändern' },
       ],
     },
+    {
+      name: 'Audit-Log',
+      permissions: [
+        { id: Permissions.AUDIT_LOGS_READ, name: 'Audit-Log anzeigen', description: 'Änderungshistorie einsehen' },
+      ],
+    },
   ];
 
   getPermissionCategories(): Observable<PermissionCategory[]> {

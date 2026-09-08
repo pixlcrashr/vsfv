@@ -65,6 +65,7 @@ export class AdminLayoutComponent implements OnDestroy {
     { label: $localize`Organisationen`, path: '/admin/organizations' },
     { label: $localize`Benutzer`, path: '/admin/users' },
     { label: $localize`Gruppen`, path: '/admin/groups' },
+    { label: $localize`Audit-Log`, path: '/admin/auditLog' },
   ];
 
   private currentUrl = '';

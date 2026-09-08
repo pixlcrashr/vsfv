@@ -2806,6 +2806,238 @@
           <context context-type="linenumber">146</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="1417506612930816657" datatype="html">
+        <source>Organisationen</source>
+        <target>Organizationen</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/admin-layout.component.ts</context>
+          <context context-type="linenumber">65</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
+          <context context-type="linenumber">37,38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="873324026646045782" datatype="html">
+        <source>Audit-Log</source>
+        <target>Audit log</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/admin-layout.component.ts</context>
+          <context context-type="linenumber">68</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">273,274</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">313</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/layout/main-layout/main-layout.component.ts</context>
+          <context context-type="linenumber">261</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1133378173705582866" datatype="html">
+        <source>Erstellt</source>
+        <target>Created</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">117,118</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6861315745850231357" datatype="html">
+        <source>Geändert</source>
+        <target>Changed</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">37</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">118,119</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6952136306461458223" datatype="html">
+        <source>Gelöscht</source>
+        <target>Deleted</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">38</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">119,120</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3771607962740444700" datatype="html">
+        <source>Wiederhergestellt</source>
+        <target>Restored</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">40</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">121,122</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3906234135081295833" datatype="html">
+        <source>Abgeschlossen</source>
+        <target>Closed</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">41</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">122,123</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/models/reimbursement.model.ts</context>
+          <context context-type="linenumber">97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8640003073547931781" datatype="html">
+        <source> Organisation </source>
+        <target> Organization </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1011723081014130699" datatype="html">
+        <source> Von </source>
+        <target> From </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">82</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/journal/journal-list/journal-list.component.ts</context>
+          <context context-type="linenumber">69</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6789779426954082692" datatype="html">
+        <source> Bis </source>
+        <target> To </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">95</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/journal/journal-list/journal-list.component.ts</context>
+          <context context-type="linenumber">82</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2479872811773663387" datatype="html">
+        <source> Aktion </source>
+        <target> Action </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">108</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8320123010465030497" datatype="html">
+        <source> Ressource </source>
+        <target> Resource </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">128</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3702596339933306747" datatype="html">
+        <source>Keine Audit-Log-Einträge gefunden</source>
+        <target>No audit log entries found</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">168,169</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6784714151464546363" datatype="html">
+        <source>Zeitpunkt</source>
+        <target>Time</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">184</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6855205738028903133" datatype="html">
+        <source>Aktion</source>
+        <target>Action</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">187</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8487168000877643051" datatype="html">
+        <source>Ressource</source>
+        <target>Resource</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">190</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1593487004300420140" datatype="html">
+        <source>Organisation</source>
+        <target>Organization</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">194</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/layout/main-layout/main-layout.component.ts</context>
+          <context context-type="linenumber">48,49</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1601949596319665626" datatype="html">
+        <source>Akteur</source>
+        <target>Actor</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">198</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5292107101723375369" datatype="html">
+        <source>Änderungen</source>
+        <target>Changes</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">201</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/budgets/budget-edit/budget-edit.component.ts</context>
+          <context context-type="linenumber">258,259</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="268117227762580372" datatype="html">
+        <source>Es wurden noch keine Änderungen aufgezeichnet.</source>
+        <target>No changes have been recorded yet.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">316</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7305376606266449238" datatype="html">
+        <source>Fehler beim Laden des Audit-Logs</source>
+        <target>Error loading the audit log</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
+          <context context-type="linenumber">425</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8322029141209574072" datatype="html">
+        <source>Keine Organisationen</source>
+        <target>Keine Organizationen</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/layout/main-layout/main-layout.component.ts</context>
+          <context context-type="linenumber">63,64</context>
+        </context-group>
+      </trans-unit>
     </body>
   </file>
 </xliff>

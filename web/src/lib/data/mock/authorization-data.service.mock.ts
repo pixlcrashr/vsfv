@@ -66,6 +66,7 @@ export class MockAuthorizationDataService extends AuthorizationDataService {
     Permissions.REIMBURSEMENTS_READ_OWN,
     Permissions.REIMBURSEMENTS_COMMENT_OWN,
     Permissions.REIMBURSEMENTS_UPDATE_OWN,
+    Permissions.AUDIT_LOGS_READ,
   ]);
 
   checkPermissions(

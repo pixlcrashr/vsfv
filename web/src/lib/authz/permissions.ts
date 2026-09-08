@@ -77,6 +77,8 @@ export const Permissions = {
   REIMBURSEMENTS_READ_OWN: 'reimbursements:read_own',
   REIMBURSEMENTS_COMMENT_OWN: 'reimbursements:comment_own',
   REIMBURSEMENTS_UPDATE_OWN: 'reimbursements:update_own',
+
+  AUDIT_LOGS_READ: 'auditLogs:read',
 } as const;
 
 export const allPermissions: Permission[] = Object.values(Permissions);
