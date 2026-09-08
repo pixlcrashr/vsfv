@@ -89,6 +89,11 @@ message AuditLogEntry {
     (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
   ];
 
+  // The display name of the user who performed the change.
+  // Empty if the change was performed by the system or the user has been
+  // deleted since the entry was recorded.
+  string actor_display_name = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
   // The per-field changes recorded by this entry.
   repeated Change changes = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 

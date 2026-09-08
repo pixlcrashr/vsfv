@@ -930,6 +930,12 @@ paths:
                 description: |-
                   Self-standing permissions granted to this group.
                   Format: "resource:action" (e.g. "accounts:read", "users:update").
+              is_system:
+                type: boolean
+                description: |-
+                  Whether this is a system group. System groups are managed by the
+                  application and cannot be modified or deleted.
+                readOnly: true
               update_time:
                 type: string
                 format: date-time
@@ -4368,6 +4374,13 @@ definitions:
           Empty if the change was performed by the system.
           Format: users/{user}
         readOnly: true
+      actor_display_name:
+        type: string
+        description: |-
+          The display name of the user who performed the change.
+          Empty if the change was performed by the system or the user has been
+          deleted since the entry was recorded.
+        readOnly: true
       changes:
         type: array
         items:
@@ -4810,6 +4823,12 @@ definitions:
         description: |-
           Self-standing permissions granted to this group.
           Format: "resource:action" (e.g. "accounts:read", "users:update").
+      is_system:
+        type: boolean
+        description: |-
+          Whether this is a system group. System groups are managed by the
+          application and cannot be modified or deleted.
+        readOnly: true
       update_time:
         type: string
         format: date-time

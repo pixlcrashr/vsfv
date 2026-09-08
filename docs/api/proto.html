@@ -2780,6 +2780,15 @@ Format: users/{user} </p></td>
                 </tr>
               
                 <tr>
+                  <td>actor_display_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The display name of the user who performed the change.
+Empty if the change was performed by the system or the user has been
+deleted since the entry was recorded. </p></td>
+                </tr>
+              
+                <tr>
                   <td>changes</td>
                   <td><a href="#pixlcrashr.vsfv.v1.AuditLogEntry.Change">AuditLogEntry.Change</a></td>
                   <td>repeated</td>
@@ -5501,6 +5510,14 @@ Format: organizations/{organization} </p></td>
                   <td>repeated</td>
                   <td><p>Self-standing permissions granted to this group.
 Format: &#34;resource:action&#34; (e.g. &#34;accounts:read&#34;, &#34;users:update&#34;). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>is_system</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Whether this is a system group. System groups are managed by the
+application and cannot be modified or deleted. </p></td>
                 </tr>
               
                 <tr>

@@ -105,6 +105,10 @@ type AuditLogEntry struct {
 	// Empty if the change was performed by the system.
 	// Format: users/{user}
 	Actor string `protobuf:"bytes,6,opt,name=actor,proto3" json:"actor,omitempty"`
+	// The display name of the user who performed the change.
+	// Empty if the change was performed by the system or the user has been
+	// deleted since the entry was recorded.
+	ActorDisplayName string `protobuf:"bytes,9,opt,name=actor_display_name,json=actorDisplayName,proto3" json:"actor_display_name,omitempty"`
 	// The per-field changes recorded by this entry.
 	Changes []*AuditLogEntry_Change `protobuf:"bytes,7,rep,name=changes,proto3" json:"changes,omitempty"`
 	// The time at which the change was recorded.
@@ -181,6 +185,13 @@ func (x *AuditLogEntry) GetAction() AuditLogEntry_Action {
 func (x *AuditLogEntry) GetActor() string {
 	if x != nil {
 		return x.Actor
+	}
+	return ""
+}
+
+func (x *AuditLogEntry) GetActorDisplayName() string {
+	if x != nil {
+		return x.ActorDisplayName
 	}
 	return ""
 }
@@ -456,7 +467,7 @@ var File_pixlcrashr_vsfv_v1_audit_log_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_audit_log_proto_rawDesc = "" +
 	"\n" +
-	"\"pixlcrashr/vsfv/v1/audit_log.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc3\x05\n" +
+	"\"pixlcrashr/vsfv/v1/audit_log.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x05\n" +
 	"\rAuditLogEntry\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12%\n" +
@@ -466,7 +477,8 @@ const file_pixlcrashr_vsfv_v1_audit_log_proto_rawDesc = "" +
 	" vsfv.pixlcrashr.dev/OrganizationR\forganization\x12E\n" +
 	"\x06action\x18\x05 \x01(\x0e2(.pixlcrashr.vsfv.v1.AuditLogEntry.ActionB\x03\xe0A\x03R\x06action\x126\n" +
 	"\x05actor\x18\x06 \x01(\tB \xe0A\x03\xfaA\x1a\n" +
-	"\x18vsfv.pixlcrashr.dev/UserR\x05actor\x12G\n" +
+	"\x18vsfv.pixlcrashr.dev/UserR\x05actor\x121\n" +
+	"\x12actor_display_name\x18\t \x01(\tB\x03\xe0A\x03R\x10actorDisplayName\x12G\n" +
 	"\achanges\x18\a \x03(\v2(.pixlcrashr.vsfv.v1.AuditLogEntry.ChangeB\x03\xe0A\x03R\achanges\x12=\n" +
 	"\ttimestamp\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\ttimestamp\x1aX\n" +
 	"\x06Change\x12\x14\n" +

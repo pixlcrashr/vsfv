@@ -45,6 +45,9 @@ type Group struct {
 	// Self-standing permissions granted to this group.
 	// Format: "resource:action" (e.g. "accounts:read", "users:update").
 	Permissions []string `protobuf:"bytes,9,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	// Whether this is a system group. System groups are managed by the
+	// application and cannot be modified or deleted.
+	IsSystem bool `protobuf:"varint,10,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
 	// Last modification timestamp.
 	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	// Creation timestamp.
@@ -125,6 +128,13 @@ func (x *Group) GetPermissions() []string {
 		return x.Permissions
 	}
 	return nil
+}
+
+func (x *Group) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
 }
 
 func (x *Group) GetUpdateTime() *timestamppb.Timestamp {
@@ -602,7 +612,7 @@ var File_pixlcrashr_vsfv_v1_group_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_group_proto_rawDesc = "" +
 	"\n" +
-	"\x1epixlcrashr/vsfv/v1/group.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe1\x03\n" +
+	"\x1epixlcrashr/vsfv/v1/group.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\x04\n" +
 	"\x05Group\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12&\n" +
@@ -610,7 +620,9 @@ const file_pixlcrashr_vsfv_v1_group_proto_rawDesc = "" +
 	"\x13display_description\x18\x04 \x01(\tB\x03\xe0A\x01R\x12displayDescription\x12N\n" +
 	"\rorganizations\x18\x05 \x03(\tB(\xe0A\x01\xfaA\"\n" +
 	" vsfv.pixlcrashr.dev/OrganizationR\rorganizations\x12%\n" +
-	"\vpermissions\x18\t \x03(\tB\x03\xe0A\x01R\vpermissions\x12@\n" +
+	"\vpermissions\x18\t \x03(\tB\x03\xe0A\x01R\vpermissions\x12 \n" +
+	"\tis_system\x18\n" +
+	" \x01(\bB\x03\xe0A\x03R\bisSystem\x12@\n" +
 	"\vupdate_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"updateTime\x12@\n" +
 	"\vcreate_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +

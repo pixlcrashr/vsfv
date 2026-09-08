@@ -50,6 +50,10 @@ message Group {
   // Format: "resource:action" (e.g. "accounts:read", "users:update").
   repeated string permissions = 9 [(google.api.field_behavior) = OPTIONAL];
 
+  // Whether this is a system group. System groups are managed by the
+  // application and cannot be modified or deleted.
+  bool is_system = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
   // Last modification timestamp.
   google.protobuf.Timestamp update_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
