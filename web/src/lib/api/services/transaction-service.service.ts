@@ -10,6 +10,10 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1Transaction } from '../models/v1transaction';
 import { V1ListTransactionsResponse } from '../models/v1list-transactions-response';
 import { V1Decimal } from '../models/v1decimal';
+
+/**
+ * TransactionService manages financial transactions.
+ */
 @Injectable({
   providedIn: 'root',
 })

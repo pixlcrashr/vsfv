@@ -9,6 +9,10 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1AccountGroup } from '../models/v1account-group';
 import { V1ListAccountGroupsResponse } from '../models/v1list-account-groups-response';
+
+/**
+ * AccountGroupService manages named groupings of budget accounts.
+ */
 @Injectable({
   providedIn: 'root',
 })

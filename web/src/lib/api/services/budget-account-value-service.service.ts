@@ -12,6 +12,10 @@ import { V1Decimal } from '../models/v1decimal';
 import { V1ListBudgetAccountValuesResponse } from '../models/v1list-budget-account-values-response';
 import { V1BatchUpdateBudgetAccountValuesResponse } from '../models/v1batch-update-budget-account-values-response';
 import { BudgetAccountValueServiceBatchUpdateBudgetAccountValuesBody } from '../models/budget-account-value-service-batch-update-budget-account-values-body';
+
+/**
+ * BudgetAccountValueService manages per-account value assignments within a budget.
+ */
 @Injectable({
   providedIn: 'root',
 })

@@ -9,6 +9,14 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1ListAuditLogEntriesResponse } from '../models/v1list-audit-log-entries-response';
 import { V1AuditLogEntry } from '../models/v1audit-log-entry';
+
+/**
+ * AuditLogService provides read-only access to the global, append-only audit
+ * log. Entries can be retrieved individually by resource name or listed with
+ * filters. The audit log itself is not bound to any organization: entries for
+ * resources below an organization carry that organization's resource name and
+ * can be filtered by it.
+ */
 @Injectable({
   providedIn: 'root',
 })

@@ -11,6 +11,10 @@ import { V1ListGroupsResponse } from '../models/v1list-groups-response';
 import { V1Group } from '../models/v1group';
 import { GroupServiceAddUserToGroupBody } from '../models/group-service-add-user-to-group-body';
 import { GroupServiceRemoveUserFromGroupBody } from '../models/group-service-remove-user-from-group-body';
+
+/**
+ * GroupService manages groups and their per-organization permission policies.
+ */
 @Injectable({
   providedIn: 'root',
 })

@@ -8,6 +8,10 @@ import { Observable as __Observable } from 'rxjs';
 import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1UserSettings } from '../models/v1user-settings';
+
+/**
+ * UserSettingsService manages per-user application preferences.
+ */
 @Injectable({
   providedIn: 'root',
 })

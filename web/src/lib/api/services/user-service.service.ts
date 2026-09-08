@@ -14,6 +14,11 @@ import { V1User } from '../models/v1user';
 import { V1CheckUserPermissionsResponse } from '../models/v1check-user-permissions-response';
 import { UserServiceCheckUserPermissionsBody } from '../models/user-service-check-user-permissions-body';
 import { V1ListUserGroupsResponse } from '../models/v1list-user-groups-response';
+
+/**
+ * UserService provides a read-only administrative view of users.
+ * Users are created exclusively through the SSO/OAuth2 flow.
+ */
 @Injectable({
   providedIn: 'root',
 })

@@ -10,6 +10,10 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1TransactionAssignment } from '../models/v1transaction-assignment';
 import { V1Decimal } from '../models/v1decimal';
 import { V1ListTransactionAssignmentsResponse } from '../models/v1list-transaction-assignments-response';
+
+/**
+ * TransactionAssignmentService manages transaction assignments to budget accounts.
+ */
 @Injectable({
   providedIn: 'root',
 })

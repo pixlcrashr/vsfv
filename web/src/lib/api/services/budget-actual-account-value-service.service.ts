@@ -10,6 +10,13 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1BudgetActualAccountValue } from '../models/v1budget-actual-account-value';
 import { V1ListBudgetActualAccountValuesResponse } from '../models/v1list-budget-actual-account-values-response';
 import { V1BatchGetBudgetActualAccountValuesResponse } from '../models/v1batch-get-budget-actual-account-values-response';
+
+/**
+ * BudgetActualAccountValueService provides read-only access to the computed
+ * actual monetary values per budget account. Values are derived from the sum of
+ * TransactionAccountAssignment values for transactions within the budget period.
+ * All resources in this service are server-computed and immutable.
+ */
 @Injectable({
   providedIn: 'root',
 })

@@ -12,6 +12,10 @@ import { V1Organization } from '../models/v1organization';
 import { V1CheckOrganizationIdResponse } from '../models/v1check-organization-id-response';
 import { V1CheckOrganizationIdRequest } from '../models/v1check-organization-id-request';
 import { V1Month } from '../models/v1month';
+
+/**
+ * OrganizationService manages organizations.
+ */
 @Injectable({
   providedIn: 'root',
 })

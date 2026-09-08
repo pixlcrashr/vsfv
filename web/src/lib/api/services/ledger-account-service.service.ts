@@ -11,6 +11,11 @@ import { V1LedgerAccount } from '../models/v1ledger-account';
 import { V1AccountType } from '../models/v1account-type';
 import { V1ListLedgerAccountsResponse } from '../models/v1list-ledger-accounts-response';
 import { V1BatchGetLedgerAccountsResponse } from '../models/v1batch-get-ledger-accounts-response';
+
+/**
+ * LedgerAccountService manages ledger accounts for bookkeeping.
+ * Accounts are auto-created during import; only Get, List, Update, Delete are exposed.
+ */
 @Injectable({
   providedIn: 'root',
 })

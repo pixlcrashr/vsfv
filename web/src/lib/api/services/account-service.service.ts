@@ -13,6 +13,10 @@ import { V1GetNestedAccountResponse } from '../models/v1get-nested-account-respo
 import { AccountServiceRestoreAccountBody } from '../models/account-service-restore-account-body';
 import { V1ListAccountsResponse } from '../models/v1list-accounts-response';
 import { V1ListNestedAccountsResponse } from '../models/v1list-nested-accounts-response';
+
+/**
+ * AccountService manages budget accounts in the chart of accounts.
+ */
 @Injectable({
   providedIn: 'root',
 })

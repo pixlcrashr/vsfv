@@ -9,6 +9,12 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1BudgetRevisionAccountValue } from '../models/v1budget-revision-account-value';
 import { V1ListBudgetRevisionAccountValuesResponse } from '../models/v1list-budget-revision-account-values-response';
+
+/**
+ * BudgetRevisionAccountValueService provides read-only access to the
+ * per-account values captured within a BudgetRevision. All resources in this
+ * service are immutable and server-managed.
+ */
 @Injectable({
   providedIn: 'root',
 })

@@ -9,6 +9,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1UserIdentity } from '../models/v1user-identity';
 import { V1ListUserIdentitiesResponse } from '../models/v1list-user-identities-response';
+
+/**
+ * UserIdentityService provides a read-only view of the OAuth2 / SSO
+ * connections linked to a user. No credentials are ever returned.
+ */
 @Injectable({
   providedIn: 'root',
 })

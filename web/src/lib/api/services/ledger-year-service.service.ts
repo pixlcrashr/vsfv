@@ -10,6 +10,10 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1LedgerYear } from '../models/v1ledger-year';
 import { LedgerYearServiceCloseLedgerYearBody } from '../models/ledger-year-service-close-ledger-year-body';
 import { V1ListLedgerYearsResponse } from '../models/v1list-ledger-years-response';
+
+/**
+ * LedgerYearService manages fiscal/economic years within an organization.
+ */
 @Injectable({
   providedIn: 'root',
 })

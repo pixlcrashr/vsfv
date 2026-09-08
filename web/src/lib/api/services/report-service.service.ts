@@ -9,6 +9,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1Report } from '../models/v1report';
 import { V1ListReportsResponse } from '../models/v1list-reports-response';
+
+/**
+ * ReportService manages generated report instances.
+ * Note: report file download is handled exclusively by the Huma HTTP API.
+ */
 @Injectable({
   providedIn: 'root',
 })
