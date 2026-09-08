@@ -191,6 +191,23 @@ func (r *BudgetAccountValueRepository) Delete(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
+// GetByBudgetAndAccountIDs returns the account values of a budget for the
+// given accounts. Used to capture before-state for batch upsert audits.
+func (r *BudgetAccountValueRepository) GetByBudgetAndAccountIDs(ctx context.Context, orgID, budgetID uuid.UUID, accountIDs []uuid.UUID) ([]*model.BudgetAccountValue, error) {
+	var ms []*model.BudgetAccountValue
+	if len(accountIDs) == 0 {
+		return ms, nil
+	}
+	err := r.db.WithContext(ctx).
+		Table("budget_account_values").
+		Where("organization_id = ? AND budget_id = ? AND account_id IN ?", orgID, budgetID, accountIDs).
+		Find(&ms).Error
+	if err != nil {
+		return nil, fmt.Errorf("get budget account values budget_id=%s: %w", budgetID, err)
+	}
+	return ms, nil
+}
+
 // UpsertEntry carries the data for a single BatchUpsert entry.
 type UpsertEntry struct {
 	AccountID uuid.UUID

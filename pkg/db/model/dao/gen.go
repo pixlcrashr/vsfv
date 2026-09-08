@@ -20,6 +20,7 @@ var (
 	Account                    *account
 	AccountGroup               *accountGroup
 	AccountGroupAssignment     *accountGroupAssignment
+	AuditLogEntry              *auditLogEntry
 	AuthSession                *authSession
 	Budget                     *budget
 	BudgetAccountValue         *budgetAccountValue
@@ -46,6 +47,7 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	Account = &Q.Account
 	AccountGroup = &Q.AccountGroup
 	AccountGroupAssignment = &Q.AccountGroupAssignment
+	AuditLogEntry = &Q.AuditLogEntry
 	AuthSession = &Q.AuthSession
 	Budget = &Q.Budget
 	BudgetAccountValue = &Q.BudgetAccountValue
@@ -73,6 +75,7 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		Account:                    newAccount(db, opts...),
 		AccountGroup:               newAccountGroup(db, opts...),
 		AccountGroupAssignment:     newAccountGroupAssignment(db, opts...),
+		AuditLogEntry:              newAuditLogEntry(db, opts...),
 		AuthSession:                newAuthSession(db, opts...),
 		Budget:                     newBudget(db, opts...),
 		BudgetAccountValue:         newBudgetAccountValue(db, opts...),
@@ -101,6 +104,7 @@ type Query struct {
 	Account                    account
 	AccountGroup               accountGroup
 	AccountGroupAssignment     accountGroupAssignment
+	AuditLogEntry              auditLogEntry
 	AuthSession                authSession
 	Budget                     budget
 	BudgetAccountValue         budgetAccountValue
@@ -130,6 +134,7 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		Account:                    q.Account.clone(db),
 		AccountGroup:               q.AccountGroup.clone(db),
 		AccountGroupAssignment:     q.AccountGroupAssignment.clone(db),
+		AuditLogEntry:              q.AuditLogEntry.clone(db),
 		AuthSession:                q.AuthSession.clone(db),
 		Budget:                     q.Budget.clone(db),
 		BudgetAccountValue:         q.BudgetAccountValue.clone(db),
@@ -166,6 +171,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		Account:                    q.Account.replaceDB(db),
 		AccountGroup:               q.AccountGroup.replaceDB(db),
 		AccountGroupAssignment:     q.AccountGroupAssignment.replaceDB(db),
+		AuditLogEntry:              q.AuditLogEntry.replaceDB(db),
 		AuthSession:                q.AuthSession.replaceDB(db),
 		Budget:                     q.Budget.replaceDB(db),
 		BudgetAccountValue:         q.BudgetAccountValue.replaceDB(db),
@@ -192,6 +198,7 @@ type queryCtx struct {
 	Account                    IAccountDo
 	AccountGroup               IAccountGroupDo
 	AccountGroupAssignment     IAccountGroupAssignmentDo
+	AuditLogEntry              IAuditLogEntryDo
 	AuthSession                IAuthSessionDo
 	Budget                     IBudgetDo
 	BudgetAccountValue         IBudgetAccountValueDo
@@ -218,6 +225,7 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		Account:                    q.Account.WithContext(ctx),
 		AccountGroup:               q.AccountGroup.WithContext(ctx),
 		AccountGroupAssignment:     q.AccountGroupAssignment.WithContext(ctx),
+		AuditLogEntry:              q.AuditLogEntry.WithContext(ctx),
 		AuthSession:                q.AuthSession.WithContext(ctx),
 		Budget:                     q.Budget.WithContext(ctx),
 		BudgetAccountValue:         q.BudgetAccountValue.WithContext(ctx),
