@@ -87,6 +87,7 @@ var Models = []any{
 	&model.AccountGroupAssignment{},
 	&model.AccountGroup{},
 	&model.Account{},
+	&model.AuditLogEntry{},
 	&model.BudgetRevisionAccountValue{},
 	&model.BudgetRevision{},
 	&model.BudgetAccountValue{},

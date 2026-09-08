@@ -33,11 +33,12 @@ var (
 type reportServiceServer struct {
 	gen.UnimplementedReportServiceServer
 	repo     *repository.ReportRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newReportServiceServer(repo *repository.ReportRepository, enforcer *authz.Enforcer) gen.ReportServiceServer {
-	return &reportServiceServer{repo: repo, enforcer: enforcer}
+func newReportServiceServer(repo *repository.ReportRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.ReportServiceServer {
+	return &reportServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *reportServiceServer) GetReport(ctx context.Context, req *gen.GetReportRequest) (*gen.Report, error) {
@@ -161,6 +162,12 @@ func (s *reportServiceServer) CreateReport(ctx context.Context, req *gen.CreateR
 		return nil, &ServerError{Err: err, Status: statusFailedCreateReport}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.ReportResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return ReportToProto(pn, m), nil
 }
 
@@ -180,12 +187,32 @@ func (s *reportServiceServer) DeleteReport(ctx context.Context, req *gen.DeleteR
 		return nil, &ServerError{Err: err, Status: statusInvalidReportName}
 	}
 
+	m, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrReportNotFound) {
+			return nil, &ServerError{Err: err, Status: statusReportNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetReport}
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		if errors.Is(err, repository.ErrReportNotFound) {
 			return nil, &ServerError{Err: err, Status: statusReportNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteReport}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidReportName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

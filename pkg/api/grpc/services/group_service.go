@@ -33,11 +33,12 @@ var (
 type groupServiceServer struct {
 	gen.UnimplementedGroupServiceServer
 	repo     *repository.UserGroupRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newGroupServiceServer(repo *repository.UserGroupRepository, enforcer *authz.Enforcer) gen.GroupServiceServer {
-	return &groupServiceServer{repo: repo, enforcer: enforcer}
+func newGroupServiceServer(repo *repository.UserGroupRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.GroupServiceServer {
+	return &groupServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *groupServiceServer) GetGroup(ctx context.Context, req *gen.GetGroupRequest) (*gen.Group, error) {
@@ -144,6 +145,10 @@ func (s *groupServiceServer) CreateGroup(ctx context.Context, req *gen.CreateGro
 		return nil, &ServerError{Err: err, Status: statusFailedCreateGroup}
 	}
 
+	if err := s.audits.Record(ctx, groupAuditSubject(m), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	orgs, perms, err := s.buildGroupPermissions(ctx, m)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedCreateGroup}
@@ -174,6 +179,12 @@ func (s *groupServiceServer) UpdateGroup(ctx context.Context, req *gen.UpdateGro
 		return nil, &ServerError{Err: err, Status: statusFailedGetGroup}
 	}
 
+	before := *m
+	oldOrgs, oldPerms, err := s.buildGroupPermissions(ctx, m)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedGetGroup}
+	}
+
 	updateParams := repository.UpdateUserGroupParams{}
 
 	if req.Group.DisplayName != "" {
@@ -193,6 +204,22 @@ func (s *groupServiceServer) UpdateGroup(ctx context.Context, req *gen.UpdateGro
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateGroup}
+	}
+
+	// The model diff only covers columns; organization assignments and
+	// permissions live in casbin and are audited explicitly.
+	changes, err := diffAuditModels(&before, m)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+	if updateParams.Organizations.IsSet {
+		changes = append(changes, stringSliceChange("organizations", oldOrgs, req.Group.Organizations))
+	}
+	if updateParams.Permissions.IsSet {
+		changes = append(changes, stringSliceChange("permissions", oldPerms, req.Group.Permissions))
+	}
+	if err := s.audits.RecordChanges(ctx, groupAuditSubject(m), AuditActionUpdate, changes); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	orgs, perms, err := s.buildGroupPermissions(ctx, m)
@@ -228,6 +255,10 @@ func (s *groupServiceServer) DeleteGroup(ctx context.Context, req *gen.DeleteGro
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteGroup}
 	}
 
+	if err := s.audits.Record(ctx, groupAuditSubject(m), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return &emptypb.Empty{}, nil
 }
 
@@ -256,6 +287,13 @@ func (s *groupServiceServer) AddUserToGroup(ctx context.Context, req *gen.AddUse
 
 	if _, err := s.enforcer.AddGlobalGroupingPolicy(un.User, group.ID.String()); err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateGroup}
+	}
+
+	// Membership is stored in casbin only; audit it as a group update.
+	if err := s.audits.RecordChanges(ctx, groupAuditSubject(group), AuditActionUpdate, []model.AuditLogEntryChange{
+		{Field: "members", NewValue: &un.User},
+	}); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil
@@ -288,9 +326,27 @@ func (s *groupServiceServer) RemoveUserFromGroup(ctx context.Context, req *gen.R
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateGroup}
 	}
 
+	// Membership is stored in casbin only; audit it as a group update.
+	if err := s.audits.RecordChanges(ctx, groupAuditSubject(group), AuditActionUpdate, []model.AuditLogEntryChange{
+		{Field: "members", OldValue: &un.User},
+	}); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return &emptypb.Empty{}, nil
 }
 
+// groupAuditSubject builds the audit subject for a user group ("Group"
+// resource, global scope).
+func groupAuditSubject(m *model.UserGroup) auditSubject {
+	return auditSubject{
+		ResourceName: gen.GroupResourceName{Group: m.CustomID}.String(),
+		ResourceID:   m.ID,
+	}
+}
+
+// stringSliceChange builds an audit change for a replaced string list
+// (e.g. group permissions or organization assignments).
 // buildGroupPermissions reads the organization assignments and permissions
 // for a group from the repository and returns them as string slices.
 // If the group already has Organizations loaded (e.g. from List), those are

@@ -25,11 +25,12 @@ var (
 type accountGroupAssignmentServiceServer struct {
 	gen.UnimplementedAccountGroupAssignmentServiceServer
 	repo     *repository.AccountGroupAssignmentRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newAccountGroupAssignmentServiceServer(repo *repository.AccountGroupAssignmentRepository, enforcer *authz.Enforcer) gen.AccountGroupAssignmentServiceServer {
-	return &accountGroupAssignmentServiceServer{repo: repo, enforcer: enforcer}
+func newAccountGroupAssignmentServiceServer(repo *repository.AccountGroupAssignmentRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.AccountGroupAssignmentServiceServer {
+	return &accountGroupAssignmentServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *accountGroupAssignmentServiceServer) GetAccountGroupAssignment(ctx context.Context, req *gen.GetAccountGroupAssignmentRequest) (*gen.AccountGroupAssignment, error) {
@@ -169,6 +170,17 @@ func (s *accountGroupAssignmentServiceServer) CreateAccountGroupAssignment(ctx c
 		return nil, &ServerError{Err: err, Status: statusFailedCreateAssignment}
 	}
 
+	orgID, err := uuid.Parse(pn.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidParentAccountGroupName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.AccountGroupAssignmentResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return AccountGroupAssignmentToProto(pn, m), nil
 }
 
@@ -201,6 +213,8 @@ func (s *accountGroupAssignmentServiceServer) UpdateAccountGroupAssignment(ctx c
 		return nil, &ServerError{Err: err, Status: statusFailedGetAssignment}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateAccountGroupAssignmentParams{
 		Negate: optional.From(req.Assignment.Negate),
 	}
@@ -213,6 +227,17 @@ func (s *accountGroupAssignmentServiceServer) UpdateAccountGroupAssignment(ctx c
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateAssignment}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidAssignmentName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return AccountGroupAssignmentToProto(n.AccountGroupResourceName(), m), nil
@@ -234,12 +259,32 @@ func (s *accountGroupAssignmentServiceServer) DeleteAccountGroupAssignment(ctx c
 		return nil, &ServerError{Err: err, Status: statusInvalidAssignmentName}
 	}
 
+	m, err := s.repo.GetByID(ctx, assignID)
+	if err != nil {
+		if errors.Is(err, repository.ErrAccountGroupAssignmentNotFound) {
+			return nil, &ServerError{Err: err, Status: statusAssignmentNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetAssignment}
+	}
+
 	if err := s.repo.Delete(ctx, assignID); err != nil {
 		if errors.Is(err, repository.ErrAccountGroupAssignmentNotFound) {
 			return nil, &ServerError{Err: err, Status: statusAssignmentNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteAssignment}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidAssignmentName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

@@ -37,11 +37,12 @@ var (
 type budgetServiceServer struct {
 	gen.UnimplementedBudgetServiceServer
 	repo     *repository.BudgetRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newBudgetServiceServer(repo *repository.BudgetRepository, enforcer *authz.Enforcer) gen.BudgetServiceServer {
-	return &budgetServiceServer{repo: repo, enforcer: enforcer}
+func newBudgetServiceServer(repo *repository.BudgetRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.BudgetServiceServer {
+	return &budgetServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *budgetServiceServer) GetBudget(ctx context.Context, req *gen.GetBudgetRequest) (*gen.Budget, error) {
@@ -191,6 +192,12 @@ func (s *budgetServiceServer) CreateBudget(ctx context.Context, req *gen.CreateB
 		return nil, &ServerError{Err: err, Status: statusFailedCreateBudget}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.BudgetResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return BudgetToProto(n, m), nil
 }
 
@@ -224,6 +231,8 @@ func (s *budgetServiceServer) UpdateBudget(ctx context.Context, req *gen.UpdateB
 		return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
 	}
 
+	before := *m
+
 	until := sql.NullTime{}
 	if req.Budget.PublishActualValuesUntil != nil {
 		until.Time = protoDateToTime(req.Budget.PublishActualValuesUntil)
@@ -249,6 +258,12 @@ func (s *budgetServiceServer) UpdateBudget(ctx context.Context, req *gen.UpdateB
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateBudget}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return BudgetToProto(n.OrganizationResourceName(), m), nil
@@ -280,6 +295,8 @@ func (s *budgetServiceServer) CloseBudget(ctx context.Context, req *gen.CloseBud
 		return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateBudgetParams{
 		IsClosed: optional.From(true),
 	}
@@ -292,6 +309,12 @@ func (s *budgetServiceServer) CloseBudget(ctx context.Context, req *gen.CloseBud
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedCloseBudget}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return BudgetToProto(n.OrganizationResourceName(), m), nil
@@ -329,6 +352,12 @@ func (s *budgetServiceServer) DeleteBudget(ctx context.Context, req *gen.DeleteB
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteBudget}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

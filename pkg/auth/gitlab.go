@@ -13,6 +13,8 @@ import (
 
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/pixlcrashr/vsfv/pkg/audit"
+	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/cfg"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
@@ -33,6 +35,7 @@ type GitLabHandler struct {
 	identityRepo  *repository.UserIdentityRepository
 	sessionMgr    *SessionManager
 	oauth2Config  *oauth2.Config
+	audits        *audit.Writer
 	secureCookies bool
 }
 
@@ -61,6 +64,7 @@ func NewGitLabHandler(
 	userRepo *repository.UserRepository,
 	identityRepo *repository.UserIdentityRepository,
 	sessionMgr *SessionManager,
+	audits *audit.Writer,
 ) *GitLabHandler {
 	adapter := gitlabConfigAdapter{
 		enabled:      authCfg.GitLab.Enabled,
@@ -74,6 +78,7 @@ func NewGitLabHandler(
 		userRepo:      userRepo,
 		identityRepo:  identityRepo,
 		sessionMgr:    sessionMgr,
+		audits:        audits,
 		secureCookies: authCfg.SecureCookies,
 	}
 
@@ -274,6 +279,15 @@ func (g *GitLabHandler) findOrCreateUser(ctx context.Context, info *gitlabUserIn
 		if err != nil {
 			return nil, fmt.Errorf("creating user: %w", err)
 		}
+
+		// Audit the self-registration; the acting user is the new user.
+		actx := authz.WithUser(ctx, user.ID.String(), nil)
+		if err := g.audits.Record(actx, audit.Subject{
+			ResourceName: "users/" + user.ID.String(),
+			ResourceID:   user.ID,
+		}, audit.ActionCreate, nil, user); err != nil {
+			return nil, fmt.Errorf("auditing user creation: %w", err)
+		}
 	}
 
 	// Create the identity link
@@ -285,6 +299,18 @@ func (g *GitLabHandler) findOrCreateUser(ctx context.Context, info *gitlabUserIn
 	}
 	if err := g.identityRepo.Create(ctx, identity); err != nil {
 		return nil, fmt.Errorf("creating user identity: %w", err)
+	}
+
+	// Audit the identity link creation as part of user provisioning.
+	actx := authz.WithUser(ctx, user.ID.String(), nil)
+	if err := g.audits.RecordChanges(actx, audit.Subject{
+		ResourceName: fmt.Sprintf("users/%s/identities/%s", user.ID, identity.CustomID),
+		ResourceID:   identity.ID,
+	}, audit.ActionCreate, []model.AuditLogEntryChange{
+		{Field: "provider", NewValue: &identity.Provider},
+		{Field: "provider_user_id", NewValue: &identity.ProviderUserID},
+	}); err != nil {
+		return nil, fmt.Errorf("auditing user identity creation: %w", err)
 	}
 
 	return user, nil

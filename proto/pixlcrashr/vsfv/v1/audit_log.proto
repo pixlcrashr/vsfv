@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// AuditLogEntry is an immutable record of a single change to a resource.
+// One entry is created per mutating API call: an update that changes multiple
+// fields at once results in a single entry containing the per-field diff.
+// Entries are append-only and can never be modified or deleted.
+message AuditLogEntry {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/AuditLogEntry"
+    pattern: "auditLogEntries/{audit_log_entry}"
+  };
+
+  // Change describes a single field-level modification within an audit log
+  // entry. Values are rendered as strings; an empty value means the field was
+  // absent (or null) in that state. For creations, old_value is empty for all
+  // changes; for deletions, new_value is empty for all changes.
+  message Change {
+    // The name of the changed field (snake_case, as in the API resource).
+    string field = 1;
+
+    // The field value before the change (empty for creations).
+    string old_value = 2;
+
+    // The field value after the change (empty for deletions).
+    string new_value = 3;
+  }
+
+  // The kind of change that was recorded.
+  enum Action {
+    // The action is unspecified. Should never be used.
+    ACTION_UNSPECIFIED = 0;
+
+    // The resource was created.
+    ACTION_CREATE = 1;
+
+    // The resource was updated (one or more fields changed).
+    ACTION_UPDATE = 2;
+
+    // The resource was deleted.
+    ACTION_DELETE = 3;
+  }
+
+  // The resource name of the audit log entry.
+  // Format: auditLogEntries/{audit_log_entry}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the audit log entry.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // The full resource name of the object this entry refers to.
+  // Format: e.g. organizations/{organization}/accounts/{account} or users/{user}
+  string resource = 3 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "*"}
+  ];
+
+  // The resource name of the organization the audited resource belongs to.
+  // Empty for resources that are not subordinated under an organization
+  // (e.g. users, groups, organizations themselves).
+  // Format: organizations/{organization}
+  string organization = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Organization"}
+  ];
+
+  // The kind of change that was recorded.
+  Action action = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The resource name of the user who performed the change.
+  // Empty if the change was performed by the system.
+  // Format: users/{user}
+  string actor = 6 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+
+  // The per-field changes recorded by this entry.
+  repeated Change changes = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The time at which the change was recorded.
+  google.protobuf.Timestamp timestamp = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+message GetAuditLogEntryRequest {
+  // The resource name of the audit log entry.
+  // Format: auditLogEntries/{audit_log_entry}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/AuditLogEntry"}
+  ];
+}
+
+message ListAuditLogEntriesRequest {
+  // Maximum number of audit log entries to return. The service may return fewer.
+  // If unspecified, at most 100 are returned. Maximum value is 200.
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListAuditLogEntries call.
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Filter expression conforming to AIP-160.
+  // Supported fields: resource, actor, action, organization, timestamp.
+  // Examples: "action=CREATE", "organization=\"organizations/123\"",
+  // "timestamp>=\"2026-01-01T00:00:00Z\"".
+  string filter = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Order by expression (e.g. "timestamp", "timestamp desc"). Defaults to
+  // "timestamp desc".
+  string order_by = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListAuditLogEntriesResponse {
+  // The audit log entries returned.
+  repeated AuditLogEntry audit_log_entries = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+
+  // Total number of audit log entries matching the filter (may be an estimate).
+  int64 total_size = 3;
+}
+
+// AuditLogService provides read-only access to the global, append-only audit
+// log. Entries can be retrieved individually by resource name or listed with
+// filters. The audit log itself is not bound to any organization: entries for
+// resources below an organization carry that organization's resource name and
+// can be filtered by it.
+service AuditLogService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Gets a single audit log entry by resource name.
+  // Authorization:
+  //   Scope: auditLogs:read
+  //   Permission: auditLogs:read
+  //   Domain: global, or organization-scoped for entries below an organization
+  rpc GetAuditLogEntry(GetAuditLogEntryRequest) returns (AuditLogEntry) {
+    option (google.api.http) = {get: "/v1/{name=auditLogEntries/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists audit log entries with pagination.
+  // Callers holding only organization-scoped auditLogs:read permissions
+  // receive only the entries of the organizations they have access to.
+  // Authorization:
+  //   Scope: auditLogs:read
+  //   Permission: auditLogs:read
+  //   Domain: global, or organization-scoped
+  rpc ListAuditLogEntries(ListAuditLogEntriesRequest) returns (ListAuditLogEntriesResponse) {
+    option (google.api.http) = {get: "/v1/auditLogEntries"};
+  }
+}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 )
@@ -58,6 +59,14 @@ fiscal-year start month, and optional custom ID.`,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: creating organization: %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := audit.NewWriter(gormDB).Record(context.Background(), audit.Subject{
+			ResourceName: "organizations/" + org.CustomID,
+			ResourceID:   org.ID,
+		}, audit.ActionCreate, nil, org); err != nil {
+			fmt.Fprintf(os.Stderr, "error: recording audit log entry: %v\n", err)
 			os.Exit(1)
 		}
 

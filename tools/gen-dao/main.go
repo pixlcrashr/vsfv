@@ -2,10 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	_db "github.com/pixlcrashr/vsfv/pkg/db"
+	"github.com/pixlcrashr/vsfv/pkg/db/dialect"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gen"
 	"gorm.io/gorm"
 )
@@ -25,7 +28,22 @@ func main() {
 		FieldNullable: true,
 	})
 
-	db, err := gorm.Open(postgres.Open(*dsn), &gorm.Config{})
+	d, connStr, err := _db.ParseDialect(*dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	var dialector gorm.Dialector
+	switch d {
+	case dialect.PostgreSQL:
+		dialector = postgres.Open(connStr)
+	case dialect.SQLite:
+		dialector = sqlite.Open(connStr)
+	default:
+		panic(fmt.Sprintf("unsupported dialect %q", d))
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}

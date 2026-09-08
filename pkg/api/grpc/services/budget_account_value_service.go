@@ -44,11 +44,12 @@ type budgetAccountValueServiceServer struct {
 	gen.UnimplementedBudgetAccountValueServiceServer
 	repo        *repository.BudgetAccountValueRepository
 	accountRepo *repository.AccountRepository
+	audits      *auditWriter
 	enforcer    *authz.Enforcer
 }
 
-func newBudgetAccountValueServiceServer(repo *repository.BudgetAccountValueRepository, accountRepo *repository.AccountRepository, enforcer *authz.Enforcer) gen.BudgetAccountValueServiceServer {
-	return &budgetAccountValueServiceServer{repo: repo, accountRepo: accountRepo, enforcer: enforcer}
+func newBudgetAccountValueServiceServer(repo *repository.BudgetAccountValueRepository, accountRepo *repository.AccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.BudgetAccountValueServiceServer {
+	return &budgetAccountValueServiceServer{repo: repo, accountRepo: accountRepo, audits: audits, enforcer: enforcer}
 }
 
 // resolveAccount parses an account resource name and resolves it to a UUID via the account repo.
@@ -123,6 +124,12 @@ func (s *budgetAccountValueServiceServer) CreateBudgetAccountValue(ctx context.C
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedCreateBudgetAccountValue}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.BudgetAccountValueResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return BudgetAccountValueToProto(pn, m, account), nil
@@ -312,8 +319,16 @@ func (s *budgetAccountValueServiceServer) UpdateBudgetAccountValue(ctx context.C
 			return nil, &ServerError{Err: err, Status: statusFailedCreateBudgetAccountValue}
 		}
 
+		if err := s.audits.Record(ctx, orgAuditSubject(
+			n.BudgetResourceName().BudgetAccountValueResourceName(newM.CustomID).String(), orgID, newM.ID,
+		), AuditActionCreate, nil, newM); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
 		return BudgetAccountValueToProto(n.BudgetResourceName(), newM, account), nil
 	}
+
+	before := *m
 
 	updateParams := repository.UpdateBudgetAccountValueParams{}
 	if req.AccountValue.Value != nil {
@@ -332,6 +347,17 @@ func (s *budgetAccountValueServiceServer) UpdateBudgetAccountValue(ctx context.C
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateBudgetAccountValue}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidAccountValueName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	account, _ := s.accountRepo.GetByID(ctx, m.AccountID)
@@ -397,9 +423,35 @@ func (s *budgetAccountValueServiceServer) BatchUpdateBudgetAccountValues(ctx con
 		accountIDs = append(accountIDs, accountID)
 	}
 
+	// Capture the before-state so the upsert results can be audited as
+	// either creations or updates.
+	beforeRows, err := s.repo.GetByBudgetAndAccountIDs(ctx, orgID, budgetID, accountIDs)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedBatchUpdateBudgetAccountValues}
+	}
+	beforeByAccountID := make(map[uuid.UUID]*model.BudgetAccountValue, len(beforeRows))
+	for _, b := range beforeRows {
+		beforeByAccountID[b.AccountID] = b
+	}
+
 	ms, err := s.repo.BatchUpsert(ctx, orgID, budgetID, entries)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedBatchUpdateBudgetAccountValues}
+	}
+
+	// Audit each upserted value: one entry per affected resource.
+	for _, m := range ms {
+		before, existed := beforeByAccountID[m.AccountID]
+		action := AuditActionCreate
+		var beforeAny any
+		if existed {
+			action, beforeAny = AuditActionUpdate, before
+		}
+		if err := s.audits.Record(ctx, orgAuditSubject(
+			pn.BudgetAccountValueResourceName(m.CustomID).String(), orgID, m.ID,
+		), action, beforeAny, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 	}
 
 	// Batch-fetch account models for the response.
@@ -430,12 +482,32 @@ func (s *budgetAccountValueServiceServer) DeleteBudgetAccountValue(ctx context.C
 		return nil, &ServerError{Err: err, Status: statusInvalidAccountValueName}
 	}
 
+	m, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrBudgetAccountValueNotFound) {
+			return nil, &ServerError{Err: err, Status: statusBudgetAccountValueNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetAccountValue}
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		if errors.Is(err, repository.ErrBudgetAccountValueNotFound) {
 			return nil, &ServerError{Err: err, Status: statusBudgetAccountValueNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteBudgetAccountValue}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidAccountValueName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

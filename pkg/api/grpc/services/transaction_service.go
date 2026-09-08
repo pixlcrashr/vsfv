@@ -34,11 +34,12 @@ type transactionServiceServer struct {
 	gen.UnimplementedTransactionServiceServer
 	repo              *repository.TransactionRepository
 	ledgerAccountRepo *repository.LedgerAccountRepository
+	audits            *auditWriter
 	enforcer          *authz.Enforcer
 }
 
-func newTransactionServiceServer(repo *repository.TransactionRepository, ledgerAccountRepo *repository.LedgerAccountRepository, enforcer *authz.Enforcer) gen.TransactionServiceServer {
-	return &transactionServiceServer{repo: repo, ledgerAccountRepo: ledgerAccountRepo, enforcer: enforcer}
+func newTransactionServiceServer(repo *repository.TransactionRepository, ledgerAccountRepo *repository.LedgerAccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.TransactionServiceServer {
+	return &transactionServiceServer{repo: repo, ledgerAccountRepo: ledgerAccountRepo, audits: audits, enforcer: enforcer}
 }
 
 func (s *transactionServiceServer) GetTransaction(ctx context.Context, req *gen.GetTransactionRequest) (*gen.Transaction, error) {
@@ -240,6 +241,12 @@ func (s *transactionServiceServer) CreateTransaction(ctx context.Context, req *g
 		return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.TransactionResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return TransactionToProto(n, m, creditLA, debitLA), nil
 }
 
@@ -272,6 +279,8 @@ func (s *transactionServiceServer) UpdateTransaction(ctx context.Context, req *g
 		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
 	}
 
+	before := *m
+
 	t := req.Transaction
 	updateParams := repository.UpdateTransactionParams{
 		Description: optional.From(t.Description),
@@ -294,6 +303,17 @@ func (s *transactionServiceServer) UpdateTransaction(ctx context.Context, req *g
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	creditLA, err := s.ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
@@ -325,12 +345,32 @@ func (s *transactionServiceServer) DeleteTransaction(ctx context.Context, req *g
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
 	}
 
+	m, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrTransactionNotFound) {
+			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		if errors.Is(err, repository.ErrTransactionNotFound) {
 			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteTransaction}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

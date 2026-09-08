@@ -44,6 +44,7 @@ const (
 	ScopeOrganizationsWrite   = "organizations:write"
 	ScopeReimbursementsRead   = "reimbursements:read"
 	ScopeReimbursementsWrite  = "reimbursements:write"
+	ScopeAuditLogsRead        = "auditLogs:read"
 )
 
 // AllAPIScopes lists all resource-scoped OAuth2 scopes (excluding OIDC identity scopes).
@@ -65,6 +66,7 @@ var AllAPIScopes = []string{
 	ScopeSettingsRead, ScopeSettingsWrite,
 	ScopeOrganizationsRead, ScopeOrganizationsWrite,
 	ScopeReimbursementsRead, ScopeReimbursementsWrite,
+	ScopeAuditLogsRead,
 }
 
 // ScopeToResource maps a scope string to its casbin resource name.
@@ -102,6 +104,7 @@ var ScopeToResource = map[string]string{
 	ScopeOrganizationsWrite:   ResourceOrganizations,
 	ScopeReimbursementsRead:   ResourceReimbursements,
 	ScopeReimbursementsWrite:  ResourceReimbursements,
+	ScopeAuditLogsRead:        ResourceAuditLogs,
 }
 
 // ActionToScope converts a casbin resource + action into the required OAuth2 scope.

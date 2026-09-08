@@ -32,11 +32,12 @@ var (
 type ledgerAccountServiceServer struct {
 	gen.UnimplementedLedgerAccountServiceServer
 	repo     *repository.LedgerAccountRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newLedgerAccountServiceServer(repo *repository.LedgerAccountRepository, enforcer *authz.Enforcer) gen.LedgerAccountServiceServer {
-	return &ledgerAccountServiceServer{repo: repo, enforcer: enforcer}
+func newLedgerAccountServiceServer(repo *repository.LedgerAccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.LedgerAccountServiceServer {
+	return &ledgerAccountServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *ledgerAccountServiceServer) GetLedgerAccount(ctx context.Context, req *gen.GetLedgerAccountRequest) (*gen.LedgerAccount, error) {
@@ -194,6 +195,8 @@ func (s *ledgerAccountServiceServer) UpdateLedgerAccount(ctx context.Context, re
 		return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateLedgerAccountParams{
 		Code:               optional.From(req.LedgerAccount.Code),
 		AccountType:        optional.From(model.AccountType(req.LedgerAccount.AccountType)),
@@ -209,6 +212,12 @@ func (s *ledgerAccountServiceServer) UpdateLedgerAccount(ctx context.Context, re
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateLedgerAccount}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return LedgerAccountToProto(n.OrganizationResourceName(), m), nil
@@ -246,6 +255,12 @@ func (s *ledgerAccountServiceServer) DeleteLedgerAccount(ctx context.Context, re
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteLedgerAccount}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

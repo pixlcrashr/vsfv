@@ -45,6 +45,17 @@ func CheckGlobal(ctx context.Context, enforcer *Enforcer, resource, action strin
 	return nil
 }
 
+// CheckScopes verifies that the authenticated user holds the OAuth2 scope
+// required for resource/action, without performing a casbin check.
+func CheckScopes(ctx context.Context, resource, action string) error {
+	requiredScope := ActionToScope(resource, action)
+	scopes, _ := ScopesFromContext(ctx)
+	if !HasScope(scopes, requiredScope) {
+		return fmt.Errorf("%w: required %s", ErrScopeDenied, requiredScope)
+	}
+	return nil
+}
+
 // CheckOrg verifies that the authenticated user has both the required OAuth2
 // scope and the casbin permission for an organization-scoped resource/action.
 //

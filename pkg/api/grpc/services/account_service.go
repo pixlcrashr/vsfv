@@ -40,11 +40,12 @@ var (
 type accountServiceServer struct {
 	gen.UnimplementedAccountServiceServer
 	repo     *repository.AccountRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newAccountServiceServer(repo *repository.AccountRepository, enforcer *authz.Enforcer) gen.AccountServiceServer {
-	return &accountServiceServer{repo: repo, enforcer: enforcer}
+func newAccountServiceServer(repo *repository.AccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.AccountServiceServer {
+	return &accountServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *accountServiceServer) GetAccount(ctx context.Context, req *gen.GetAccountRequest) (*gen.Account, error) {
@@ -322,6 +323,12 @@ func (s *accountServiceServer) CreateAccount(ctx context.Context, req *gen.Creat
 		return nil, &ServerError{Err: err, Status: statusFailedCreateAccount}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.AccountResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return AccountToProto(n, m, parent), nil
 }
 
@@ -355,6 +362,8 @@ func (s *accountServiceServer) UpdateAccount(ctx context.Context, req *gen.Updat
 		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateAccountParams{
 		DisplayName:        optional.From(req.Account.DisplayName),
 		DisplayCode:        optional.From(req.Account.DisplayCode),
@@ -370,6 +379,12 @@ func (s *accountServiceServer) UpdateAccount(ctx context.Context, req *gen.Updat
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateAccount}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	var parentM *model.Account
@@ -408,6 +423,8 @@ func (s *accountServiceServer) ArchiveAccount(ctx context.Context, req *gen.Arch
 		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateAccountParams{
 		IsArchived: optional.From(true),
 	}
@@ -420,6 +437,12 @@ func (s *accountServiceServer) ArchiveAccount(ctx context.Context, req *gen.Arch
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedArchiveAccount}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	var parentM *model.Account
@@ -471,6 +494,8 @@ func (s *accountServiceServer) RestoreAccount(ctx context.Context, req *gen.Rest
 		}
 	}
 
+	before := *m
+
 	if err := s.repo.Update(ctx, m.ID, repository.UpdateAccountParams{
 		IsArchived: optional.From(false),
 	}); err != nil {
@@ -481,6 +506,12 @@ func (s *accountServiceServer) RestoreAccount(ctx context.Context, req *gen.Rest
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedRestoreAccount}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	var parentM *model.Account

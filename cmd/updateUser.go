@@ -9,8 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/db"
+	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 )
 
@@ -142,6 +144,28 @@ Example:
 
 			if err := enforcer.Flush(); err != nil {
 				fmt.Fprintf(os.Stderr, "error: flushing enforcer: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Audit the membership change (stored in casbin only).
+			join := func(ids []string) *string {
+				if len(ids) == 0 {
+					return nil
+				}
+				joined := strings.Join(ids, ",")
+				return &joined
+			}
+			newRoles := make([]string, 0, len(requestedGroupIDs))
+			for _, id := range requestedGroupIDs {
+				newRoles = append(newRoles, id.String())
+			}
+			if err := audit.NewWriter(gormDB).RecordChanges(ctx, audit.Subject{
+				ResourceName: "users/" + user.ID.String(),
+				ResourceID:   user.ID,
+			}, audit.ActionUpdate, []model.AuditLogEntryChange{
+				{Field: "groups", OldValue: join(currentRoles), NewValue: join(newRoles)},
+			}); err != nil {
+				fmt.Fprintf(os.Stderr, "error: recording audit log entry: %v\n", err)
 				os.Exit(1)
 			}
 		}

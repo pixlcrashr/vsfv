@@ -118,6 +118,11 @@ func (en *Enforcer) GetPermissionsForUser(user string) ([][]string, error) {
 	return perms, err
 }
 
+// GetPolicies returns all policy rules as (sub, obj, act) tuples.
+func (en *Enforcer) GetPolicies() ([][]string, error) {
+	return en.e.GetPolicy()
+}
+
 // ── Group-to-Domain (g3) assignments ───────────────────────────────────────────
 // g3 maps a group ID to a domain. Every group gets a g3(group, "")
 // entry for global access. Per-org entries are g3(group, "organizations/{id}").

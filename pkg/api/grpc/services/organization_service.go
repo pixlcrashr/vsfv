@@ -35,11 +35,12 @@ var (
 type organizationServiceServer struct {
 	gen.UnimplementedOrganizationServiceServer
 	repo     *repository.OrganizationRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newOrganizationServiceServer(repo *repository.OrganizationRepository, enforcer *authz.Enforcer) gen.OrganizationServiceServer {
-	return &organizationServiceServer{repo: repo, enforcer: enforcer}
+func newOrganizationServiceServer(repo *repository.OrganizationRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.OrganizationServiceServer {
+	return &organizationServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *organizationServiceServer) GetOrganization(ctx context.Context, req *gen.GetOrganizationRequest) (*gen.Organization, error) {
@@ -137,6 +138,13 @@ func (s *organizationServiceServer) CreateOrganization(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusFailedCreateOrganization}
 	}
 
+	if err := s.audits.Record(ctx, auditSubject{
+		ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
+		ResourceID:   m.ID,
+	}, AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return OrganizationToProto(m), nil
 }
 
@@ -169,6 +177,8 @@ func (s *organizationServiceServer) UpdateOrganization(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateOrganizationParams{
 		DisplayName:        optional.From(req.Organization.DisplayName),
 		DisplayDescription: optional.From(req.Organization.DisplayDescription),
@@ -182,6 +192,13 @@ func (s *organizationServiceServer) UpdateOrganization(ctx context.Context, req 
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
+	}
+
+	if err := s.audits.Record(ctx, auditSubject{
+		ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
+		ResourceID:   m.ID,
+	}, AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return OrganizationToProto(m), nil
@@ -220,12 +237,28 @@ func (s *organizationServiceServer) DeleteOrganization(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationName}
 	}
 
+	m, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrOrganizationNotFound) {
+			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		if errors.Is(err, repository.ErrOrganizationNotFound) {
 			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteOrganization}
+	}
+
+	if err := s.audits.Record(ctx, auditSubject{
+		ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
+		ResourceID:   m.ID,
+	}, AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

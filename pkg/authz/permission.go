@@ -42,6 +42,7 @@ const (
 	ResourceSettings        = "settings"
 	ResourceOrganizations   = "organizations"
 	ResourceReimbursements  = "reimbursements"
+	ResourceAuditLogs       = "auditLogs"
 )
 
 // Actions used in casbin policies.

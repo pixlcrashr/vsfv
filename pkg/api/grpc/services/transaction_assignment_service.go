@@ -43,11 +43,12 @@ type transactionAssignmentServiceServer struct {
 	accountRepo      *repository.AccountRepository
 	organizationRepo *repository.OrganizationRepository
 	transactionRepo  *repository.TransactionRepository
+	audits           *auditWriter
 	enforcer         *authz.Enforcer
 }
 
-func newTransactionAssignmentServiceServer(repo *repository.TransactionAssignmentRepository, accountRepo *repository.AccountRepository, organizationRepo *repository.OrganizationRepository, transactionRepo *repository.TransactionRepository, enforcer *authz.Enforcer) gen.TransactionAssignmentServiceServer {
-	return &transactionAssignmentServiceServer{repo: repo, accountRepo: accountRepo, organizationRepo: organizationRepo, transactionRepo: transactionRepo, enforcer: enforcer}
+func newTransactionAssignmentServiceServer(repo *repository.TransactionAssignmentRepository, accountRepo *repository.AccountRepository, organizationRepo *repository.OrganizationRepository, transactionRepo *repository.TransactionRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.TransactionAssignmentServiceServer {
+	return &transactionAssignmentServiceServer{repo: repo, accountRepo: accountRepo, organizationRepo: organizationRepo, transactionRepo: transactionRepo, audits: audits, enforcer: enforcer}
 }
 
 func (s *transactionAssignmentServiceServer) GetTransactionAssignment(ctx context.Context, req *gen.GetTransactionAssignmentRequest) (*gen.TransactionAssignment, error) {
@@ -370,6 +371,12 @@ func (s *transactionAssignmentServiceServer) CreateTransactionAssignment(ctx con
 		return nil, &ServerError{Err: err, Status: statusFailedCreateTransactionAssignment}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.TransactionAssignmentResourceName(m.ID.String()).String(), o.ID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return TransactionAssignmentToProto(pn, m, a), nil
 }
 
@@ -401,6 +408,8 @@ func (s *transactionAssignmentServiceServer) UpdateTransactionAssignment(ctx con
 
 		return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
 	}
+
+	before := *m
 
 	updateParams := repository.UpdateTransactionAssignmentParams{}
 
@@ -478,6 +487,17 @@ func (s *transactionAssignmentServiceServer) UpdateTransactionAssignment(ctx con
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
 	}
 
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return TransactionAssignmentToProto(n.TransactionResourceName(), m, a), nil
 }
 
@@ -497,12 +517,32 @@ func (s *transactionAssignmentServiceServer) DeleteTransactionAssignment(ctx con
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
 	}
 
+	m, err := s.repo.GetByID(ctx, assignmentID)
+	if err != nil {
+		if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
+			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
+	}
+
 	if err := s.repo.Delete(ctx, assignmentID); err != nil {
 		if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
 			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteTransactionAssignment}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

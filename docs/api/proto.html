@@ -339,6 +339,45 @@
         
           
           <li>
+            <a href="#pixlcrashr%2fvsfv%2fv1%2faudit_log.proto">pixlcrashr/vsfv/v1/audit_log.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.AuditLogEntry"><span class="badge">M</span>AuditLogEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.AuditLogEntry.Change"><span class="badge">M</span>AuditLogEntry.Change</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.GetAuditLogEntryRequest"><span class="badge">M</span>GetAuditLogEntryRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.ListAuditLogEntriesRequest"><span class="badge">M</span>ListAuditLogEntriesRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.ListAuditLogEntriesResponse"><span class="badge">M</span>ListAuditLogEntriesResponse</a>
+                </li>
+              
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.AuditLogEntry.Action"><span class="badge">E</span>AuditLogEntry.Action</a>
+                </li>
+              
+              
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.AuditLogService"><span class="badge">S</span>AuditLogService</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
             <a href="#pixlcrashr%2fvsfv%2fv1%2fbudget.proto">pixlcrashr/vsfv/v1/budget.proto</a>
             <ul>
               
@@ -2665,6 +2704,360 @@ Authorization:
                 <td>DeleteAccountGroupAssignment</td>
                 <td>DELETE</td>
                 <td>/v1/{name=organizations/*/accountGroups/*/assignments/*}</td>
+                <td></td>
+              </tr>
+              
+            
+            </tbody>
+          </table>
+          
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="pixlcrashr/vsfv/v1/audit_log.proto">pixlcrashr/vsfv/v1/audit_log.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="pixlcrashr.vsfv.v1.AuditLogEntry">AuditLogEntry</h3>
+        <p>AuditLogEntry is an immutable record of a single change to a resource.</p><p>One entry is created per mutating API call: an update that changes multiple</p><p>fields at once results in a single entry containing the per-field diff.</p><p>Entries are append-only and can never be modified or deleted.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The resource name of the audit log entry.
+Format: auditLogEntries/{audit_log_entry} </p></td>
+                </tr>
+              
+                <tr>
+                  <td>uid</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The UUID of the audit log entry. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>resource</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The full resource name of the object this entry refers to.
+Format: e.g. organizations/{organization}/accounts/{account} or users/{user} </p></td>
+                </tr>
+              
+                <tr>
+                  <td>organization</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The resource name of the organization the audited resource belongs to.
+Empty for resources that are not subordinated under an organization
+(e.g. users, groups, organizations themselves).
+Format: organizations/{organization} </p></td>
+                </tr>
+              
+                <tr>
+                  <td>action</td>
+                  <td><a href="#pixlcrashr.vsfv.v1.AuditLogEntry.Action">AuditLogEntry.Action</a></td>
+                  <td></td>
+                  <td><p>The kind of change that was recorded. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>actor</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The resource name of the user who performed the change.
+Empty if the change was performed by the system.
+Format: users/{user} </p></td>
+                </tr>
+              
+                <tr>
+                  <td>changes</td>
+                  <td><a href="#pixlcrashr.vsfv.v1.AuditLogEntry.Change">AuditLogEntry.Change</a></td>
+                  <td>repeated</td>
+                  <td><p>The per-field changes recorded by this entry. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>timestamp</td>
+                  <td><a href="#google.protobuf.Timestamp">google.protobuf.Timestamp</a></td>
+                  <td></td>
+                  <td><p>The time at which the change was recorded. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.AuditLogEntry.Change">AuditLogEntry.Change</h3>
+        <p>Change describes a single field-level modification within an audit log</p><p>entry. Values are rendered as strings; an empty value means the field was</p><p>absent (or null) in that state. For creations, old_value is empty for all</p><p>changes; for deletions, new_value is empty for all changes.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>field</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The name of the changed field (snake_case, as in the API resource). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>old_value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The field value before the change (empty for creations). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>new_value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The field value after the change (empty for deletions). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.GetAuditLogEntryRequest">GetAuditLogEntryRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The resource name of the audit log entry.
+Format: auditLogEntries/{audit_log_entry} </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.ListAuditLogEntriesRequest">ListAuditLogEntriesRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>page_size</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Maximum number of audit log entries to return. The service may return fewer.
+If unspecified, at most 100 are returned. Maximum value is 200. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>page_token</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>A page token from a previous ListAuditLogEntries call. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>filter</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Filter expression conforming to AIP-160.
+Supported fields: resource, actor, action, organization, timestamp.
+Examples: &#34;action=CREATE&#34;, &#34;organization=\&#34;organizations/123\&#34;&#34;,
+&#34;timestamp&gt;=\&#34;2026-01-01T00:00:00Z\&#34;&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>order_by</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Order by expression (e.g. &#34;timestamp&#34;, &#34;timestamp desc&#34;). Defaults to
+&#34;timestamp desc&#34;. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.ListAuditLogEntriesResponse">ListAuditLogEntriesResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>audit_log_entries</td>
+                  <td><a href="#pixlcrashr.vsfv.v1.AuditLogEntry">AuditLogEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>The audit log entries returned. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>next_page_token</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>A token to retrieve the next page of results. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>total_size</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>Total number of audit log entries matching the filter (may be an estimate). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+        <h3 id="pixlcrashr.vsfv.v1.AuditLogEntry.Action">AuditLogEntry.Action</h3>
+        <p>The kind of change that was recorded.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>ACTION_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p>The action is unspecified. Should never be used.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ACTION_CREATE</td>
+                <td>1</td>
+                <td><p>The resource was created.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ACTION_UPDATE</td>
+                <td>2</td>
+                <td><p>The resource was updated (one or more fields changed).</p></td>
+              </tr>
+            
+              <tr>
+                <td>ACTION_DELETE</td>
+                <td>3</td>
+                <td><p>The resource was deleted.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+
+      
+
+      
+        <h3 id="pixlcrashr.vsfv.v1.AuditLogService">AuditLogService</h3>
+        <p>AuditLogService provides read-only access to the global, append-only audit</p><p>log. Entries can be retrieved individually by resource name or listed with</p><p>filters. The audit log itself is not bound to any organization: entries for</p><p>resources below an organization carry that organization's resource name and</p><p>can be filtered by it.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>GetAuditLogEntry</td>
+                <td><a href="#pixlcrashr.vsfv.v1.GetAuditLogEntryRequest">GetAuditLogEntryRequest</a></td>
+                <td><a href="#pixlcrashr.vsfv.v1.AuditLogEntry">AuditLogEntry</a></td>
+                <td><p>Gets a single audit log entry by resource name.
+Authorization:
+  Scope: auditLogs:read
+  Permission: auditLogs:read
+  Domain: global, or organization-scoped for entries below an organization</p></td>
+              </tr>
+            
+              <tr>
+                <td>ListAuditLogEntries</td>
+                <td><a href="#pixlcrashr.vsfv.v1.ListAuditLogEntriesRequest">ListAuditLogEntriesRequest</a></td>
+                <td><a href="#pixlcrashr.vsfv.v1.ListAuditLogEntriesResponse">ListAuditLogEntriesResponse</a></td>
+                <td><p>Lists audit log entries with pagination.
+Callers holding only organization-scoped auditLogs:read permissions
+receive only the entries of the organizations they have access to.
+Authorization:
+  Scope: auditLogs:read
+  Permission: auditLogs:read
+  Domain: global, or organization-scoped</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+          
+          
+          <h4>Methods with HTTP bindings</h4>
+          <table>
+            <thead>
+              <tr>
+                <td>Method Name</td>
+                <td>Method</td>
+                <td>Pattern</td>
+                <td>Body</td>
+              </tr>
+            </thead>
+            <tbody>
+            
+              
+              
+              <tr>
+                <td>GetAuditLogEntry</td>
+                <td>GET</td>
+                <td>/v1/{name=auditLogEntries/*}</td>
+                <td></td>
+              </tr>
+              
+            
+              
+              
+              <tr>
+                <td>ListAuditLogEntries</td>
+                <td>GET</td>
+                <td>/v1/auditLogEntries</td>
                 <td></td>
               </tr>
               

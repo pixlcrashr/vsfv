@@ -34,11 +34,12 @@ var (
 type ledgerYearServiceServer struct {
 	gen.UnimplementedLedgerYearServiceServer
 	repo     *repository.LedgerYearRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newLedgerYearServiceServer(repo *repository.LedgerYearRepository, enforcer *authz.Enforcer) gen.LedgerYearServiceServer {
-	return &ledgerYearServiceServer{repo: repo, enforcer: enforcer}
+func newLedgerYearServiceServer(repo *repository.LedgerYearRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.LedgerYearServiceServer {
+	return &ledgerYearServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *ledgerYearServiceServer) GetLedgerYear(ctx context.Context, req *gen.GetLedgerYearRequest) (*gen.LedgerYear, error) {
@@ -169,6 +170,12 @@ func (s *ledgerYearServiceServer) CreateLedgerYear(ctx context.Context, req *gen
 		return nil, &ServerError{Err: err, Status: statusFailedCreateLedgerYear}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.LedgerYearResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return LedgerYearToProto(pn, m), nil
 }
 
@@ -197,6 +204,8 @@ func (s *ledgerYearServiceServer) CloseLedgerYear(ctx context.Context, req *gen.
 		return nil, &ServerError{Err: err, Status: statusFailedGetLedgerYear}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateLedgerYearParams{
 		IsClosed: optional.From(true),
 	}
@@ -209,6 +218,12 @@ func (s *ledgerYearServiceServer) CloseLedgerYear(ctx context.Context, req *gen.
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedCloseLedgerYear}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), yearID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return LedgerYearToProto(n.OrganizationResourceName(), m), nil
@@ -230,12 +245,32 @@ func (s *ledgerYearServiceServer) DeleteLedgerYear(ctx context.Context, req *gen
 		return nil, &ServerError{Err: err, Status: statusInvalidLedgerYearName}
 	}
 
+	m, err := s.repo.GetByID(ctx, yearID)
+	if err != nil {
+		if errors.Is(err, repository.ErrLedgerYearNotFound) {
+			return nil, &ServerError{Err: err, Status: statusLedgerYearNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetLedgerYear}
+	}
+
 	if err := s.repo.Delete(ctx, yearID); err != nil {
 		if errors.Is(err, repository.ErrLedgerYearNotFound) {
 			return nil, &ServerError{Err: err, Status: statusLedgerYearNotFound}
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteLedgerYear}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidLedgerYearName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

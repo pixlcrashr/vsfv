@@ -33,17 +33,20 @@ type budgetRevisionServiceServer struct {
 	gen.UnimplementedBudgetRevisionServiceServer
 	repo       *repository.BudgetRevisionRepository
 	budgetRepo *repository.BudgetRepository
+	audits     *auditWriter
 	enforcer   *authz.Enforcer
 }
 
 func newBudgetRevisionServiceServer(
 	repo *repository.BudgetRevisionRepository,
 	budgetRepo *repository.BudgetRepository,
+	audits *auditWriter,
 	enforcer *authz.Enforcer,
 ) gen.BudgetRevisionServiceServer {
 	return &budgetRevisionServiceServer{
 		repo:       repo,
 		budgetRepo: budgetRepo,
+		audits:     audits,
 		enforcer:   enforcer,
 	}
 }
@@ -205,6 +208,15 @@ func (s *budgetRevisionServiceServer) UpdateBudgetRevision(ctx context.Context, 
 		}
 	}
 
+	before, err := s.repo.GetByID(ctx, revisionID)
+	if err != nil {
+		if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
+			return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+		}
+
+		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
+	}
+
 	updateParams := repository.UpdateBudgetRevisionParams{
 		IsPublished: optional.From(req.Revision.IsPublished),
 	}
@@ -221,6 +233,17 @@ func (s *budgetRevisionServiceServer) UpdateBudgetRevision(ctx context.Context, 
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
+	}
+
+	orgID, err := uuid.Parse(n.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidBudgetRevisionName}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return BudgetRevisionToProto(n.BudgetResourceName(), m), nil
@@ -277,6 +300,12 @@ func (s *budgetRevisionServiceServer) CreateBudgetRevision(ctx context.Context, 
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedCreateBudgetRevision}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.BudgetRevisionResourceName(m.CustomID).String(), budget.OrganizationID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return BudgetRevisionToProto(pn, m), nil

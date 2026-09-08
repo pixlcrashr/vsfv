@@ -13,6 +13,7 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/api"
 	apiserv "github.com/pixlcrashr/vsfv/pkg/api/grpc"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services"
+	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/auth"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/db"
@@ -69,7 +70,7 @@ incoming HTTP requests. It shuts down gracefully on SIGINT or SIGTERM.`,
 		}
 
 		// Create GitLab handler
-		gitlabHandler := auth.NewGitLabHandler(config.Auth, config.Server.PublicURL, userRepo, identityRepo, authSrv.SessionManager())
+		gitlabHandler := auth.NewGitLabHandler(config.Auth, config.Server.PublicURL, userRepo, identityRepo, authSrv.SessionManager(), audit.NewWriter(gormDB))
 
 		grpcSrv, err := apiserv.NewGRPCServer(config.Server.GRPCAddress, svcSet)
 		if err != nil {

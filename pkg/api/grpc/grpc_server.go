@@ -45,6 +45,7 @@ func NewGRPCServer(addr string, svc *services.Services, opts ...googlegrpc.Serve
 	gen.RegisterTransactionAssignmentServiceServer(s, svc.TransactionAssignment)
 	gen.RegisterReportTemplateServiceServer(s, svc.ReportTemplate)
 	gen.RegisterReportServiceServer(s, svc.Report)
+	gen.RegisterAuditLogServiceServer(s, svc.AuditLog)
 
 	reflection.Register(s)
 

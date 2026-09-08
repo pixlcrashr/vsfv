@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	"gorm.io/gorm"
@@ -47,6 +48,15 @@ func Create(ctx context.Context, db *gorm.DB, enforcer *authz.Enforcer, params C
 		})
 		if err != nil {
 			return fmt.Errorf("create user: %w", err)
+		}
+
+		// The audit write joins the transaction so a rollback also removes
+		// the audit entry.
+		if err := audit.NewWriter(tx).Record(ctx, audit.Subject{
+			ResourceName: "users/" + user.ID.String(),
+			ResourceID:   user.ID,
+		}, audit.ActionCreate, nil, user); err != nil {
+			return fmt.Errorf("record audit log entry: %w", err)
 		}
 
 		result = &Result{

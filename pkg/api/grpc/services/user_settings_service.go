@@ -22,11 +22,12 @@ var (
 type userSettingsServiceServer struct {
 	gen.UnimplementedUserSettingsServiceServer
 	repo     *repository.UserSettingsRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newUserSettingsServiceServer(repo *repository.UserSettingsRepository, enforcer *authz.Enforcer) gen.UserSettingsServiceServer {
-	return &userSettingsServiceServer{repo: repo, enforcer: enforcer}
+func newUserSettingsServiceServer(repo *repository.UserSettingsRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.UserSettingsServiceServer {
+	return &userSettingsServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *userSettingsServiceServer) GetUserSettings(ctx context.Context, req *gen.GetUserSettingsRequest) (*gen.UserSettings, error) {
@@ -80,9 +81,30 @@ func (s *userSettingsServiceServer) UpdateUserSettings(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidUserSettingsName}
 	}
 
+	// Upsert may create the settings row; distinguish the two audit actions.
+	before, err := s.repo.GetByUserID(ctx, userID)
+	if err != nil && !errors.Is(err, repository.ErrUserSettingsNotFound) {
+		return nil, &ServerError{Err: err, Status: statusFailedGetUserSettings}
+	}
+
 	m, err := s.repo.Upsert(ctx, userID, req.Settings.Locale, req.Settings.Theme, req.Settings.EmailNotifications)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateUserSettings}
+	}
+
+	subject := auditSubject{
+		ResourceName: gen.UserSettingsResourceName{User: n.User}.String(),
+		ResourceID:   m.ID,
+	}
+	var action string
+	var beforeAny any
+	if before == nil {
+		action, beforeAny = AuditActionCreate, nil
+	} else {
+		action, beforeAny = AuditActionUpdate, before
+	}
+	if err := s.audits.Record(ctx, subject, action, beforeAny, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return UserSettingsToProto(n.UserResourceName(), m), nil

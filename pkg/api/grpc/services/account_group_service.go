@@ -33,11 +33,12 @@ var (
 type accountGroupServiceServer struct {
 	gen.UnimplementedAccountGroupServiceServer
 	repo     *repository.AccountGroupRepository
+	audits   *auditWriter
 	enforcer *authz.Enforcer
 }
 
-func newAccountGroupServiceServer(repo *repository.AccountGroupRepository, enforcer *authz.Enforcer) gen.AccountGroupServiceServer {
-	return &accountGroupServiceServer{repo: repo, enforcer: enforcer}
+func newAccountGroupServiceServer(repo *repository.AccountGroupRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.AccountGroupServiceServer {
+	return &accountGroupServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
 func (s *accountGroupServiceServer) GetAccountGroup(ctx context.Context, req *gen.GetAccountGroupRequest) (*gen.AccountGroup, error) {
@@ -167,6 +168,12 @@ func (s *accountGroupServiceServer) CreateAccountGroup(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusFailedCreateAccountGroup}
 	}
 
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		pn.AccountGroupResourceName(m.CustomID).String(), orgID, m.ID,
+	), AuditActionCreate, nil, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+	}
+
 	return AccountGroupToProto(pn, m), nil
 }
 
@@ -200,6 +207,8 @@ func (s *accountGroupServiceServer) UpdateAccountGroup(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
 	}
 
+	before := *m
+
 	updateParams := repository.UpdateAccountGroupParams{
 		DisplayName:        optional.From(req.AccountGroup.DisplayName),
 		DisplayDescription: optional.From(req.AccountGroup.DisplayDescription),
@@ -213,6 +222,12 @@ func (s *accountGroupServiceServer) UpdateAccountGroup(ctx context.Context, req 
 	m, err = s.repo.GetByID(ctx, m.ID)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateAccountGroup}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionUpdate, &before, m); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return AccountGroupToProto(n.OrganizationResourceName(), m), nil
@@ -250,6 +265,12 @@ func (s *accountGroupServiceServer) DeleteAccountGroup(ctx context.Context, req 
 		}
 
 		return nil, &ServerError{Err: err, Status: statusFailedDeleteAccountGroup}
+	}
+
+	if err := s.audits.Record(ctx, orgAuditSubject(
+		n.String(), orgID, m.ID,
+	), AuditActionDelete, m, nil); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
 	return &emptypb.Empty{}, nil

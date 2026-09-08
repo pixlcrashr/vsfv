@@ -19,6 +19,10 @@ var (
 	statusUnauthenticated  = status.New(codes.Unauthenticated, "authentication required")
 	statusPermissionDenied = status.New(codes.PermissionDenied, "permission denied")
 
+	// Audit log write failure (returned after a successful mutation so that
+	// audit gaps are never silent).
+	statusFailedRecordAudit = status.New(codes.Internal, "change succeeded but failed to record audit log entry")
+
 	// used by account_group, account, budget, import_source, transaction_account, report_template, report services
 	statusOrganizationNotFound = status.New(codes.NotFound, "organization not found")
 

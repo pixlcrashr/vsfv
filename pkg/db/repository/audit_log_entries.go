@@ -117,7 +117,9 @@ func (r *AuditLogEntryRepository) List(ctx context.Context, params ListAuditLogE
 			db = db.Order(expr.String())
 		}
 	} else {
-		db = db.Order("created_at DESC")
+		// The id tiebreaker keeps the sort deterministic for entries
+		// recorded within the same timestamp (e.g. batch upserts).
+		db = db.Order("created_at DESC, id")
 	}
 
 	offset := (params.Page - 1) * params.PageSize

@@ -145,6 +145,13 @@ var (
 	userGroupDecls = mustDecls(
 		filtering.DeclareIdent("display_name", filtering.TypeString),
 	)
+	auditLogEntryDecls = mustDecls(
+		filtering.DeclareIdent("resource", filtering.TypeString),
+		filtering.DeclareIdent("actor", filtering.TypeString),
+		filtering.DeclareIdent("action", filtering.TypeString),
+		filtering.DeclareIdent("organization", filtering.TypeString),
+		filtering.DeclareIdent("timestamp", filtering.TypeString),
+	)
 )
 
 // maxFilterDepth is the maximum nesting level for filter conditions (AND/OR/NOT).
@@ -601,6 +608,95 @@ func ParseUserGroupFilter(raw string) (cond.Cond, error) {
 		return nil, err
 	}
 	return buildCond(f.CheckedExpr.GetExpr(), 0)
+}
+
+// ── AuditLogEntry ────────────────────────────────────────────────────────────
+
+// ParseAuditLogEntryFilter parses an AIP-160 filter string into an abstract
+// condition chain.
+func ParseAuditLogEntryFilter(raw string) (cond.Cond, error) {
+	f, err := parseWith(raw, auditLogEntryDecls)
+	if err != nil || f == nil {
+		return nil, err
+	}
+	return buildCond(f.CheckedExpr.GetExpr(), 0)
+}
+
+// AuditLogEntryFilters holds the filter parameters that are resolved to UUIDs
+// at the service level instead of being applied as raw column conditions.
+type AuditLogEntryFilters struct {
+	// Actor is the actor resource name (users/{user}) from an equality filter.
+	Actor string
+	// Organization is the organization resource name (organizations/{org})
+	// from an equality filter.
+	Organization string
+}
+
+// ExtractAuditLogEntryFilters parses the supported resource-reference filters
+// (actor, organization) out of a condition chain and returns the remaining
+// condition for SQL evaluation.
+func ExtractAuditLogEntryFilters(c cond.Cond) (*AuditLogEntryFilters, cond.Cond, error) {
+	filters := &AuditLogEntryFilters{}
+
+	var extract func(c cond.Cond) error
+	extract = func(c cond.Cond) error {
+		if c == nil || c.IsEmpty() {
+			return nil
+		}
+
+		switch cc := c.(type) {
+		case cond.FieldCond:
+			s, ok := cc.Value.(string)
+			if !ok {
+				return nil
+			}
+			switch cc.Field {
+			case "actor":
+				if cc.Op != cond.OpEq {
+					return fmt.Errorf("actor filter only supports equality")
+				}
+				filters.Actor = s
+			case "organization":
+				if cc.Op != cond.OpEq {
+					return fmt.Errorf("organization filter only supports equality")
+				}
+				filters.Organization = s
+			}
+			return nil
+		case cond.AndCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.OrCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.NotCond:
+			if err := extract(cc.Inner); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := extract(c); err != nil {
+		return nil, nil, err
+	}
+
+	remaining := cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+		if field == "actor" || field == "organization" {
+			return "", nil, false
+		}
+		return field, value, true
+	})
+	if remaining != nil && remaining.IsEmpty() {
+		remaining = nil
+	}
+
+	return filters, remaining, nil
 }
 
 // ── AST walker ───────────────────────────────────────────────────────────────

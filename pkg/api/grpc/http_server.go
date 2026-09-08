@@ -70,6 +70,7 @@ func RegisterRoutes(app *fiber.App, svc *services.Services, authMiddleware func(
 	mustRegister(gen.RegisterUserSettingsServiceHandlerServer(ctx, mux, svc.UserSettings))
 	mustRegister(gen.RegisterUserIdentityServiceHandlerServer(ctx, mux, svc.UserIdentity))
 	mustRegister(gen.RegisterGroupServiceHandlerServer(ctx, mux, svc.Group))
+	mustRegister(gen.RegisterAuditLogServiceHandlerServer(ctx, mux, svc.AuditLog))
 
 	handler := http.StripPrefix("/api", http.Handler(mux))
 	if authMiddleware != nil {
