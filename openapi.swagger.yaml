@@ -8,61 +8,25 @@ info:
     email: info@pixlcrashr.dev
 tags:
   - name: AccountService
-    description: AccountService manages budget accounts in the chart of accounts.
   - name: AccountGroupService
-    description: AccountGroupService manages named groupings of budget accounts.
   - name: AccountGroupAssignmentService
-    description: AccountGroupAssignmentService manages account memberships within account groups.
+  - name: AuditLogService
   - name: BudgetService
-    description: BudgetService manages financial budgets.
   - name: BudgetAccountValueService
-    description: BudgetAccountValueService manages per-account value assignments within a budget.
   - name: BudgetActualAccountValueService
-    description: |-
-      BudgetActualAccountValueService provides read-only access to the computed
-      actual monetary values per budget account. Values are derived from the sum of
-      TransactionAccountAssignment values for transactions within the budget period.
-      All resources in this service are server-computed and immutable.
   - name: BudgetRevisionService
-    description: |-
-      BudgetRevisionService manages read-only revision history for budgets.
-      Revisions are created on demand and capture the full set of
-      BudgetAccountValues at the time of creation. Revisions are immutable.
   - name: BudgetRevisionAccountValueService
-    description: |-
-      BudgetRevisionAccountValueService provides read-only access to the
-      per-account values captured within a BudgetRevision. All resources in this
-      service are immutable and server-managed.
   - name: GroupService
-    description: GroupService manages groups and their per-organization permission policies.
   - name: LedgerAccountService
-    description: |-
-      LedgerAccountService manages ledger accounts for bookkeeping.
-      Accounts are auto-created during import; only Get, List, Update, Delete are exposed.
   - name: LedgerYearService
-    description: LedgerYearService manages fiscal/economic years within an organization.
   - name: OrganizationService
-    description: OrganizationService manages organizations.
   - name: ReportService
-    description: |-
-      ReportService manages generated report instances.
-      Note: report file download is handled exclusively by the Huma HTTP API.
   - name: ReportTemplateService
-    description: ReportTemplateService manages Handlebars templates used for report generation.
   - name: TransactionService
-    description: TransactionService manages financial transactions.
   - name: TransactionAssignmentService
-    description: TransactionAssignmentService manages transaction assignments to budget accounts.
   - name: UserService
-    description: |-
-      UserService provides a read-only administrative view of users.
-      Users are created exclusively through the SSO/OAuth2 flow.
   - name: UserIdentityService
-    description: |-
-      UserIdentityService provides a read-only view of the OAuth2 / SSO
-      connections linked to a user. No credentials are ever returned.
   - name: UserSettingsService
-    description: UserSettingsService manages per-user application preferences.
 host: test.pixlcrashr.dev
 basePath: /api
 schemes:
@@ -72,6 +36,58 @@ consumes:
 produces:
   - application/json
 paths:
+  /v1/auditLogEntries:
+    get:
+      summary: |-
+        Lists audit log entries with pagination.
+        Callers holding only organization-scoped auditLogs:read permissions
+        receive only the entries of the organizations they have access to.
+        Authorization:
+          Scope: auditLogs:read
+          Permission: auditLogs:read
+          Domain: global, or organization-scoped
+      operationId: AuditLogService_ListAuditLogEntries
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListAuditLogEntriesResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: page_size
+          description: |-
+            Maximum number of audit log entries to return. The service may return fewer.
+            If unspecified, at most 100 are returned. Maximum value is 200.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListAuditLogEntries call.
+          in: query
+          required: false
+          type: string
+        - name: filter
+          description: |-
+            Filter expression conforming to AIP-160.
+            Supported fields: resource, actor, action, organization, timestamp.
+            Examples: "action=CREATE", "organization=\"organizations/123\"",
+            "timestamp>=\"2026-01-01T00:00:00Z\"".
+          in: query
+          required: false
+          type: string
+        - name: order_by
+          description: |-
+            Order by expression (e.g. "timestamp", "timestamp desc"). Defaults to
+            "timestamp desc".
+          in: query
+          required: false
+          type: string
+      tags:
+        - AuditLogService
   /v1/groups:
     get:
       summary: |-
@@ -963,17 +979,17 @@ paths:
   /v1/{name_10}:
     get:
       summary: |-
-        Gets a single ledger year by resource name.
+        Gets a single ledger account by resource name.
         Authorization:
-          Scope: ledgerYear:read
-          Permission: ledgerYear:read
+          Scope: ledgerAccount:read
+          Permission: ledgerAccount:read
           Domain: organization-scoped
-      operationId: LedgerYearService_GetLedgerYear
+      operationId: LedgerAccountService_GetLedgerAccount
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1LedgerYear'
+            $ref: '#/definitions/v1LedgerAccount'
         default:
           description: An unexpected error response.
           schema:
@@ -981,14 +997,14 @@ paths:
       parameters:
         - name: name_10
           description: |-
-            The resource name of the ledger year.
-            Format: organizations/{organization}/ledgerYears/{ledger_year}
+            The resource name of the ledger account.
+            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/ledgerYears/[^/]+
+          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
       tags:
-        - LedgerYearService
+        - LedgerAccountService
     delete:
       summary: |-
         Deletes a transaction assignment.
@@ -1021,6 +1037,35 @@ paths:
   /v1/{name_11}:
     get:
       summary: |-
+        Gets a single ledger year by resource name.
+        Authorization:
+          Scope: ledgerYear:read
+          Permission: ledgerYear:read
+          Domain: organization-scoped
+      operationId: LedgerYearService_GetLedgerYear
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1LedgerYear'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_11
+          description: |-
+            The resource name of the ledger year.
+            Format: organizations/{organization}/ledgerYears/{ledger_year}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/ledgerYears/[^/]+
+      tags:
+        - LedgerYearService
+  /v1/{name_12}:
+    get:
+      summary: |-
         Gets a single organization by resource name.
         Authorization:
           Scope: organizations:read
@@ -1037,7 +1082,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_11
+        - name: name_12
           description: |-
             The resource name of the organization.
             Format: organizations/{organization}
@@ -1047,7 +1092,7 @@ paths:
           pattern: organizations/[^/]+
       tags:
         - OrganizationService
-  /v1/{name_12}:
+  /v1/{name_13}:
     get:
       summary: |-
         Gets report metadata by resource name.
@@ -1066,7 +1111,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_12
+        - name: name_13
           description: |-
             The resource name of the report.
             Format: organizations/{organization}/reports/{report}
@@ -1076,7 +1121,7 @@ paths:
           pattern: organizations/[^/]+/reports/[^/]+
       tags:
         - ReportService
-  /v1/{name_13}:
+  /v1/{name_14}:
     get:
       summary: |-
         Gets a single report template by resource name.
@@ -1095,7 +1140,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_13
+        - name: name_14
           description: |-
             The resource name of the report template.
             Format: organizations/{organization}/reportTemplates/{report_template}
@@ -1105,7 +1150,7 @@ paths:
           pattern: organizations/[^/]+/reportTemplates/[^/]+
       tags:
         - ReportTemplateService
-  /v1/{name_14}:
+  /v1/{name_15}:
     get:
       summary: |-
         Gets a single transaction by resource name.
@@ -1124,7 +1169,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_14
+        - name: name_15
           description: |-
             The resource name of the transaction.
             Format: organizations/{organization}/transactions/{transaction}
@@ -1134,7 +1179,7 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+
       tags:
         - TransactionService
-  /v1/{name_15}:
+  /v1/{name_16}:
     get:
       summary: |-
         Gets a single transaction assignment by resource name.
@@ -1153,7 +1198,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_15
+        - name: name_16
           description: |-
             The resource name of the transaction assignment.
             Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
@@ -1163,7 +1208,7 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+/assignments/[^/]+
       tags:
         - TransactionAssignmentService
-  /v1/{name_16}:
+  /v1/{name_17}:
     get:
       summary: |-
         Gets a single user by resource name.
@@ -1182,7 +1227,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_16
+        - name: name_17
           description: |-
             The resource name of the user.
             Format: users/{user}
@@ -1192,7 +1237,7 @@ paths:
           pattern: users/[^/]+
       tags:
         - UserService
-  /v1/{name_17}:
+  /v1/{name_18}:
     get:
       summary: |-
         Gets a single identity record.
@@ -1211,7 +1256,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_17
+        - name: name_18
           description: |-
             The resource name of the identity.
             Format: users/{user}/identities/{identity}
@@ -1221,7 +1266,7 @@ paths:
           pattern: users/[^/]+/identities/[^/]+
       tags:
         - UserIdentityService
-  /v1/{name_18}:
+  /v1/{name_19}:
     get:
       summary: |-
         Gets the settings for a user.
@@ -1240,7 +1285,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_18
+        - name: name_19
           description: |-
             The resource name of the user settings.
             Format: users/{user}/settings
@@ -1403,17 +1448,17 @@ paths:
   /v1/{name_3}:
     get:
       summary: |-
-        Gets a single budget by resource name.
+        Gets a single audit log entry by resource name.
         Authorization:
-          Scope: budgets:read
-          Permission: budgets:read
-          Domain: organization-scoped
-      operationId: BudgetService_GetBudget
+          Scope: auditLogs:read
+          Permission: auditLogs:read
+          Domain: global, or organization-scoped for entries below an organization
+      operationId: AuditLogService_GetAuditLogEntry
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1Budget'
+            $ref: '#/definitions/v1AuditLogEntry'
         default:
           description: An unexpected error response.
           schema:
@@ -1421,14 +1466,14 @@ paths:
       parameters:
         - name: name_3
           description: |-
-            The resource name of the budget.
-            Format: organizations/{organization}/budgets/{budget}
+            The resource name of the audit log entry.
+            Format: auditLogEntries/{audit_log_entry}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/budgets/[^/]+
+          pattern: auditLogEntries/[^/]+
       tags:
-        - BudgetService
+        - AuditLogService
     delete:
       summary: |-
         Permanently deletes a budget account value.
@@ -1461,17 +1506,17 @@ paths:
   /v1/{name_4}:
     get:
       summary: |-
-        Gets a single budget account value by resource name.
+        Gets a single budget by resource name.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
           Domain: organization-scoped
-      operationId: BudgetAccountValueService_GetBudgetAccountValue
+      operationId: BudgetService_GetBudget
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1BudgetAccountValue'
+            $ref: '#/definitions/v1Budget'
         default:
           description: An unexpected error response.
           schema:
@@ -1479,14 +1524,14 @@ paths:
       parameters:
         - name: name_4
           description: |-
-            The resource name of the budget account value.
-            Format: organizations/{organization}/budgets/{budget}/accountValues/{account_value}
+            The resource name of the budget.
+            Format: organizations/{organization}/budgets/{budget}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/budgets/[^/]+/accountValues/[^/]+
+          pattern: organizations/[^/]+/budgets/[^/]+
       tags:
-        - BudgetAccountValueService
+        - BudgetService
     delete:
       summary: |-
         Permanently deletes a group.
@@ -1519,17 +1564,17 @@ paths:
   /v1/{name_5}:
     get:
       summary: |-
-        Gets the computed actual value for a single account within a budget.
+        Gets a single budget account value by resource name.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
           Domain: organization-scoped
-      operationId: BudgetActualAccountValueService_GetBudgetActualAccountValue
+      operationId: BudgetAccountValueService_GetBudgetAccountValue
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1BudgetActualAccountValue'
+            $ref: '#/definitions/v1BudgetAccountValue'
         default:
           description: An unexpected error response.
           schema:
@@ -1537,14 +1582,14 @@ paths:
       parameters:
         - name: name_5
           description: |-
-            The resource name of the budget actual account value.
-            Format: organizations/{organization}/budgets/{budget}/actualAccountValues/{account}
+            The resource name of the budget account value.
+            Format: organizations/{organization}/budgets/{budget}/accountValues/{account_value}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/budgets/[^/]+/actualAccountValues/[^/]+
+          pattern: organizations/[^/]+/budgets/[^/]+/accountValues/[^/]+
       tags:
-        - BudgetActualAccountValueService
+        - BudgetAccountValueService
     delete:
       summary: |-
         Permanently deletes a ledger account.
@@ -1577,17 +1622,17 @@ paths:
   /v1/{name_6}:
     get:
       summary: |-
-        Gets a single budget revision by resource name.
+        Gets the computed actual value for a single account within a budget.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
           Domain: organization-scoped
-      operationId: BudgetRevisionService_GetBudgetRevision
+      operationId: BudgetActualAccountValueService_GetBudgetActualAccountValue
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1BudgetRevision'
+            $ref: '#/definitions/v1BudgetActualAccountValue'
         default:
           description: An unexpected error response.
           schema:
@@ -1595,14 +1640,14 @@ paths:
       parameters:
         - name: name_6
           description: |-
-            The resource name of the budget revision.
-            Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
+            The resource name of the budget actual account value.
+            Format: organizations/{organization}/budgets/{budget}/actualAccountValues/{account}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/budgets/[^/]+/revisions/[^/]+
+          pattern: organizations/[^/]+/budgets/[^/]+/actualAccountValues/[^/]+
       tags:
-        - BudgetRevisionService
+        - BudgetActualAccountValueService
     delete:
       summary: |-
         Permanently deletes an organization.
@@ -1635,17 +1680,17 @@ paths:
   /v1/{name_7}:
     get:
       summary: |-
-        Gets a single budget revision account value by resource name.
+        Gets a single budget revision by resource name.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
           Domain: organization-scoped
-      operationId: BudgetRevisionAccountValueService_GetBudgetRevisionAccountValue
+      operationId: BudgetRevisionService_GetBudgetRevision
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1BudgetRevisionAccountValue'
+            $ref: '#/definitions/v1BudgetRevision'
         default:
           description: An unexpected error response.
           schema:
@@ -1653,14 +1698,14 @@ paths:
       parameters:
         - name: name_7
           description: |-
-            The resource name of the budget revision account value.
-            Format: organizations/{organization}/budgets/{budget}/revisions/{revision}/accountValues/{account_value}
+            The resource name of the budget revision.
+            Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/budgets/[^/]+/revisions/[^/]+/accountValues/[^/]+
+          pattern: organizations/[^/]+/budgets/[^/]+/revisions/[^/]+
       tags:
-        - BudgetRevisionAccountValueService
+        - BudgetRevisionService
     delete:
       summary: |-
         Permanently deletes a report.
@@ -1693,17 +1738,17 @@ paths:
   /v1/{name_8}:
     get:
       summary: |-
-        Gets a single group by resource name.
+        Gets a single budget revision account value by resource name.
         Authorization:
-          Scope: groups:read
-          Permission: groups:read
-          Domain: global
-      operationId: GroupService_GetGroup
+          Scope: budgets:read
+          Permission: budgets:read
+          Domain: organization-scoped
+      operationId: BudgetRevisionAccountValueService_GetBudgetRevisionAccountValue
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1Group'
+            $ref: '#/definitions/v1BudgetRevisionAccountValue'
         default:
           description: An unexpected error response.
           schema:
@@ -1711,14 +1756,14 @@ paths:
       parameters:
         - name: name_8
           description: |-
-            The resource name of the group.
-            Format: groups/{group}
+            The resource name of the budget revision account value.
+            Format: organizations/{organization}/budgets/{budget}/revisions/{revision}/accountValues/{account_value}
           in: path
           required: true
           type: string
-          pattern: groups/[^/]+
+          pattern: organizations/[^/]+/budgets/[^/]+/revisions/[^/]+/accountValues/[^/]+
       tags:
-        - GroupService
+        - BudgetRevisionAccountValueService
     delete:
       summary: |-
         Permanently deletes a report template.
@@ -1751,17 +1796,17 @@ paths:
   /v1/{name_9}:
     get:
       summary: |-
-        Gets a single ledger account by resource name.
+        Gets a single group by resource name.
         Authorization:
-          Scope: ledgerAccount:read
-          Permission: ledgerAccount:read
-          Domain: organization-scoped
-      operationId: LedgerAccountService_GetLedgerAccount
+          Scope: groups:read
+          Permission: groups:read
+          Domain: global
+      operationId: GroupService_GetGroup
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1LedgerAccount'
+            $ref: '#/definitions/v1Group'
         default:
           description: An unexpected error response.
           schema:
@@ -1769,14 +1814,14 @@ paths:
       parameters:
         - name: name_9
           description: |-
-            The resource name of the ledger account.
-            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+            The resource name of the group.
+            Format: groups/{group}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
+          pattern: groups/[^/]+
       tags:
-        - LedgerAccountService
+        - GroupService
     delete:
       summary: |-
         Permanently deletes a transaction.
@@ -3938,6 +3983,38 @@ definitions:
     type: object
   AccountServiceRestoreAccountBody:
     type: object
+  AuditLogEntryAction:
+    type: string
+    enum:
+      - ACTION_UNSPECIFIED
+      - ACTION_CREATE
+      - ACTION_UPDATE
+      - ACTION_DELETE
+    default: ACTION_UNSPECIFIED
+    description: |-
+      The kind of change that was recorded.
+
+       - ACTION_UNSPECIFIED: The action is unspecified. Should never be used.
+       - ACTION_CREATE: The resource was created.
+       - ACTION_UPDATE: The resource was updated (one or more fields changed).
+       - ACTION_DELETE: The resource was deleted.
+  AuditLogEntryChange:
+    type: object
+    properties:
+      field:
+        type: string
+        description: The name of the changed field (snake_case, as in the API resource).
+      old_value:
+        type: string
+        description: The field value before the change (empty for creations).
+      new_value:
+        type: string
+        description: The field value after the change (empty for deletions).
+    description: |-
+      Change describes a single field-level modification within an audit log
+      entry. Values are rendered as strings; an empty value means the field was
+      absent (or null) in that state. For creations, old_value is empty for all
+      changes; for deletions, new_value is empty for all changes.
   BudgetAccountValueServiceBatchUpdateBudgetAccountValuesBody:
     type: object
     properties:
@@ -4210,6 +4287,61 @@ definitions:
        - ACCOUNT_TYPE_REVENUE: Revenue account (e.g., sales, interest income).
        - ACCOUNT_TYPE_EXPENSE: Expense account (e.g., rent, salaries, utilities).
        - ACCOUNT_TYPE_SYSTEM: System account for internal calculations. Special internal use only.
+  v1AuditLogEntry:
+    type: object
+    properties:
+      name:
+        type: string
+        title: |-
+          The resource name of the audit log entry.
+          Format: auditLogEntries/{audit_log_entry}
+        readOnly: true
+      uid:
+        type: string
+        description: The UUID of the audit log entry.
+        readOnly: true
+      resource:
+        type: string
+        title: |-
+          The full resource name of the object this entry refers to.
+          Format: e.g. organizations/{organization}/accounts/{account} or users/{user}
+        readOnly: true
+      organization:
+        type: string
+        title: |-
+          The resource name of the organization the audited resource belongs to.
+          Empty for resources that are not subordinated under an organization
+          (e.g. users, groups, organizations themselves).
+          Format: organizations/{organization}
+        readOnly: true
+      action:
+        $ref: '#/definitions/AuditLogEntryAction'
+        description: The kind of change that was recorded.
+        readOnly: true
+      actor:
+        type: string
+        title: |-
+          The resource name of the user who performed the change.
+          Empty if the change was performed by the system.
+          Format: users/{user}
+        readOnly: true
+      changes:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/AuditLogEntryChange'
+        description: The per-field changes recorded by this entry.
+        readOnly: true
+      timestamp:
+        type: string
+        format: date-time
+        description: The time at which the change was recorded.
+        readOnly: true
+    description: |-
+      AuditLogEntry is an immutable record of a single change to a resource.
+      One entry is created per mutating API call: an update that changes multiple
+      fields at once results in a single entry containing the per-field diff.
+      Entries are append-only and can never be modified or deleted.
   v1BatchCheckUserPermissionsRequest:
     type: object
     properties:
@@ -4788,6 +4920,22 @@ definitions:
         type: string
         format: int64
         description: Total number of accounts matching the filter (may be an estimate).
+  v1ListAuditLogEntriesResponse:
+    type: object
+    properties:
+      audit_log_entries:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1AuditLogEntry'
+        description: The audit log entries returned.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+      total_size:
+        type: string
+        format: int64
+        description: Total number of audit log entries matching the filter (may be an estimate).
   v1ListBudgetAccountValuesResponse:
     type: object
     properties:
