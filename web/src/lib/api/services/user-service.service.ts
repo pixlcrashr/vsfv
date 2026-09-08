@@ -14,18 +14,13 @@ import { V1User } from '../models/v1user';
 import { V1CheckUserPermissionsResponse } from '../models/v1check-user-permissions-response';
 import { UserServiceCheckUserPermissionsBody } from '../models/user-service-check-user-permissions-body';
 import { V1ListUserGroupsResponse } from '../models/v1list-user-groups-response';
-
-/**
- * UserService provides a read-only administrative view of users.
- * Users are created exclusively through the SSO/OAuth2 flow.
- */
 @Injectable({
   providedIn: 'root',
 })
 class UserServiceService extends __BaseService {
   static readonly UserServiceListUsersPath = '/v1/users';
   static readonly UserServiceBatchCheckUserPermissionsPath = '/v1/users:batchCheckPermissions';
-  static readonly UserServiceGetUserPath = '/v1/{name_16}';
+  static readonly UserServiceGetUserPath = '/v1/{name_17}';
   static readonly UserServiceCheckUserPermissionsPath = '/v1/{name}:checkPermissions';
   static readonly UserServiceListUserGroupsPath = '/v1/{name}:listGroups';
 
@@ -165,18 +160,18 @@ class UserServiceService extends __BaseService {
    *   Scope: users:read
    *   Permission: users:read
    *   Domain: global
-   * @param name_16 The resource name of the user.
+   * @param name_17 The resource name of the user.
    * Format: users/{user}
    * @return A successful response.
    */
-  UserServiceGetUserResponse(name16: string): __Observable<__StrictHttpResponse<V1User>> {
+  UserServiceGetUserResponse(name17: string): __Observable<__StrictHttpResponse<V1User>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name16))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name17))}`,
       __body,
       {
         headers: __headers,
@@ -197,12 +192,12 @@ class UserServiceService extends __BaseService {
    *   Scope: users:read
    *   Permission: users:read
    *   Domain: global
-   * @param name_16 The resource name of the user.
+   * @param name_17 The resource name of the user.
    * Format: users/{user}
    * @return A successful response.
    */
-  UserServiceGetUser(name16: string): __Observable<V1User> {
-    return this.UserServiceGetUserResponse(name16).pipe(
+  UserServiceGetUser(name17: string): __Observable<V1User> {
+    return this.UserServiceGetUserResponse(name17).pipe(
       __map(_r => _r.body as V1User)
     );
   }

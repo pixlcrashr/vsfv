@@ -9,17 +9,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1BudgetRevisionAccountValue } from '../models/v1budget-revision-account-value';
 import { V1ListBudgetRevisionAccountValuesResponse } from '../models/v1list-budget-revision-account-values-response';
-
-/**
- * BudgetRevisionAccountValueService provides read-only access to the
- * per-account values captured within a BudgetRevision. All resources in this
- * service are immutable and server-managed.
- */
 @Injectable({
   providedIn: 'root',
 })
 class BudgetRevisionAccountValueServiceService extends __BaseService {
-  static readonly BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValuePath = '/v1/{name_7}';
+  static readonly BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValuePath = '/v1/{name_8}';
   static readonly BudgetRevisionAccountValueServiceListBudgetRevisionAccountValuesPath = '/v1/{parent_1}/accountValues';
 
   constructor(
@@ -35,18 +29,18 @@ class BudgetRevisionAccountValueServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_7 The resource name of the budget revision account value.
+   * @param name_8 The resource name of the budget revision account value.
    * Format: organizations/{organization}/budgets/{budget}/revisions/{revision}/accountValues/{account_value}
    * @return A successful response.
    */
-  BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValueResponse(name7: string): __Observable<__StrictHttpResponse<V1BudgetRevisionAccountValue>> {
+  BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValueResponse(name8: string): __Observable<__StrictHttpResponse<V1BudgetRevisionAccountValue>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name7))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name8))}`,
       __body,
       {
         headers: __headers,
@@ -67,12 +61,12 @@ class BudgetRevisionAccountValueServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_7 The resource name of the budget revision account value.
+   * @param name_8 The resource name of the budget revision account value.
    * Format: organizations/{organization}/budgets/{budget}/revisions/{revision}/accountValues/{account_value}
    * @return A successful response.
    */
-  BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValue(name7: string): __Observable<V1BudgetRevisionAccountValue> {
-    return this.BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValueResponse(name7).pipe(
+  BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValue(name8: string): __Observable<V1BudgetRevisionAccountValue> {
+    return this.BudgetRevisionAccountValueServiceGetBudgetRevisionAccountValueResponse(name8).pipe(
       __map(_r => _r.body as V1BudgetRevisionAccountValue)
     );
   }

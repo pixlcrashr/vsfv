@@ -11,17 +11,13 @@ import { V1Budget } from '../models/v1budget';
 import { TypeDate } from '../models/type-date';
 import { BudgetServiceCloseBudgetBody } from '../models/budget-service-close-budget-body';
 import { V1ListBudgetsResponse } from '../models/v1list-budgets-response';
-
-/**
- * BudgetService manages financial budgets.
- */
 @Injectable({
   providedIn: 'root',
 })
 class BudgetServiceService extends __BaseService {
   static readonly BudgetServiceUpdateBudgetPath = '/v1/{budget.name}';
   static readonly BudgetServiceDeleteBudgetPath = '/v1/{name_2}';
-  static readonly BudgetServiceGetBudgetPath = '/v1/{name_3}';
+  static readonly BudgetServiceGetBudgetPath = '/v1/{name_4}';
   static readonly BudgetServiceCloseBudgetPath = '/v1/{name}:close';
   static readonly BudgetServiceListBudgetsPath = '/v1/{parent}/budgets';
   static readonly BudgetServiceCreateBudgetPath = '/v1/{parent}/budgets';
@@ -146,18 +142,18 @@ class BudgetServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_3 The resource name of the budget.
+   * @param name_4 The resource name of the budget.
    * Format: organizations/{organization}/budgets/{budget}
    * @return A successful response.
    */
-  BudgetServiceGetBudgetResponse(name3: string): __Observable<__StrictHttpResponse<V1Budget>> {
+  BudgetServiceGetBudgetResponse(name4: string): __Observable<__StrictHttpResponse<V1Budget>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name3))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name4))}`,
       __body,
       {
         headers: __headers,
@@ -178,12 +174,12 @@ class BudgetServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_3 The resource name of the budget.
+   * @param name_4 The resource name of the budget.
    * Format: organizations/{organization}/budgets/{budget}
    * @return A successful response.
    */
-  BudgetServiceGetBudget(name3: string): __Observable<V1Budget> {
-    return this.BudgetServiceGetBudgetResponse(name3).pipe(
+  BudgetServiceGetBudget(name4: string): __Observable<V1Budget> {
+    return this.BudgetServiceGetBudgetResponse(name4).pipe(
       __map(_r => _r.body as V1Budget)
     );
   }

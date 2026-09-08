@@ -11,18 +11,13 @@ import { V1LedgerAccount } from '../models/v1ledger-account';
 import { V1AccountType } from '../models/v1account-type';
 import { V1ListLedgerAccountsResponse } from '../models/v1list-ledger-accounts-response';
 import { V1BatchGetLedgerAccountsResponse } from '../models/v1batch-get-ledger-accounts-response';
-
-/**
- * LedgerAccountService manages ledger accounts for bookkeeping.
- * Accounts are auto-created during import; only Get, List, Update, Delete are exposed.
- */
 @Injectable({
   providedIn: 'root',
 })
 class LedgerAccountServiceService extends __BaseService {
   static readonly LedgerAccountServiceUpdateLedgerAccountPath = '/v1/{ledger_account.name}';
+  static readonly LedgerAccountServiceGetLedgerAccountPath = '/v1/{name_10}';
   static readonly LedgerAccountServiceDeleteLedgerAccountPath = '/v1/{name_5}';
-  static readonly LedgerAccountServiceGetLedgerAccountPath = '/v1/{name_9}';
   static readonly LedgerAccountServiceListLedgerAccountsPath = '/v1/{parent}/ledgerAccounts';
   static readonly LedgerAccountServiceBatchGetLedgerAccountsPath = '/v1/{parent}/ledgerAccounts:batchGet';
 
@@ -93,6 +88,54 @@ class LedgerAccountServiceService extends __BaseService {
   }
 
   /**
+   * Gets a single ledger account by resource name.
+   * Authorization:
+   *   Scope: ledgerAccount:read
+   *   Permission: ledgerAccount:read
+   *   Domain: organization-scoped
+   * @param name_10 The resource name of the ledger account.
+   * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+   * @return A successful response.
+   */
+  LedgerAccountServiceGetLedgerAccountResponse(name10: string): __Observable<__StrictHttpResponse<V1LedgerAccount>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1LedgerAccount>;
+      })
+    );
+  }
+  /**
+   * Gets a single ledger account by resource name.
+   * Authorization:
+   *   Scope: ledgerAccount:read
+   *   Permission: ledgerAccount:read
+   *   Domain: organization-scoped
+   * @param name_10 The resource name of the ledger account.
+   * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+   * @return A successful response.
+   */
+  LedgerAccountServiceGetLedgerAccount(name10: string): __Observable<V1LedgerAccount> {
+    return this.LedgerAccountServiceGetLedgerAccountResponse(name10).pipe(
+      __map(_r => _r.body as V1LedgerAccount)
+    );
+  }
+
+  /**
    * Permanently deletes a ledger account.
    * Authorization:
    *   Scope: ledgerAccount:write
@@ -137,54 +180,6 @@ class LedgerAccountServiceService extends __BaseService {
   LedgerAccountServiceDeleteLedgerAccount(name5: string): __Observable<{}> {
     return this.LedgerAccountServiceDeleteLedgerAccountResponse(name5).pipe(
       __map(_r => _r.body as {})
-    );
-  }
-
-  /**
-   * Gets a single ledger account by resource name.
-   * Authorization:
-   *   Scope: ledgerAccount:read
-   *   Permission: ledgerAccount:read
-   *   Domain: organization-scoped
-   * @param name_9 The resource name of the ledger account.
-   * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
-   * @return A successful response.
-   */
-  LedgerAccountServiceGetLedgerAccountResponse(name9: string): __Observable<__StrictHttpResponse<V1LedgerAccount>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<V1LedgerAccount>;
-      })
-    );
-  }
-  /**
-   * Gets a single ledger account by resource name.
-   * Authorization:
-   *   Scope: ledgerAccount:read
-   *   Permission: ledgerAccount:read
-   *   Domain: organization-scoped
-   * @param name_9 The resource name of the ledger account.
-   * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
-   * @return A successful response.
-   */
-  LedgerAccountServiceGetLedgerAccount(name9: string): __Observable<V1LedgerAccount> {
-    return this.LedgerAccountServiceGetLedgerAccountResponse(name9).pipe(
-      __map(_r => _r.body as V1LedgerAccount)
     );
   }
 

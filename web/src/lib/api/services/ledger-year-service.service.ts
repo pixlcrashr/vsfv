@@ -10,15 +10,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1LedgerYear } from '../models/v1ledger-year';
 import { LedgerYearServiceCloseLedgerYearBody } from '../models/ledger-year-service-close-ledger-year-body';
 import { V1ListLedgerYearsResponse } from '../models/v1list-ledger-years-response';
-
-/**
- * LedgerYearService manages fiscal/economic years within an organization.
- */
 @Injectable({
   providedIn: 'root',
 })
 class LedgerYearServiceService extends __BaseService {
-  static readonly LedgerYearServiceGetLedgerYearPath = '/v1/{name_10}';
+  static readonly LedgerYearServiceGetLedgerYearPath = '/v1/{name_11}';
   static readonly LedgerYearServiceCloseLedgerYearPath = '/v1/{name_1}:close';
   static readonly LedgerYearServiceListLedgerYearsPath = '/v1/{parent}/ledgerYears';
 
@@ -35,18 +31,18 @@ class LedgerYearServiceService extends __BaseService {
    *   Scope: ledgerYear:read
    *   Permission: ledgerYear:read
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the ledger year.
+   * @param name_11 The resource name of the ledger year.
    * Format: organizations/{organization}/ledgerYears/{ledger_year}
    * @return A successful response.
    */
-  LedgerYearServiceGetLedgerYearResponse(name10: string): __Observable<__StrictHttpResponse<V1LedgerYear>> {
+  LedgerYearServiceGetLedgerYearResponse(name11: string): __Observable<__StrictHttpResponse<V1LedgerYear>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name11))}`,
       __body,
       {
         headers: __headers,
@@ -67,12 +63,12 @@ class LedgerYearServiceService extends __BaseService {
    *   Scope: ledgerYear:read
    *   Permission: ledgerYear:read
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the ledger year.
+   * @param name_11 The resource name of the ledger year.
    * Format: organizations/{organization}/ledgerYears/{ledger_year}
    * @return A successful response.
    */
-  LedgerYearServiceGetLedgerYear(name10: string): __Observable<V1LedgerYear> {
-    return this.LedgerYearServiceGetLedgerYearResponse(name10).pipe(
+  LedgerYearServiceGetLedgerYear(name11: string): __Observable<V1LedgerYear> {
+    return this.LedgerYearServiceGetLedgerYearResponse(name11).pipe(
       __map(_r => _r.body as V1LedgerYear)
     );
   }

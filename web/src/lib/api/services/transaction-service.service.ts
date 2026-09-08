@@ -10,15 +10,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1Transaction } from '../models/v1transaction';
 import { V1ListTransactionsResponse } from '../models/v1list-transactions-response';
 import { V1Decimal } from '../models/v1decimal';
-
-/**
- * TransactionService manages financial transactions.
- */
 @Injectable({
   providedIn: 'root',
 })
 class TransactionServiceService extends __BaseService {
-  static readonly TransactionServiceGetTransactionPath = '/v1/{name_14}';
+  static readonly TransactionServiceGetTransactionPath = '/v1/{name_15}';
   static readonly TransactionServiceDeleteTransactionPath = '/v1/{name_9}';
   static readonly TransactionServiceListTransactionsPath = '/v1/{parent}/transactions';
   static readonly TransactionServiceCreateTransactionPath = '/v1/{parent}/transactions';
@@ -37,18 +33,18 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:read
    *   Permission: transactions:read
    *   Domain: organization-scoped
-   * @param name_14 The resource name of the transaction.
+   * @param name_15 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceGetTransactionResponse(name14: string): __Observable<__StrictHttpResponse<V1Transaction>> {
+  TransactionServiceGetTransactionResponse(name15: string): __Observable<__StrictHttpResponse<V1Transaction>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name14))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name15))}`,
       __body,
       {
         headers: __headers,
@@ -69,12 +65,12 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:read
    *   Permission: transactions:read
    *   Domain: organization-scoped
-   * @param name_14 The resource name of the transaction.
+   * @param name_15 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceGetTransaction(name14: string): __Observable<V1Transaction> {
-    return this.TransactionServiceGetTransactionResponse(name14).pipe(
+  TransactionServiceGetTransaction(name15: string): __Observable<V1Transaction> {
+    return this.TransactionServiceGetTransactionResponse(name15).pipe(
       __map(_r => _r.body as V1Transaction)
     );
   }

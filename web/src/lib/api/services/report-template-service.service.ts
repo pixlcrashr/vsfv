@@ -11,16 +11,12 @@ import { V1GenerateHtmlPreviewResponse } from '../models/v1generate-html-preview
 import { V1GenerateHtmlPreviewRequest } from '../models/v1generate-html-preview-request';
 import { V1ReportTemplate } from '../models/v1report-template';
 import { V1ListReportTemplatesResponse } from '../models/v1list-report-templates-response';
-
-/**
- * ReportTemplateService manages Handlebars templates used for report generation.
- */
 @Injectable({
   providedIn: 'root',
 })
 class ReportTemplateServiceService extends __BaseService {
   static readonly ReportTemplateServiceGenerateHtmlPreviewPath = '/v1/reportTemplates:generateHtmlPreview';
-  static readonly ReportTemplateServiceGetReportTemplatePath = '/v1/{name_13}';
+  static readonly ReportTemplateServiceGetReportTemplatePath = '/v1/{name_14}';
   static readonly ReportTemplateServiceDeleteReportTemplatePath = '/v1/{name_8}';
   static readonly ReportTemplateServiceListReportTemplatesPath = '/v1/{parent}/reportTemplates';
   static readonly ReportTemplateServiceCreateReportTemplatePath = '/v1/{parent}/reportTemplates';
@@ -91,18 +87,18 @@ class ReportTemplateServiceService extends __BaseService {
    *   Scope: reportTemplates:read
    *   Permission: reportTemplates:read
    *   Domain: organization-scoped
-   * @param name_13 The resource name of the report template.
+   * @param name_14 The resource name of the report template.
    * Format: organizations/{organization}/reportTemplates/{report_template}
    * @return A successful response.
    */
-  ReportTemplateServiceGetReportTemplateResponse(name13: string): __Observable<__StrictHttpResponse<V1ReportTemplate>> {
+  ReportTemplateServiceGetReportTemplateResponse(name14: string): __Observable<__StrictHttpResponse<V1ReportTemplate>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name14))}`,
       __body,
       {
         headers: __headers,
@@ -123,12 +119,12 @@ class ReportTemplateServiceService extends __BaseService {
    *   Scope: reportTemplates:read
    *   Permission: reportTemplates:read
    *   Domain: organization-scoped
-   * @param name_13 The resource name of the report template.
+   * @param name_14 The resource name of the report template.
    * Format: organizations/{organization}/reportTemplates/{report_template}
    * @return A successful response.
    */
-  ReportTemplateServiceGetReportTemplate(name13: string): __Observable<V1ReportTemplate> {
-    return this.ReportTemplateServiceGetReportTemplateResponse(name13).pipe(
+  ReportTemplateServiceGetReportTemplate(name14: string): __Observable<V1ReportTemplate> {
+    return this.ReportTemplateServiceGetReportTemplateResponse(name14).pipe(
       __map(_r => _r.body as V1ReportTemplate)
     );
   }

@@ -9,10 +9,6 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1AccountGroupAssignment } from '../models/v1account-group-assignment';
 import { V1ListAccountGroupAssignmentsResponse } from '../models/v1list-account-group-assignments-response';
-
-/**
- * AccountGroupAssignmentService manages account memberships within account groups.
- */
 @Injectable({
   providedIn: 'root',
 })

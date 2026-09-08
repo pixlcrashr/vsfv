@@ -10,18 +10,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1BudgetActualAccountValue } from '../models/v1budget-actual-account-value';
 import { V1ListBudgetActualAccountValuesResponse } from '../models/v1list-budget-actual-account-values-response';
 import { V1BatchGetBudgetActualAccountValuesResponse } from '../models/v1batch-get-budget-actual-account-values-response';
-
-/**
- * BudgetActualAccountValueService provides read-only access to the computed
- * actual monetary values per budget account. Values are derived from the sum of
- * TransactionAccountAssignment values for transactions within the budget period.
- * All resources in this service are server-computed and immutable.
- */
 @Injectable({
   providedIn: 'root',
 })
 class BudgetActualAccountValueServiceService extends __BaseService {
-  static readonly BudgetActualAccountValueServiceGetBudgetActualAccountValuePath = '/v1/{name_5}';
+  static readonly BudgetActualAccountValueServiceGetBudgetActualAccountValuePath = '/v1/{name_6}';
   static readonly BudgetActualAccountValueServiceListBudgetActualAccountValuesPath = '/v1/{parent}/actualAccountValues';
   static readonly BudgetActualAccountValueServiceBatchGetBudgetActualAccountValuesPath = '/v1/{parent}/budgets/-/actualAccountValues:batchGet';
 
@@ -38,18 +31,18 @@ class BudgetActualAccountValueServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_5 The resource name of the budget actual account value.
+   * @param name_6 The resource name of the budget actual account value.
    * Format: organizations/{organization}/budgets/{budget}/actualAccountValues/{account}
    * @return A successful response.
    */
-  BudgetActualAccountValueServiceGetBudgetActualAccountValueResponse(name5: string): __Observable<__StrictHttpResponse<V1BudgetActualAccountValue>> {
+  BudgetActualAccountValueServiceGetBudgetActualAccountValueResponse(name6: string): __Observable<__StrictHttpResponse<V1BudgetActualAccountValue>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name5))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name6))}`,
       __body,
       {
         headers: __headers,
@@ -70,12 +63,12 @@ class BudgetActualAccountValueServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_5 The resource name of the budget actual account value.
+   * @param name_6 The resource name of the budget actual account value.
    * Format: organizations/{organization}/budgets/{budget}/actualAccountValues/{account}
    * @return A successful response.
    */
-  BudgetActualAccountValueServiceGetBudgetActualAccountValue(name5: string): __Observable<V1BudgetActualAccountValue> {
-    return this.BudgetActualAccountValueServiceGetBudgetActualAccountValueResponse(name5).pipe(
+  BudgetActualAccountValueServiceGetBudgetActualAccountValue(name6: string): __Observable<V1BudgetActualAccountValue> {
+    return this.BudgetActualAccountValueServiceGetBudgetActualAccountValueResponse(name6).pipe(
       __map(_r => _r.body as V1BudgetActualAccountValue)
     );
   }

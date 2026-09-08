@@ -10,17 +10,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 import { V1BudgetRevision } from '../models/v1budget-revision';
 import { V1ListBudgetRevisionsResponse } from '../models/v1list-budget-revisions-response';
 import { TypeDate } from '../models/type-date';
-
-/**
- * BudgetRevisionService manages read-only revision history for budgets.
- * Revisions are created on demand and capture the full set of
- * BudgetAccountValues at the time of creation. Revisions are immutable.
- */
 @Injectable({
   providedIn: 'root',
 })
 class BudgetRevisionServiceService extends __BaseService {
-  static readonly BudgetRevisionServiceGetBudgetRevisionPath = '/v1/{name_6}';
+  static readonly BudgetRevisionServiceGetBudgetRevisionPath = '/v1/{name_7}';
   static readonly BudgetRevisionServiceListBudgetRevisionsPath = '/v1/{parent}/revisions';
   static readonly BudgetRevisionServiceCreateBudgetRevisionPath = '/v1/{parent}/revisions';
   static readonly BudgetRevisionServiceGetLatestBudgetRevisionPath = '/v1/{parent}/revisions:getLatest';
@@ -39,18 +33,18 @@ class BudgetRevisionServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_6 The resource name of the budget revision.
+   * @param name_7 The resource name of the budget revision.
    * Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
    * @return A successful response.
    */
-  BudgetRevisionServiceGetBudgetRevisionResponse(name6: string): __Observable<__StrictHttpResponse<V1BudgetRevision>> {
+  BudgetRevisionServiceGetBudgetRevisionResponse(name7: string): __Observable<__StrictHttpResponse<V1BudgetRevision>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name6))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name7))}`,
       __body,
       {
         headers: __headers,
@@ -71,12 +65,12 @@ class BudgetRevisionServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_6 The resource name of the budget revision.
+   * @param name_7 The resource name of the budget revision.
    * Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
    * @return A successful response.
    */
-  BudgetRevisionServiceGetBudgetRevision(name6: string): __Observable<V1BudgetRevision> {
-    return this.BudgetRevisionServiceGetBudgetRevisionResponse(name6).pipe(
+  BudgetRevisionServiceGetBudgetRevision(name7: string): __Observable<V1BudgetRevision> {
+    return this.BudgetRevisionServiceGetBudgetRevisionResponse(name7).pipe(
       __map(_r => _r.body as V1BudgetRevision)
     );
   }

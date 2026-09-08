@@ -12,17 +12,13 @@ import { V1Decimal } from '../models/v1decimal';
 import { V1ListBudgetAccountValuesResponse } from '../models/v1list-budget-account-values-response';
 import { V1BatchUpdateBudgetAccountValuesResponse } from '../models/v1batch-update-budget-account-values-response';
 import { BudgetAccountValueServiceBatchUpdateBudgetAccountValuesBody } from '../models/budget-account-value-service-batch-update-budget-account-values-body';
-
-/**
- * BudgetAccountValueService manages per-account value assignments within a budget.
- */
 @Injectable({
   providedIn: 'root',
 })
 class BudgetAccountValueServiceService extends __BaseService {
   static readonly BudgetAccountValueServiceUpdateBudgetAccountValuePath = '/v1/{account_value.name}';
   static readonly BudgetAccountValueServiceDeleteBudgetAccountValuePath = '/v1/{name_3}';
-  static readonly BudgetAccountValueServiceGetBudgetAccountValuePath = '/v1/{name_4}';
+  static readonly BudgetAccountValueServiceGetBudgetAccountValuePath = '/v1/{name_5}';
   static readonly BudgetAccountValueServiceListBudgetAccountValuesPath = '/v1/{parent}/accountValues';
   static readonly BudgetAccountValueServiceCreateBudgetAccountValuePath = '/v1/{parent}/accountValues';
   static readonly BudgetAccountValueServiceBatchUpdateBudgetAccountValuesPath = '/v1/{parent}/accountValues:batchUpdate';
@@ -154,18 +150,18 @@ class BudgetAccountValueServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_4 The resource name of the budget account value.
+   * @param name_5 The resource name of the budget account value.
    * Format: organizations/{organization}/budgets/{budget}/accountValues/{account_value}
    * @return A successful response.
    */
-  BudgetAccountValueServiceGetBudgetAccountValueResponse(name4: string): __Observable<__StrictHttpResponse<V1BudgetAccountValue>> {
+  BudgetAccountValueServiceGetBudgetAccountValueResponse(name5: string): __Observable<__StrictHttpResponse<V1BudgetAccountValue>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name4))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name5))}`,
       __body,
       {
         headers: __headers,
@@ -186,12 +182,12 @@ class BudgetAccountValueServiceService extends __BaseService {
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
-   * @param name_4 The resource name of the budget account value.
+   * @param name_5 The resource name of the budget account value.
    * Format: organizations/{organization}/budgets/{budget}/accountValues/{account_value}
    * @return A successful response.
    */
-  BudgetAccountValueServiceGetBudgetAccountValue(name4: string): __Observable<V1BudgetAccountValue> {
-    return this.BudgetAccountValueServiceGetBudgetAccountValueResponse(name4).pipe(
+  BudgetAccountValueServiceGetBudgetAccountValue(name5: string): __Observable<V1BudgetAccountValue> {
+    return this.BudgetAccountValueServiceGetBudgetAccountValueResponse(name5).pipe(
       __map(_r => _r.body as V1BudgetAccountValue)
     );
   }

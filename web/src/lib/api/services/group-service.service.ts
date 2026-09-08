@@ -11,10 +11,6 @@ import { V1ListGroupsResponse } from '../models/v1list-groups-response';
 import { V1Group } from '../models/v1group';
 import { GroupServiceAddUserToGroupBody } from '../models/group-service-add-user-to-group-body';
 import { GroupServiceRemoveUserFromGroupBody } from '../models/group-service-remove-user-from-group-body';
-
-/**
- * GroupService manages groups and their per-organization permission policies.
- */
 @Injectable({
   providedIn: 'root',
 })
@@ -23,7 +19,7 @@ class GroupServiceService extends __BaseService {
   static readonly GroupServiceCreateGroupPath = '/v1/groups';
   static readonly GroupServiceUpdateGroupPath = '/v1/{group.name}';
   static readonly GroupServiceDeleteGroupPath = '/v1/{name_4}';
-  static readonly GroupServiceGetGroupPath = '/v1/{name_8}';
+  static readonly GroupServiceGetGroupPath = '/v1/{name_9}';
   static readonly GroupServiceAddUserToGroupPath = '/v1/{name}:addUser';
   static readonly GroupServiceRemoveUserFromGroupPath = '/v1/{name}:removeUser';
 
@@ -277,18 +273,18 @@ class GroupServiceService extends __BaseService {
    *   Scope: groups:read
    *   Permission: groups:read
    *   Domain: global
-   * @param name_8 The resource name of the group.
+   * @param name_9 The resource name of the group.
    * Format: groups/{group}
    * @return A successful response.
    */
-  GroupServiceGetGroupResponse(name8: string): __Observable<__StrictHttpResponse<V1Group>> {
+  GroupServiceGetGroupResponse(name9: string): __Observable<__StrictHttpResponse<V1Group>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name8))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
       __body,
       {
         headers: __headers,
@@ -309,12 +305,12 @@ class GroupServiceService extends __BaseService {
    *   Scope: groups:read
    *   Permission: groups:read
    *   Domain: global
-   * @param name_8 The resource name of the group.
+   * @param name_9 The resource name of the group.
    * Format: groups/{group}
    * @return A successful response.
    */
-  GroupServiceGetGroup(name8: string): __Observable<V1Group> {
-    return this.GroupServiceGetGroupResponse(name8).pipe(
+  GroupServiceGetGroup(name9: string): __Observable<V1Group> {
+    return this.GroupServiceGetGroupResponse(name9).pipe(
       __map(_r => _r.body as V1Group)
     );
   }

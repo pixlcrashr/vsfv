@@ -12,10 +12,6 @@ import { V1Organization } from '../models/v1organization';
 import { V1CheckOrganizationIdResponse } from '../models/v1check-organization-id-response';
 import { V1CheckOrganizationIdRequest } from '../models/v1check-organization-id-request';
 import { V1Month } from '../models/v1month';
-
-/**
- * OrganizationService manages organizations.
- */
 @Injectable({
   providedIn: 'root',
 })
@@ -23,7 +19,7 @@ class OrganizationServiceService extends __BaseService {
   static readonly OrganizationServiceListOrganizationsPath = '/v1/organizations';
   static readonly OrganizationServiceCreateOrganizationPath = '/v1/organizations';
   static readonly OrganizationServiceCheckOrganizationIdPath = '/v1/organizations:checkId';
-  static readonly OrganizationServiceGetOrganizationPath = '/v1/{name_11}';
+  static readonly OrganizationServiceGetOrganizationPath = '/v1/{name_12}';
   static readonly OrganizationServiceDeleteOrganizationPath = '/v1/{name_6}';
   static readonly OrganizationServiceUpdateOrganizationPath = '/v1/{organization.name}';
 
@@ -218,18 +214,18 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:read
    *   Permission: organizations:read
    *   Domain: global
-   * @param name_11 The resource name of the organization.
+   * @param name_12 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceGetOrganizationResponse(name11: string): __Observable<__StrictHttpResponse<V1Organization>> {
+  OrganizationServiceGetOrganizationResponse(name12: string): __Observable<__StrictHttpResponse<V1Organization>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name11))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name12))}`,
       __body,
       {
         headers: __headers,
@@ -250,12 +246,12 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:read
    *   Permission: organizations:read
    *   Domain: global
-   * @param name_11 The resource name of the organization.
+   * @param name_12 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceGetOrganization(name11: string): __Observable<V1Organization> {
-    return this.OrganizationServiceGetOrganizationResponse(name11).pipe(
+  OrganizationServiceGetOrganization(name12: string): __Observable<V1Organization> {
+    return this.OrganizationServiceGetOrganizationResponse(name12).pipe(
       __map(_r => _r.body as V1Organization)
     );
   }

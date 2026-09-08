@@ -9,16 +9,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1Report } from '../models/v1report';
 import { V1ListReportsResponse } from '../models/v1list-reports-response';
-
-/**
- * ReportService manages generated report instances.
- * Note: report file download is handled exclusively by the Huma HTTP API.
- */
 @Injectable({
   providedIn: 'root',
 })
 class ReportServiceService extends __BaseService {
-  static readonly ReportServiceGetReportPath = '/v1/{name_12}';
+  static readonly ReportServiceGetReportPath = '/v1/{name_13}';
   static readonly ReportServiceDeleteReportPath = '/v1/{name_7}';
   static readonly ReportServiceListReportsPath = '/v1/{parent}/reports';
   static readonly ReportServiceCreateReportPath = '/v1/{parent}/reports';
@@ -36,18 +31,18 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:read
    *   Permission: reports:read
    *   Domain: organization-scoped
-   * @param name_12 The resource name of the report.
+   * @param name_13 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceGetReportResponse(name12: string): __Observable<__StrictHttpResponse<V1Report>> {
+  ReportServiceGetReportResponse(name13: string): __Observable<__StrictHttpResponse<V1Report>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name12))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
       __body,
       {
         headers: __headers,
@@ -68,12 +63,12 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:read
    *   Permission: reports:read
    *   Domain: organization-scoped
-   * @param name_12 The resource name of the report.
+   * @param name_13 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceGetReport(name12: string): __Observable<V1Report> {
-    return this.ReportServiceGetReportResponse(name12).pipe(
+  ReportServiceGetReport(name13: string): __Observable<V1Report> {
+    return this.ReportServiceGetReportResponse(name13).pipe(
       __map(_r => _r.body as V1Report)
     );
   }

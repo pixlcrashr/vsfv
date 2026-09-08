@@ -9,16 +9,11 @@ import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1UserIdentity } from '../models/v1user-identity';
 import { V1ListUserIdentitiesResponse } from '../models/v1list-user-identities-response';
-
-/**
- * UserIdentityService provides a read-only view of the OAuth2 / SSO
- * connections linked to a user. No credentials are ever returned.
- */
 @Injectable({
   providedIn: 'root',
 })
 class UserIdentityServiceService extends __BaseService {
-  static readonly UserIdentityServiceGetUserIdentityPath = '/v1/{name_17}';
+  static readonly UserIdentityServiceGetUserIdentityPath = '/v1/{name_18}';
   static readonly UserIdentityServiceListUserIdentitiesPath = '/v1/{parent}/identities';
 
   constructor(
@@ -34,18 +29,18 @@ class UserIdentityServiceService extends __BaseService {
    *   Scope: users:read
    *   Permission: users:read
    *   Domain: global
-   * @param name_17 The resource name of the identity.
+   * @param name_18 The resource name of the identity.
    * Format: users/{user}/identities/{identity}
    * @return A successful response.
    */
-  UserIdentityServiceGetUserIdentityResponse(name17: string): __Observable<__StrictHttpResponse<V1UserIdentity>> {
+  UserIdentityServiceGetUserIdentityResponse(name18: string): __Observable<__StrictHttpResponse<V1UserIdentity>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name17))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name18))}`,
       __body,
       {
         headers: __headers,
@@ -66,12 +61,12 @@ class UserIdentityServiceService extends __BaseService {
    *   Scope: users:read
    *   Permission: users:read
    *   Domain: global
-   * @param name_17 The resource name of the identity.
+   * @param name_18 The resource name of the identity.
    * Format: users/{user}/identities/{identity}
    * @return A successful response.
    */
-  UserIdentityServiceGetUserIdentity(name17: string): __Observable<V1UserIdentity> {
-    return this.UserIdentityServiceGetUserIdentityResponse(name17).pipe(
+  UserIdentityServiceGetUserIdentity(name18: string): __Observable<V1UserIdentity> {
+    return this.UserIdentityServiceGetUserIdentityResponse(name18).pipe(
       __map(_r => _r.body as V1UserIdentity)
     );
   }
