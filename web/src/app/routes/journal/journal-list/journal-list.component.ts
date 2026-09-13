@@ -21,17 +21,12 @@ import {
   NotificationService,
 } from '../../../shared/components';
 import { formatDateShort } from '../../../shared/utils';
-import { Account } from '../../../shared/models';
 import {
   JournalEntry,
   JournalEntryFilters,
   JournalAssignmentStatus,
-  JournalAccountAssignment,
 } from './journal-list.data-service';
 import { JournalListQueryService } from './journal-list.query-service';
-import { JournalAssignmentEditorDataService } from './journal-assignment-editor.data-service';
-import { JournalAssignmentEditorComponent } from './journal-assignment-editor.component';
-import { LedgerYearListDataService, LedgerYearListItem } from '../../ledger/ledger-years/ledger-year-list.data-service';
 import { HasPermissionPipe } from '../../../../lib/authz/has-permission.pipe';
 import { Permissions } from '../../../../lib/authz/permissions';
 
@@ -46,7 +41,6 @@ import { Permissions } from '../../../../lib/authz/permissions';
     StatusBadgeComponent,
     EmptyStateComponent,
     HasPermissionPipe,
-    JournalAssignmentEditorComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
@@ -245,15 +239,20 @@ import { Permissions } from '../../../../lib/authz/permissions';
                             </div>
                           </td>
                           <td class="px-3 py-2 text-xs text-gray-900">
-                            <app-journal-assignment-editor
-                              [organizationId]="orgId"
-                              [transactionId]="entry.id"
-                              [assignments]="entry.accountAssignments"
-                              [transactionAmount]="entry.amount"
-                              [editable]="isRowEditable(entry)"
-                              [availableAccounts]="availableAccounts()"
-                              (assignmentsChanged)="onAssignmentsChanged(entry, $event)"
-                            />
+                            @if (entry.accountAssignments.length > 0) {
+                              <ul class="space-y-0.5">
+                                @for (assignment of entry.accountAssignments; track $index) {
+                                  <li class="flex items-center justify-between gap-2">
+                                    <span [title]="assignment.accountName">{{ assignment.accountCode }}</span>
+                                    <span class="text-gray-500">{{ formatAmount(assignment.value) }}</span>
+                                  </li>
+                                }
+                              </ul>
+                            } @else {
+                              <p i18n class="text-[11px] text-gray-400 italic">
+                                Keine Zuordnung.
+                              </p>
+                            }
                           </td>
                           <td class="px-3 py-2 text-xs text-gray-900">
                             <app-status-badge
@@ -308,8 +307,6 @@ import { Permissions } from '../../../../lib/authz/permissions';
 export class JournalListComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly queryService = inject(JournalListQueryService);
-  private readonly assignmentEditorSvc = inject(JournalAssignmentEditorDataService);
-  private readonly ledgerYearSvc = inject(LedgerYearListDataService);
   private readonly notifications = inject(NotificationService);
 
   private readonly filterChange$ = new Subject<void>();
@@ -326,9 +323,6 @@ export class JournalListComponent {
   readonly pageSize = 100;
   readonly hasMore = computed(() => this.nextPageToken() !== undefined);
   readonly Permissions = Permissions;
-
-  readonly availableAccounts = signal<Account[]>([]);
-  readonly ledgerYears = signal<LedgerYearListItem[]>([]);
 
   readonly breadcrumbs: BreadcrumbItem[] = [{ label: $localize`Journal` }];
 
@@ -385,8 +379,6 @@ export class JournalListComponent {
       this.entries.set([]);
       this.total.set(0);
       this.fetchEntries(0, false);
-      this.loadAvailableAccounts(id);
-      this.loadLedgerYears(id);
     });
   }
 
@@ -502,70 +494,5 @@ export class JournalListComponent {
       style: 'currency',
       currency: 'EUR',
     }).format(num);
-  }
-
-  private loadAvailableAccounts(orgId: string): void {
-    this.assignmentEditorSvc.listAvailableAccounts(orgId).subscribe({
-      next: (accounts) => this.availableAccounts.set(accounts),
-      error: () => this.availableAccounts.set([]),
-    });
-  }
-
-  private loadLedgerYears(orgId: string): void {
-    this.ledgerYearSvc.listLedgerYears(orgId).subscribe({
-      next: (result) => this.ledgerYears.set(result.years),
-      error: () => this.ledgerYears.set([]),
-    });
-  }
-
-  /**
-   * A row is editable when its document date falls into a ledger year
-   * (Geschäftsjahr) that is not closed. If no ledger years are loaded yet,
-   * default to editable so the UI is not blocked while loading.
-   */
-  isRowEditable(entry: JournalEntry): boolean {
-    const years = this.ledgerYears();
-    if (years.length === 0) {
-      return true;
-    }
-    const entryYear = entry.documentDate.getFullYear();
-    const matching = years.find((y) => y.year === entryYear);
-    if (!matching) {
-      // No ledger year for this entry's year — allow editing by default.
-      return true;
-    }
-    return !matching.isClosed;
-  }
-
-  onAssignmentsChanged(entry: JournalEntry, assignments: JournalAccountAssignment[]): void {
-    this.entries.update((list) =>
-      list.map((e) =>
-        e.id === entry.id
-          ? {
-              ...e,
-              accountAssignments: assignments,
-              assignmentStatus: this.deriveAssignmentStatus(e.amount, assignments),
-            }
-          : e,
-      ),
-    );
-  }
-
-  private deriveAssignmentStatus(
-    amount: string,
-    assignments: JournalAccountAssignment[],
-  ): JournalAssignmentStatus {
-    if (assignments.length === 0) {
-      return 'open';
-    }
-    const total = parseFloat(amount);
-    const assigned = assignments.reduce(
-      (sum, a) => sum + parseFloat(a.value || '0'),
-      0,
-    );
-    if (total > 0 && Math.abs(assigned - total) < 0.01) {
-      return 'assigned';
-    }
-    return 'partial';
   }
 }

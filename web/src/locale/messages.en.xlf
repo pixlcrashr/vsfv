@@ -458,6 +458,30 @@
           <context context-type="linenumber">229</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="3629221259584960820" datatype="html">
+        <source>hat <x id="account" equiv-text="account"/> addiert</source>
+        <target>added <x id="account" equiv-text="account"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/account-groups/account-group-edit/account-group-edit.component.ts</context>
+          <context context-type="linenumber">369</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3740511974700417598" datatype="html">
+        <source>hat <x id="account" equiv-text="account"/> subtrahiert</source>
+        <target>subtracted <x id="account" equiv-text="account"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/account-groups/account-group-edit/account-group-edit.component.ts</context>
+          <context context-type="linenumber">368</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4378148168994622906" datatype="html">
+        <source>hat <x id="account" equiv-text="account"/> ignoriert</source>
+        <target>ignored <x id="account" equiv-text="account"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/account-groups/account-group-edit/account-group-edit.component.ts</context>
+          <context context-type="linenumber">362</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="6920196637619975735" datatype="html">
         <source>Bearbeiten</source>
         <target>Edit</target>
@@ -1014,6 +1038,14 @@
           <context context-type="linenumber">140,141</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="4437410172622920666" datatype="html">
+        <source>das Konto</source>
+        <target>the account</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/accounts/account-edit/account-edit.component.ts</context>
+          <context context-type="linenumber">179</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="8420787861781098471" datatype="html">
         <source>Konten werden geladen...</source>
         <target>Accounts are loaded...</target>
@@ -1088,6 +1120,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/groups/group-edit.component.ts</context>
           <context context-type="linenumber">47,48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8810567565475513011" datatype="html">
+        <source>Diese Gruppe ist eine Systemgruppe und kann nicht bearbeitet werden.</source>
+        <target>This group is a system group and cannot be edited.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/groups/group-edit.component.ts</context>
+          <context context-type="linenumber">58,59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4225146069062969977" datatype="html">
@@ -1214,6 +1254,14 @@
           <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="530436568810114634" datatype="html">
+        <source>die Kontengruppe</source>
+        <target>the account group</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/account-groups/account-group-edit/account-group-edit.component.ts</context>
+          <context context-type="linenumber">259</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="179383004476573880" datatype="html">
         <source> Gruppe löschen </source>
         <target> Delete group</target>
@@ -1236,6 +1284,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/groups/group-new.component.ts</context>
           <context context-type="linenumber">45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7091434125784843959" datatype="html">
+        <source>die Organisation</source>
+        <target>the organization</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-edit.component.ts</context>
+          <context context-type="linenumber">157</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5659799815836451311" datatype="html">
@@ -1668,6 +1724,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/budgets/budget-edit/budget-edit.component.ts</context>
           <context context-type="linenumber">351</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6544368502401365401" datatype="html">
+        <source>den Haushaltsplan</source>
+        <target>the budget</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/budgets/budget-edit/budget-edit.component.ts</context>
+          <context context-type="linenumber">620</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3635055055950390957" datatype="html">
@@ -2732,6 +2796,62 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/transactions/transaction-edit/transaction-edit.component.ts</context>
           <context context-type="linenumber">285</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7384399776886660516" datatype="html">
+        <source>Historie</source>
+        <target>History</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">48,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2120348808685817994" datatype="html">
+        <source>hat <x id="object" equiv-text="object"/> erstellt</source>
+        <target>created <x id="object" equiv-text="object"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">221</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5963004785287601042" datatype="html">
+        <source>hat <x id="object" equiv-text="object"/> gelöscht</source>
+        <target>deleted <x id="object" equiv-text="object"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">223</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6466025780954568956" datatype="html">
+        <source>hat <x id="object" equiv-text="object"/> bearbeitet</source>
+        <target>updated <x id="object" equiv-text="object"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">225</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8613052947923582431" datatype="html">
+        <source>die Revision</source>
+        <target>the revision</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">235</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5272015791926628830" datatype="html">
+        <source>den Kontowert</source>
+        <target>the account value</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">238</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1349871850557736431" datatype="html">
+        <source>die Zuweisung</source>
+        <target>the assignment</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/components/audit-log-history/audit-log-history.component.ts</context>
+          <context context-type="linenumber">241</context>
         </context-group>
       </trans-unit>
       <trans-unit id="842861304210865062" datatype="html">

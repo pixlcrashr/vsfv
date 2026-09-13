@@ -1,6 +1,7 @@
 export * from './account.model';
 export * from './account-group.model';
 export * from './admin.model';
+export * from './audit-log-history.model';
 export * from './application.model';
 export * from './budget.model';
 export * from './committee.model';

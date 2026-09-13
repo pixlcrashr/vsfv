@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, delay, throwError } from 'rxjs';
 import { faker } from '@faker-js/faker';
 import { Decimal } from 'decimal.js';
-import { BudgetTag } from '../../../app/shared/models';
+import { AuditLogHistoryEntry, BudgetTag } from '../../../app/shared/models';
 import {
   BudgetEditDataService,
   BudgetDetails,
@@ -10,10 +10,20 @@ import {
   UpdateBudgetParams,
 } from '../../../app/routes/budgets/budget-edit/budget-edit.data-service';
 import { SharedBudgetMockData } from './_shared-budget-data';
+import { MockAuditHistory } from './_shared-audit-history';
 
 @Injectable()
 export class MockBudgetEditDataService extends BudgetEditDataService {
   private sharedData = SharedBudgetMockData.getInstance();
+  private readonly auditHistory = new MockAuditHistory();
+
+  private budgetResource(organizationId: string, id: string): string {
+    return `organizations/${organizationId}/budgets/${id}`;
+  }
+
+  private revisionResource(organizationId: string, budgetId: string, revisionId: string): string {
+    return `${this.budgetResource(organizationId, budgetId)}/revisions/${revisionId}`;
+  }
 
   getBudget(organizationId: string, id: string): Observable<BudgetDetails> {
     const data = this.sharedData.getBudgetDetailsOrCreate(id);
@@ -28,6 +38,24 @@ export class MockBudgetEditDataService extends BudgetEditDataService {
     const data = this.sharedData.getBudgetDetails(id);
 
     if (data) {
+      const before = data.budget;
+      const changes: Array<{ field: string; oldValue?: string; newValue?: string }> = [];
+      if (before.displayName !== params.name) {
+        changes.push({ field: 'display_name', oldValue: before.displayName, newValue: params.name });
+      }
+      if (before.displayDescription !== params.description) {
+        changes.push({ field: 'display_description', oldValue: before.displayDescription, newValue: params.description });
+      }
+      if (before.isPublished !== params.isPublished) {
+        changes.push({ field: 'is_published', oldValue: String(before.isPublished), newValue: String(params.isPublished) });
+      }
+      if (before.publishActualValues !== params.publishActualValues) {
+        changes.push({ field: 'publish_actual_values', oldValue: String(before.publishActualValues), newValue: String(params.publishActualValues) });
+      }
+      if (changes.length > 0) {
+        this.auditHistory.record(this.budgetResource(organizationId, id), 'UPDATE', changes);
+      }
+
       data.budget.displayName = params.name;
       data.budget.displayDescription = params.description;
       data.budget.isPublished = params.isPublished;
@@ -75,6 +103,11 @@ export class MockBudgetEditDataService extends BudgetEditDataService {
     data.budget.hasUntaggedChanges = false;
     data.budget.changes = [];
 
+    this.auditHistory.record(this.revisionResource(organizationId, budgetId, tag.id), 'CREATE', [
+      { field: 'display_name', newValue: name },
+      { field: 'display_description', newValue: description },
+    ]);
+
     return of(tag).pipe(delay(300));
   }
 
@@ -91,6 +124,11 @@ export class MockBudgetEditDataService extends BudgetEditDataService {
       if (tag) {
         tag.isPublished = isPublished;
         tag.updatedAt = new Date();
+        this.auditHistory.record(
+          this.revisionResource(organizationId, budgetId, id),
+          'UPDATE',
+          [{ field: 'is_published', oldValue: String(!isPublished), newValue: String(isPublished) }],
+        );
         break;
       }
     }
@@ -104,7 +142,13 @@ export class MockBudgetEditDataService extends BudgetEditDataService {
       if (data) {
         const index = data.budget.tags.findIndex((t) => t.id === id);
         if (index >= 0) {
+          const tag = data.budget.tags[index];
           data.budget.tags.splice(index, 1);
+          this.auditHistory.record(
+            this.revisionResource(organizationId, budget.id, id),
+            'DELETE',
+            [{ field: 'display_name', oldValue: tag.name }],
+          );
           break;
         }
       }
@@ -114,6 +158,17 @@ export class MockBudgetEditDataService extends BudgetEditDataService {
 
   closeBudget(organizationId: string, id: string): Observable<void> {
     this.sharedData.updateBudget(id, { isClosed: true });
+    this.auditHistory.record(this.budgetResource(organizationId, id), 'UPDATE', [
+      { field: 'is_closed', oldValue: 'false', newValue: 'true' },
+    ]);
     return of(undefined).pipe(delay(300));
+  }
+
+  getAuditLog(organizationId: string, budgetId: string): Observable<AuditLogHistoryEntry[]> {
+    return of(this.auditHistory.list(this.budgetResource(organizationId, budgetId))).pipe(delay(300));
+  }
+
+  override listAccountLabels(_organizationId: string): Observable<ReadonlyMap<string, string>> {
+    return of(new Map<string, string>()).pipe(delay(300));
   }
 }

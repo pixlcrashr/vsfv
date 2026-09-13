@@ -17,6 +17,13 @@ export interface V1AuditLogEntry {
   actor?: string;
 
   /**
+   * The display name of the user who performed the change.
+   * Empty if the change was performed by the system or the user has been
+   * deleted since the entry was recorded.
+   */
+  actor_display_name?: string;
+
+  /**
    * The per-field changes recorded by this entry.
    */
   changes?: Array<AuditLogEntryChange>;

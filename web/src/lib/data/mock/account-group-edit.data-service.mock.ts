@@ -1,16 +1,18 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, delay } from 'rxjs';
 import { faker } from '@faker-js/faker';
-import { Account, AccountGroupOperation } from '../../../app/shared/models';
+import { Account, AccountGroupOperation, AuditLogHistoryEntry } from '../../../app/shared/models';
 import {
   AccountGroupEditDataService,
   AccountGroupDetails,
   AccountWithOperation,
 } from '../../../app/routes/account-groups/account-group-edit/account-group-edit.data-service';
+import { MockAuditHistory } from './_shared-audit-history';
 
 @Injectable()
 export class MockAccountGroupEditDataService extends AccountGroupEditDataService {
   private allAccounts: Account[];
+  private readonly auditHistory = new MockAuditHistory();
 
   constructor() {
     super();
@@ -84,6 +86,10 @@ export class MockAccountGroupEditDataService extends AccountGroupEditDataService
 
   private savedGroupData: AccountGroupDetails | null = null;
 
+  private groupResource(organizationId: string, id: string): string {
+    return `organizations/${organizationId}/accountGroups/${id}`;
+  }
+
   getGroup(organizationId: string, id: string): Observable<AccountGroupDetails> {
     if (!this.savedGroupData) {
       this.savedGroupData = { ...this.groupData, id };
@@ -93,6 +99,17 @@ export class MockAccountGroupEditDataService extends AccountGroupEditDataService
 
   updateGroup(organizationId: string, id: string, name: string, description: string): Observable<AccountGroupDetails> {
     if (this.savedGroupData) {
+      const changes: Array<{ field: string; oldValue?: string; newValue?: string }> = [];
+      if (this.savedGroupData.name !== name) {
+        changes.push({ field: 'display_name', oldValue: this.savedGroupData.name, newValue: name });
+      }
+      if (this.savedGroupData.description !== description) {
+        changes.push({ field: 'display_description', oldValue: this.savedGroupData.description, newValue: description });
+      }
+      if (changes.length > 0) {
+        this.auditHistory.record(this.groupResource(organizationId, id), 'UPDATE', changes);
+      }
+
       this.savedGroupData.name = name;
       this.savedGroupData.description = description;
     }
@@ -107,48 +124,90 @@ export class MockAccountGroupEditDataService extends AccountGroupEditDataService
     return of(accountsWithOps).pipe(delay(200));
   }
 
-  updateAccountOperation(organizationId: string, groupId: string, accountId: string, operation: AccountGroupOperation): Observable<void> {
+  updateAccountOperation(
+    organizationId: string,
+    groupId: string,
+    accountId: string,
+    operation: AccountGroupOperation,
+    assignmentId?: string | null,
+  ): Observable<string | null> {
     if (!this.savedGroupData) {
       this.savedGroupData = { ...this.groupData };
     }
 
-    const existingIndex = this.savedGroupData.assignments.findIndex((a) => a.accountId === accountId);
+    const existingIndex = this.savedGroupData.assignments.findIndex((a) =>
+      assignmentId ? a.id === assignmentId : a.accountId === accountId,
+    );
     const account = this.allAccounts.find((a) => a.id === accountId);
 
     if (!account) {
-      return of(undefined).pipe(delay(100));
+      return of(null).pipe(delay(100));
     }
+
+    const recordAssignment = (
+      assignmentId: string,
+      action: 'CREATE' | 'UPDATE' | 'DELETE',
+      changes: Array<{ field: string; oldValue?: string; newValue?: string }>,
+    ): void => {
+      this.auditHistory.record(
+        `${this.groupResource(organizationId, groupId)}/assignments/${assignmentId}`,
+        action,
+        changes,
+      );
+    };
 
     if (operation === 'I') {
       // Remove assignment if set to 'I' (ignored)
       if (existingIndex !== -1) {
+        const removed = this.savedGroupData.assignments[existingIndex];
         this.savedGroupData.assignments.splice(existingIndex, 1);
         this.savedGroupData.assignmentCount--;
+        recordAssignment(removed.id, 'DELETE', [
+          { field: 'account_id', oldValue: accountId },
+          { field: 'negate', oldValue: String(removed.operation === 'S') },
+        ]);
       }
-    } else {
-      // Add or update assignment for 'A' or 'S'
-      if (existingIndex !== -1) {
-        this.savedGroupData.assignments[existingIndex].operation = operation;
-      } else {
-        this.savedGroupData.assignments.push({
-          id: faker.string.uuid(),
-          accountId: account.id,
-          accountCode: account.code,
-          accountName: account.name,
-          operation,
-          targetValue: '0',
-          actualValue: '0',
-        });
-        this.savedGroupData.assignmentCount++;
-      }
+      return of(null).pipe(delay(200));
     }
 
-    return of(undefined).pipe(delay(200));
+    let resultId: string;
+    // Add or update assignment for 'A' or 'S'
+    if (existingIndex !== -1) {
+      const previous = this.savedGroupData.assignments[existingIndex].operation;
+      this.savedGroupData.assignments[existingIndex].operation = operation;
+      resultId = this.savedGroupData.assignments[existingIndex].id;
+      recordAssignment(resultId, 'UPDATE', [
+        { field: 'negate', oldValue: String(previous === 'S'), newValue: String(operation === 'S') },
+      ]);
+    } else {
+      const newAssignmentId = faker.string.uuid();
+      this.savedGroupData.assignments.push({
+        id: newAssignmentId,
+        accountId: account.id,
+        accountCode: account.code,
+        accountName: account.name,
+        operation,
+        targetValue: '0',
+        actualValue: '0',
+      });
+      this.savedGroupData.assignmentCount++;
+      resultId = newAssignmentId;
+      recordAssignment(newAssignmentId, 'CREATE', [
+        { field: 'account_id', newValue: accountId },
+        { field: 'negate', newValue: String(operation === 'S') },
+      ]);
+    }
+
+    return of(resultId).pipe(delay(200));
   }
 
   deleteGroup(organizationId: string, id: string): Observable<void> {
     // Simulate deletion with delay
     return of(undefined).pipe(delay(500));
+  }
+
+  getAuditLog(organizationId: string, accountGroupId: string): Observable<AuditLogHistoryEntry[]> {
+    return of(this.auditHistory.list(this.groupResource(organizationId, accountGroupId))).pipe(delay(300));
   }
 
   private createAccount(

@@ -10,7 +10,7 @@ export function mapV1Group(g: V1Group): UserGroup {
     customId: extractCustomId(g.name),
     name: g.display_name ?? '',
     description: g.display_description ?? null,
-    isSystem: false,
+    isSystem: g.is_system ?? false,
     organizations: g.organizations ?? [],
     permissions: g.permissions ?? [],
     createdAt: g.create_time ? new Date(g.create_time) : new Date(),

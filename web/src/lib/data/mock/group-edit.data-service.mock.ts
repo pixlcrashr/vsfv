@@ -21,8 +21,21 @@ export class MockGroupEditDataService extends GroupEditDataService {
     updatedAt: new Date('2024-03-20T14:45:00'),
   };
 
+  private readonly systemGroup: UserGroup = {
+    id: 'g-sys',
+    customId: 'g-sys',
+    name: 'System',
+    description: 'Systemgruppe mit automatischen Zuweisungen',
+    isSystem: true,
+    organizations: ['*'],
+    permissions: [],
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  };
+
   getGroup(id: string): Observable<UserGroup> {
-    return of({ ...this.group, id, customId: id }).pipe(delay(300));
+    const group = id === this.systemGroup.id ? this.systemGroup : { ...this.group, id, customId: id };
+    return of({ ...group }).pipe(delay(300));
   }
 
   updateGroup(id: string, input: UpdateGroupInput): Observable<UserGroup> {

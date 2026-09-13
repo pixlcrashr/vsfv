@@ -44,6 +44,7 @@ export class HttpAuditLogDataService extends AuditLogDataService {
     organization?: string;
     action?: string;
     actor?: string;
+    actor_display_name?: string;
     changes?: Array<{ field?: string; old_value?: string; new_value?: string }>;
     timestamp?: string;
   }): AuditLogEntry {
@@ -64,6 +65,7 @@ export class HttpAuditLogDataService extends AuditLogDataService {
       action: this.toAction(e.action),
       actor: e.actor ?? '',
       actorId: e.actor ? extractUidFromResourceName(e.actor) || undefined : undefined,
+      actorName: e.actor_display_name || undefined,
       changes,
       timestamp: e.timestamp ? new Date(e.timestamp) : new Date(0),
     };
@@ -89,6 +91,10 @@ export class HttpAuditLogDataService extends AuditLogDataService {
       const resource = filters.resource.trim();
       // Substring match via the AIP-160 "has" operator.
       parts.push(`resource:"${resource}"`);
+    }
+    if (filters?.exactResource?.trim()) {
+      const resource = filters.exactResource.trim();
+      parts.push(`resource="${resource}"`);
     }
     if (filters?.actor?.trim()) {
       const actor = filters.actor.trim();

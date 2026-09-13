@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, EMPTY, combineLatest, map, of, switchMap, expand, reduce, catchError } from 'rxjs';
+import { Observable, EMPTY, combineLatest, map, of, switchMap, expand, reduce, catchError, from, concatMap } from 'rxjs';
 import { TransactionServiceService } from '../../api/services/transaction-service.service';
 import { TransactionAssignmentServiceService } from '../../api/services/transaction-assignment-service.service';
 import { LedgerAccountServiceService } from '../../api/services/ledger-account-service.service';
@@ -18,11 +18,18 @@ import {
 import { extractUidFromResourceName } from './_mappers';
 
 /**
- * Number of transaction names grouped into a single assignment-list request.
- * Keeps the generated AIP-160 filter short enough to stay well within URL-length
- * limits.
+ * Number of assignment-list requests issued in parallel. Each request is for a
+ * single transaction, so this controls the maximum concurrent HTTP connections
+ * open while loading assignments for a journal page.
  */
 const ASSIGNMENT_BATCH_SIZE = 20;
+
+/**
+ * Maximum number of ledger-account resource names sent in a single batchGet
+ * request. The server enforces a limit on the number of names per request;
+ * chunking keeps the client within that bound.
+ */
+const LEDGER_ACCOUNT_BATCH_SIZE = 20;
 
 @Injectable()
 export class HttpJournalListDataService extends JournalListDataService {
@@ -68,28 +75,44 @@ export class HttpJournalListDataService extends JournalListDataService {
 
           const ledgerAccountNames = this.collectLedgerAccountNames(transactions);
 
+          // Chunk the ledger-account names into groups of at most
+          // LEDGER_ACCOUNT_BATCH_SIZE to stay within the server's per-request
+          // name limit.
+          const ledgerAccountChunks: string[][] = [];
+          for (let i = 0; i < ledgerAccountNames.length; i += LEDGER_ACCOUNT_BATCH_SIZE) {
+            ledgerAccountChunks.push(ledgerAccountNames.slice(i, i + LEDGER_ACCOUNT_BATCH_SIZE));
+          }
+
           return combineLatest([
             of(transactions),
-            ledgerAccountNames.length > 0
-              ? this.ledgerAccountSvc.LedgerAccountServiceBatchGetLedgerAccounts({
-                  parent,
-                  names: ledgerAccountNames,
-                }).pipe(
-                  map((resp) => {
+            ledgerAccountChunks.length > 0
+              ? combineLatest(
+                  ledgerAccountChunks.map((chunk) =>
+                    this.ledgerAccountSvc.LedgerAccountServiceBatchGetLedgerAccounts({
+                      parent,
+                      names: chunk,
+                    }).pipe(
+                      map((resp) => resp.ledger_accounts ?? []),
+                      catchError(() => of<V1LedgerAccount[]>([])),
+                    ),
+                  ),
+                ).pipe(
+                  map((chunks) => {
                     const map = new Map<string, V1LedgerAccount>();
-                    for (const a of resp.ledger_accounts ?? []) {
-                      const uid = a.uid ?? '';
-                      if (uid) {
-                        map.set(uid, a);
+                    for (const accounts of chunks) {
+                      for (const a of accounts) {
+                        const uid = a.uid ?? '';
+                        if (uid) {
+                          map.set(uid, a);
+                        }
                       }
                     }
                     return map;
                   }),
-                  catchError(() => of(new Map<string, V1LedgerAccount>())),
                 )
               : of(new Map<string, V1LedgerAccount>()),
             this.loadAllAccounts(parent),
-            this.loadAssignmentsForTransactions(organizationId, transactions),
+            this.loadAssignmentsForTransactions(transactions),
           ]).pipe(
             map(([transactions, ledgerAccountsMap, accountsMap, assignmentsByTxn]) => ({
               transactions,
@@ -209,7 +232,6 @@ export class HttpJournalListDataService extends JournalListDataService {
   }
 
   private loadAssignmentsForTransactions(
-    organizationId: string,
     transactions: V1Transaction[],
   ): Observable<Map<string, V1TransactionAssignment[]>> {
     if (transactions.length === 0) {
@@ -217,38 +239,46 @@ export class HttpJournalListDataService extends JournalListDataService {
     }
 
     const txnNames = transactions.map((t) => t.name ?? '').filter((n) => n.length > 0);
+
+    // One request per transaction. They are chunked and processed sequentially
+    // so the browser does not open too many parallel HTTP connections.
     const chunks: string[][] = [];
     for (let i = 0; i < txnNames.length; i += ASSIGNMENT_BATCH_SIZE) {
       chunks.push(txnNames.slice(i, i + ASSIGNMENT_BATCH_SIZE));
     }
 
-    const wildcardParent = `organizations/${organizationId}/transactions/-`;
+    if (chunks.length === 0) {
+      return of(new Map<string, V1TransactionAssignment[]>());
+    }
 
-    return combineLatest(
-      chunks.map((chunk) =>
-        this.assignmentSvc
-          .TransactionAssignmentServiceListTransactionAssignments({
-            parent1: wildcardParent,
-            pageSize: 100,
-            filter: chunk.map((name) => `transaction="${name}"`).join(' OR '),
-          })
-          .pipe(
-            expand((resp) =>
-              resp.next_page_token
-                ? this.assignmentSvc.TransactionAssignmentServiceListTransactionAssignments({
-                    parent1: wildcardParent,
-                    pageSize: 100,
-                    pageToken: resp.next_page_token,
-                  })
-                : EMPTY,
-            ),
-            reduce((all: V1TransactionAssignment[], resp) => all.concat(resp.assignments ?? []), []),
-            catchError(() => of<V1TransactionAssignment[]>([])),
+    const loadAssignmentsForTxn = (txnName: string) =>
+      this.assignmentSvc
+        .TransactionAssignmentServiceListTransactionAssignments({
+          parent1: txnName,
+          pageSize: 100,
+        })
+        .pipe(
+          expand((resp) =>
+            resp.next_page_token
+              ? this.assignmentSvc.TransactionAssignmentServiceListTransactionAssignments({
+                  parent1: txnName,
+                  pageSize: 100,
+                  pageToken: resp.next_page_token,
+                })
+              : EMPTY,
           ),
+          reduce((all: V1TransactionAssignment[], resp) => all.concat(resp.assignments ?? []), []),
+          catchError(() => of<V1TransactionAssignment[]>([])),
+        );
+
+    return from(chunks).pipe(
+      concatMap((chunk) =>
+        combineLatest(chunk.map((txnName) => loadAssignmentsForTxn(txnName))).pipe(
+          map((chunkResults) => chunkResults.flat()),
+        ),
       ),
-    ).pipe(
-      map((chunkResults) => {
-        const assignments = chunkResults.flat();
+      reduce((all: V1TransactionAssignment[], chunkAssignments) => all.concat(chunkAssignments), []),
+      map((assignments) => {
         const result = new Map<string, V1TransactionAssignment[]>();
         for (const a of assignments) {
           const txnName = a.transaction ?? '';

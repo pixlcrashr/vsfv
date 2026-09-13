@@ -16,8 +16,9 @@ import {
   ButtonComponent,
   AdminContentHeaderComponent,
   AdminContentComponent,
+  AuditLogHistoryComponent,
 } from '../../../shared/components';
-import { Organization } from '../../../shared/models';
+import { AuditLogHistoryEntry, Organization } from '../../../shared/models';
 import { OrganizationEditDataService } from './organization-edit.data-service';
 
 @Component({
@@ -29,6 +30,7 @@ import { OrganizationEditDataService } from './organization-edit.data-service';
     ButtonComponent,
     AdminContentHeaderComponent,
     AdminContentComponent,
+    AuditLogHistoryComponent,
   ],
   template: `
     <div class="flex flex-col h-full min-h-0">
@@ -91,6 +93,13 @@ import { OrganizationEditDataService } from './organization-edit.data-service';
                     </div>
                   </form>
                 </div>
+
+                <!-- Historie -->
+                <app-audit-log-history
+                  [entries]="auditLog()"
+                  [entityLabel]="historyEntityLabel"
+                  [entityResource]="historyResource()"
+                />
               </div>
 
               <!-- Right Column: Info & Actions -->
@@ -142,6 +151,10 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
   readonly saving = signal(false);
   readonly deleting = signal(false);
   readonly organization = signal<Organization | null>(null);
+  readonly auditLog = signal<AuditLogHistoryEntry[]>([]);
+  readonly historyResource = signal('');
+
+  readonly historyEntityLabel = $localize`die Organisation`;
 
   readonly organizationForm: FormGroup;
 
@@ -157,7 +170,9 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.route.snapshot.paramMap.get('id') || '';
     if (this.organizationId) {
+      this.historyResource.set(`organizations/${this.organizationId}`);
       this.loadOrganization();
+      this.loadAuditLog();
       this.setupAutoSave();
     }
   }
@@ -165,6 +180,14 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private loadAuditLog(): void {
+    this.dataService.getAuditLog(this.organizationId).subscribe({
+      next: (entries) => this.auditLog.set(entries),
+      // Missing audit-log permission or transient errors: show an empty history.
+      error: () => this.auditLog.set([]),
+    });
   }
 
   private setupAutoSave(): void {
@@ -210,6 +233,7 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
       next: () => {
         this.saving.set(false);
         this.organizationForm.markAsPristine();
+        this.loadAuditLog();
       },
       error: () => {
         this.notifications.error($localize`Fehler beim Speichern der Organisation`);

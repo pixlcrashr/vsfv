@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Account } from '../../../shared/models';
+import { Account, AuditLogHistoryEntry } from '../../../shared/models';
 
 export interface AccountDetails extends Account {
   createdAt: Date;
@@ -18,4 +18,7 @@ export abstract class AccountEditDataService {
     description: string
   ): Observable<AccountDetails>;
   abstract listParentAccounts(organizationId: string): Observable<Account[]>;
+
+  /** Audit log entries for the account. */
+  abstract getAuditLog(organizationId: string, accountId: string): Observable<AuditLogHistoryEntry[]>;
 }

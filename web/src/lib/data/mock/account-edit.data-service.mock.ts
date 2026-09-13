@@ -1,15 +1,21 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, delay } from 'rxjs';
 import { faker } from '@faker-js/faker';
-import { Account } from '../../../app/shared/models';
+import { Account, AuditLogHistoryEntry } from '../../../app/shared/models';
 import {
   AccountEditDataService,
   AccountDetails,
 } from '../../../app/routes/accounts/account-edit/account-edit.data-service';
+import { MockAuditHistory } from './_shared-audit-history';
 
 @Injectable()
 export class MockAccountEditDataService extends AccountEditDataService {
   private accounts: AccountDetails[] = this.generateAccounts();
+  private readonly auditHistory = new MockAuditHistory();
+
+  private accountResource(organizationId: string, id: string): string {
+    return `organizations/${organizationId}/accounts/${id}`;
+  }
 
   getAccount(organizationId: string, id: string): Observable<AccountDetails> {
     const account = this.accounts.find((a) => a.id === id) || this.accounts[0];
@@ -25,6 +31,20 @@ export class MockAccountEditDataService extends AccountEditDataService {
   ): Observable<AccountDetails> {
     const account = this.accounts.find((a) => a.id === id);
     if (account) {
+      const changes: Array<{ field: string; oldValue?: string; newValue?: string }> = [];
+      if (account.name !== name) {
+        changes.push({ field: 'display_name', oldValue: account.name, newValue: name });
+      }
+      if (account.code !== code) {
+        changes.push({ field: 'display_code', oldValue: account.code, newValue: code });
+      }
+      if (account.description !== description) {
+        changes.push({ field: 'display_description', oldValue: account.description, newValue: description });
+      }
+      if (changes.length > 0) {
+        this.auditHistory.record(this.accountResource(organizationId, id), 'UPDATE', changes);
+      }
+
       account.name = name;
       account.code = code;
       account.description = description;
@@ -35,6 +55,10 @@ export class MockAccountEditDataService extends AccountEditDataService {
 
   listParentAccounts(organizationId: string): Observable<Account[]> {
     return of(this.accounts.filter((a) => !a.parentAccountId)).pipe(delay(200));
+  }
+
+  getAuditLog(organizationId: string, accountId: string): Observable<AuditLogHistoryEntry[]> {
+    return of(this.auditHistory.list(this.accountResource(organizationId, accountId))).pipe(delay(300));
   }
 
   private generateAccounts(): AccountDetails[] {

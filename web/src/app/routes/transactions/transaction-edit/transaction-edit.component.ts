@@ -136,7 +136,7 @@ import { TransactionEditDataService } from './transaction-edit.data-service';
             <div class="bg-white rounded-lg border border-gray-200 p-4">
               <div class="flex items-center justify-between mb-4">
                 <h2 i18n class="text-sm font-semibold text-gray-900">
-                  Kontenzuordnung
+                  Kontenzuordnungen
                 </h2>
                 <div i18n class="text-xs" [class.text-red-500]="assignmentPercentage() > 100" [class.text-gray-500]="assignmentPercentage() <= 100">
                   {{ formatAmount(assignedTotal()) }} von {{ formatAmount(transaction()!.amount) }} zugeordnet
@@ -157,42 +157,57 @@ import { TransactionEditDataService } from './transaction-edit.data-service';
                 </p>
               </div>
 
-              <!-- Assignment -->
-              @if (editableAssignment(); as assignment) {
-                <div class="flex items-center gap-2 mb-4">
-                  <select
-                    [ngModel]="assignment.accountId"
-                    (ngModelChange)="onAssignmentAccountChange($event)"
-                    class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    [class.border-red-300]="!assignment.accountId"
-                  >
-                    <option value="" i18n>Konto wählen...</option>
-                    @for (account of selectableAccounts(); track account.id) {
-                      <option [value]="account.id">{{ account.code }} {{ account.name }}</option>
-                    }
-                  </select>
-                  <input
-                    type="text"
-                    [ngModel]="assignment.value"
-                    (ngModelChange)="onAssignmentValueChange($event)"
-                    class="w-32 px-2 py-1 text-sm text-right border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    (click)="removeAssignment()"
-                    [disabled]="assignmentSaving()"
-                    class="px-1.5 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                  >✕</button>
+              <!-- Closed ledger notice -->
+              @if (transaction()?.isLedgerClosed) {
+                <p i18n class="text-xs text-red-500 text-center py-4 mb-4">
+                  Geschäftsjahr ist geschlossen — Zuordnungen können nicht bearbeitet werden.
+                </p>
+              }
+
+              <!-- Assignments -->
+              @if (editableAssignments().length > 0) {
+                <div class="space-y-2 mb-4">
+                  @for (assignment of editableAssignments(); track assignment.id; let i = $index) {
+                    <div class="flex items-center gap-2">
+                      <select
+                        [ngModel]="assignment.accountId"
+                        (ngModelChange)="onAssignmentAccountChange(i, $event)"
+                        class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        [class.border-red-300]="!assignment.accountId"
+                        [disabled]="transaction()?.isLedgerClosed || assignmentSaving()"
+                      >
+                        <option value="" i18n>Konto wählen...</option>
+                        @for (account of selectableAccounts(); track account.id) {
+                          <option [value]="account.id" [disabled]="account.id !== assignment.accountId && usedAccountIds().has(account.id)">
+                            {{ account.code }} {{ account.name }}
+                          </option>
+                        }
+                      </select>
+                      <input
+                        type="text"
+                        [ngModel]="assignment.value"
+                        (ngModelChange)="onAssignmentValueChange(i, $event)"
+                        class="w-32 px-2 py-1 text-sm text-right border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        [disabled]="transaction()?.isLedgerClosed || assignmentSaving()"
+                      />
+                      <button
+                        type="button"
+                        (click)="removeAssignment(i)"
+                        [disabled]="transaction()?.isLedgerClosed || assignmentSaving()"
+                        class="px-1.5 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >✕</button>
+                    </div>
+                  }
                 </div>
               } @else {
                 <p i18n class="text-xs text-gray-500 text-center py-4 mb-4">
-                  Keine Kontenzuordnung vorhanden.
+                  Keine Kontenzuordnungen vorhanden.
                 </p>
               }
 
               <!-- Add Assignment Button -->
               <div class="flex justify-between items-center mb-4">
-                @if (!editableAssignment()) {
+                @if (canAddAssignments()) {
                   <button
                     type="button"
                     (click)="addAssignment()"
@@ -238,14 +253,18 @@ export class TransactionEditComponent implements OnInit {
   readonly assignmentSaving = signal(false);
   readonly transaction = signal<Transaction | null>(null);
   readonly availableAccounts = signal<Account[]>([]);
+
   readonly selectableAccounts = computed(() =>
     this.availableAccounts().filter(a => !a.isContainer)
+  );
+  readonly usedAccountIds = computed(() =>
+    new Set(this.editableAssignments().map(a => a.accountId).filter(Boolean))
   );
 
   description = '';
 
-  private originalAssignment = signal<{id: string; accountId: string; value: string} | null>(null);
-  readonly editableAssignment = signal<{id: string; accountId: string; value: string} | null>(null);
+  private originalAssignments = signal<ReadonlyArray<{id: string; accountId: string; value: string}>>([]);
+  readonly editableAssignments = signal<Array<{id: string; accountId: string; value: string}>>([]);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: $localize`Journal`, path: '' },
@@ -265,8 +284,11 @@ export class TransactionEditComponent implements OnInit {
   }
 
   readonly assignedTotal = computed(() => {
-    const assignment = this.editableAssignment();
-    return (assignment ? parseFloat(assignment.value || '0') : 0).toFixed(2);
+    const total = this.editableAssignments().reduce(
+      (sum, a) => sum + parseFloat(a.value || '0'),
+      0,
+    );
+    return total.toFixed(2);
   });
 
   readonly assignmentPercentage = computed(() => {
@@ -281,12 +303,23 @@ export class TransactionEditComponent implements OnInit {
     return Math.abs(this.assignmentPercentage() - 100) < 0.01;
   });
 
+  readonly canAddAssignments = computed(() => {
+    const tx = this.transaction();
+    if (!tx) return false;
+    return !tx.isLedgerClosed && this.usedAccountIds().size < this.selectableAccounts().length;
+  });
+
   readonly hasUnsavedChanges = computed(() => {
-    const current = this.editableAssignment();
-    const original = this.originalAssignment();
-    if (current === null && original === null) return false;
-    if (current === null || original === null) return true;
-    return current.accountId !== original.accountId || current.value !== original.value;
+    const current = this.editableAssignments();
+    const original = this.originalAssignments();
+    if (current.length !== original.length) return true;
+    if (current.some(c => c.id === '')) return true;
+    for (const orig of original) {
+      const curr = current.find(c => c.id === orig.id);
+      if (!curr) return true;
+      if (curr.accountId !== orig.accountId || curr.value !== orig.value) return true;
+    }
+    return false;
   });
 
   ngOnInit(): void {
@@ -310,12 +343,13 @@ export class TransactionEditComponent implements OnInit {
       next: (transaction) => {
         this.transaction.set(transaction);
         this.description = transaction.description;
-        const first = transaction.accountAssignments[0];
-        const assignment = first
-          ? { id: first.id, accountId: first.accountId, value: first.value }
-          : null;
-        this.editableAssignment.set(assignment ? { ...assignment } : null);
-        this.originalAssignment.set(assignment ? { ...assignment } : null);
+        const assignments = transaction.accountAssignments.map(a => ({
+          id: a.id,
+          accountId: a.accountId,
+          value: a.value,
+        }));
+        this.editableAssignments.set(assignments.map(a => ({ ...a })));
+        this.originalAssignments.set(assignments);
         this.loading.set(false);
       },
       error: () => {
@@ -342,25 +376,31 @@ export class TransactionEditComponent implements OnInit {
     });
   }
 
-  onAssignmentAccountChange(accountId: string): void {
-    const current = this.editableAssignment();
-    if (!current) return;
-    this.editableAssignment.set({ ...current, accountId });
+  onAssignmentAccountChange(index: number, accountId: string): void {
+    const assignments = this.editableAssignments();
+    assignments[index] = { ...assignments[index], accountId };
+    this.editableAssignments.set([...assignments]);
   }
 
-  onAssignmentValueChange(value: string): void {
-    const current = this.editableAssignment();
-    if (!current) return;
-    this.editableAssignment.set({ ...current, value });
+  onAssignmentValueChange(index: number, value: string): void {
+    const assignments = this.editableAssignments();
+    assignments[index] = { ...assignments[index], value };
+    this.editableAssignments.set([...assignments]);
   }
 
   addAssignment(): void {
     const tx = this.transaction();
-    this.editableAssignment.set({ id: '', accountId: '', value: tx?.amount ?? '0.00' });
+    if (!tx) return;
+    const remaining = parseFloat(tx.amount) - parseFloat(this.assignedTotal());
+    const value = Math.max(0, remaining).toFixed(2);
+    this.editableAssignments.update(arr => [
+      ...arr,
+      { id: '', accountId: '', value },
+    ]);
   }
 
-  removeAssignment(): void {
-    this.editableAssignment.set(null);
+  removeAssignment(index: number): void {
+    this.editableAssignments.update(arr => arr.filter((_, i) => i !== index));
   }
 
   saveAssignments(): void {
@@ -368,32 +408,39 @@ export class TransactionEditComponent implements OnInit {
     if (!tx) return;
 
     this.assignmentSaving.set(true);
-    const current = this.editableAssignment();
-    const original = this.originalAssignment();
+    const current = this.editableAssignments();
+    const original = this.originalAssignments();
+
+    const toDelete: string[] = [];
+    for (const orig of original) {
+      if (!current.find(c => c.id === orig.id)) {
+        toDelete.push(orig.id);
+      }
+    }
+
+    const toCreate: Array<{accountId: string; value: string}> = [];
+    const toUpdate: Array<{id: string; accountId: string; value: string}> = [];
+    for (const curr of current) {
+      if (!curr.accountId) continue;
+      if (!curr.id) {
+        toCreate.push({ accountId: curr.accountId, value: curr.value });
+      } else {
+        const orig = original.find(o => o.id === curr.id);
+        if (orig && (orig.accountId !== curr.accountId || orig.value !== curr.value)) {
+          toUpdate.push({ id: curr.id, accountId: curr.accountId, value: curr.value });
+        }
+      }
+    }
 
     const operations: Observable<unknown>[] = [];
-
-    if (original && (!current || !current.accountId)) {
-      operations.push(this.dataService.deleteAssignment(this.orgId, tx.id, original.id));
-    } else if (current && current.accountId && !original) {
-      operations.push(
-        this.dataService.createAssignment(this.orgId, tx.id, {
-          accountId: current.accountId,
-          value: current.value,
-        }),
-      );
-    } else if (
-      current &&
-      original &&
-      current.accountId &&
-      (current.accountId !== original.accountId || current.value !== original.value)
-    ) {
-      operations.push(
-        this.dataService.updateAssignment(this.orgId, tx.id, original.id, {
-          accountId: current.accountId,
-          value: current.value,
-        }),
-      );
+    for (const id of toDelete) {
+      operations.push(this.dataService.deleteAssignment(this.orgId, tx.id, id));
+    }
+    for (const c of toCreate) {
+      operations.push(this.dataService.createAssignment(this.orgId, tx.id, c));
+    }
+    for (const u of toUpdate) {
+      operations.push(this.dataService.updateAssignment(this.orgId, tx.id, u.id, u));
     }
 
     if (operations.length === 0) {

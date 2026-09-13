@@ -16,8 +16,10 @@ import {
   StatusBadgeComponent,
   LoadingSpinnerComponent,
   NotificationService,
+  AuditLogHistoryComponent,
 } from '../../../shared/components';
 import { formatDateTime } from '../../../shared/utils';
+import { AuditLogHistoryEntry } from '../../../shared/models';
 import { AccountEditDataService, AccountDetails } from './account-edit.data-service';
 
 @Component({
@@ -28,6 +30,7 @@ import { AccountEditDataService, AccountDetails } from './account-edit.data-serv
     PageContentLayoutComponent,
     StatusBadgeComponent,
     LoadingSpinnerComponent,
+    AuditLogHistoryComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs()">
@@ -104,6 +107,13 @@ import { AccountEditDataService, AccountDetails } from './account-edit.data-serv
                     </div>
                   </form>
                 </div>
+
+                <!-- Historie -->
+                <app-audit-log-history
+                  [entries]="auditLog()"
+                  [entityLabel]="historyEntityLabel"
+                  [entityResource]="historyResource()"
+                />
               </div>
 
               <!-- Right Column: Info & Actions -->
@@ -163,6 +173,10 @@ export class AccountEditComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly account = signal<AccountDetails | null>(null);
+  readonly auditLog = signal<AuditLogHistoryEntry[]>([]);
+  readonly historyResource = signal('');
+
+  readonly historyEntityLabel = $localize`das Konto`;
 
   readonly breadcrumbs = signal<BreadcrumbItem[]>([
     { label: $localize`Haushaltskonten`, path: '' },
@@ -172,6 +186,7 @@ export class AccountEditComponent implements OnInit, OnDestroy {
   readonly accountForm: FormGroup;
 
   private orgId = '';
+  private accountId = '';
 
   private getOrgId(): string {
     let snapshot = this.route.snapshot;
@@ -195,7 +210,10 @@ export class AccountEditComponent implements OnInit, OnDestroy {
     this.orgId = this.getOrgId();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
+      this.accountId = id;
+      this.historyResource.set(`organizations/${this.orgId}/accounts/${this.accountId}`);
       this.loadAccount(id);
+      this.loadAuditLog();
       this.setupAutoSave();
     }
   }
@@ -203,6 +221,14 @@ export class AccountEditComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private loadAuditLog(): void {
+    this.dataService.getAuditLog(this.orgId, this.accountId).subscribe({
+      next: (entries) => this.auditLog.set(entries),
+      // Missing audit-log permission or transient errors: show an empty history.
+      error: () => this.auditLog.set([]),
+    });
   }
 
   private setupAutoSave(): void {
@@ -251,6 +277,7 @@ export class AccountEditComponent implements OnInit, OnDestroy {
       next: () => {
         this.saving.set(false);
         this.accountForm.markAsPristine();
+        this.loadAuditLog();
         // Update breadcrumbs with new values
         this.breadcrumbs.set([
           { label: $localize`Haushaltskonten`, path: `/organizations/${this.orgId}/accounts` },

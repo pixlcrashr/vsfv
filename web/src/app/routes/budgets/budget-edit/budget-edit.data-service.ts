@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { Decimal } from 'decimal.js';
-import { Budget, BudgetTag } from '../../../shared/models';
+import { AuditLogHistoryEntry, Budget, BudgetTag } from '../../../shared/models';
 
 export interface BudgetChange {
   accountId: string;
@@ -36,4 +36,13 @@ export abstract class BudgetEditDataService {
   abstract updateBudgetRevision(organizationId: string, budgetId: string, budgetRevisionId: string, isPublished: boolean): Observable<void>;
   abstract deleteBudgetRevision(organizationId: string, budgetRevisionId: string): Observable<void>;
   abstract closeBudget(organizationId: string, budgetId: string): Observable<void>;
+
+  /** Audit log entries for the budget, including its revisions and account values. */
+  abstract getAuditLog(organizationId: string, budgetId: string): Observable<AuditLogHistoryEntry[]>;
+
+  /**
+   * Maps account UID → display label ("code name") for all accounts in the
+   * organization. Used to render account names in the audit log history.
+   */
+  abstract listAccountLabels(organizationId: string): Observable<ReadonlyMap<string, string>>;
 }

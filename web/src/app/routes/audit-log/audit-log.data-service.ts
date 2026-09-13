@@ -26,13 +26,18 @@ export interface AuditLogEntry {
   action: AuditLogAction;
   actor: string;
   actorId?: string;
+  /** Display name of the actor; undefined for system entries or deleted users. */
+  actorName?: string;
   changes: AuditLogFieldChange[];
   timestamp: Date;
 }
 
 export interface AuditLogEntryFilters {
   action?: 'all' | AuditLogAction;
+  /** Substring match on the audited resource name (includes child resources). */
   resource?: string;
+  /** Exact match on the audited resource name. */
+  exactResource?: string;
   actor?: string;
   afterDate?: string;
   beforeDate?: string;

@@ -20,6 +20,7 @@ export class MockTransactionEditDataService extends TransactionEditDataService {
     creditAccountName: 'Mitgliedsbeiträge',
     description: 'Mitgliedsbeitrag Q1',
     assignedAccountId: null,
+    isLedgerClosed: false,
     accountAssignments: [
       {
         id: faker.string.uuid(),
@@ -63,8 +64,9 @@ export class MockTransactionEditDataService extends TransactionEditDataService {
   }
 
   createAssignment(organizationId: string, transactionId: string, params: CreateAssignmentParams): Observable<TransactionAssignment> {
-    if (this.transaction.accountAssignments.length > 0) {
-      return throwError(() => new Error('transaction assignment already exists')).pipe(delay(200));
+    const existing = this.transaction.accountAssignments.find(a => a.accountId === params.accountId);
+    if (existing) {
+      return throwError(() => new Error('transaction assignment for this account already exists')).pipe(delay(200));
     }
     const assignment: TransactionAssignment = {
       id: faker.string.uuid(),

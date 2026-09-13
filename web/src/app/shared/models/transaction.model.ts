@@ -12,6 +12,7 @@ export interface Transaction {
   creditAccountName: string;
   description: string;
   assignedAccountId: string | null;
+  isLedgerClosed: boolean;
   accountAssignments: TransactionAssignment[];
 }
 

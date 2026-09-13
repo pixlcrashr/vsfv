@@ -26,6 +26,12 @@ export interface V1Group {
    * Entity tag for optimistic concurrency control.
    */
   etag?: string;
+
+  /**
+   * Whether this is a system group. System groups are managed by the
+   * application and cannot be modified or deleted.
+   */
+  is_system?: boolean;
   name?: string;
   organizations?: Array<string>;
 

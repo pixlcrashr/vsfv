@@ -1,17 +1,19 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, switchMap, expand, reduce, EMPTY } from 'rxjs';
 import { AccountServiceService } from '../../api/services/account-service.service';
+import { AuditLogServiceService } from '../../api/services/audit-log-service.service';
 import { V1ListAccountsResponse } from '../../api/models/v1list-accounts-response';
-import { Account } from '../../../app/shared/models';
+import { Account, AuditLogHistoryEntry } from '../../../app/shared/models';
 import {
   AccountEditDataService,
   AccountDetails,
 } from '../../../app/routes/accounts/account-edit/account-edit.data-service';
-import { mapApiAccount } from './_mappers';
+import { mapApiAccount, auditLogHistoryEntryFromApi } from './_mappers';
 
 @Injectable()
 export class HttpAccountEditDataService extends AccountEditDataService {
   private readonly svc = inject(AccountServiceService);
+  private readonly auditLogSvc = inject(AuditLogServiceService);
 
   private accountName(organizationId: string, uid: string): string {
     return `organizations/${organizationId}/accounts/${uid}`;
@@ -92,5 +94,14 @@ export class HttpAccountEditDataService extends AccountEditDataService {
     return this.svc.AccountServiceListAccounts({ parent: `organizations/${organizationId}`, pageSize: 100, showDeleted: false }).pipe(
       map((resp) => (resp.accounts ?? []).map(mapApiAccount)),
     );
+  }
+
+  getAuditLog(organizationId: string, accountId: string): Observable<AuditLogHistoryEntry[]> {
+    return this.auditLogSvc
+      .AuditLogServiceListAuditLogEntries({
+        pageSize: 200,
+        filter: `resource:"${this.accountName(organizationId, accountId)}"`,
+      })
+      .pipe(map((resp) => (resp.audit_log_entries ?? []).map(auditLogHistoryEntryFromApi)));
   }
 }

@@ -6,14 +6,21 @@ import { BudgetRevisionServiceService } from '../../api/services/budget-revision
 import { BudgetAccountValueServiceService } from '../../api/services/budget-account-value-service.service';
 import { BudgetRevisionAccountValueServiceService } from '../../api/services/budget-revision-account-value-service.service';
 import { AccountServiceService } from '../../api/services/account-service.service';
-import { BudgetTag } from '../../../app/shared/models';
+import { AuditLogServiceService } from '../../api/services/audit-log-service.service';
+import { AuditLogHistoryEntry, BudgetTag } from '../../../app/shared/models';
 import {
   BudgetEditDataService,
   BudgetDetails,
   BudgetChange,
   UpdateBudgetParams,
 } from '../../../app/routes/budgets/budget-edit/budget-edit.data-service';
-import { mapApiBudget, mapApiBudgetTag, dateToTypeDate, extractUidFromResourceName } from './_mappers';
+import {
+  mapApiBudget,
+  mapApiBudgetTag,
+  dateToTypeDate,
+  extractUidFromResourceName,
+  auditLogHistoryEntryFromApi,
+} from './_mappers';
 
 @Injectable()
 export class HttpBudgetEditDataService extends BudgetEditDataService {
@@ -22,6 +29,7 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
   private readonly accountValueSvc = inject(BudgetAccountValueServiceService);
   private readonly revisionAccountValueSvc = inject(BudgetRevisionAccountValueServiceService);
   private readonly accountSvc = inject(AccountServiceService);
+  private readonly auditLogSvc = inject(AuditLogServiceService);
 
   private budgetName(organizationId: string, uid: string): string {
     return `organizations/${organizationId}/budgets/${uid}`;
@@ -209,5 +217,34 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
     return this.svc
       .BudgetServiceCloseBudget({ name: this.budgetName(organizationId, budgetId), body: {} })
       .pipe(map(() => undefined));
+  }
+
+  override getAuditLog(organizationId: string, budgetId: string): Observable<AuditLogHistoryEntry[]> {
+    // Substring match so entries for the budget's revisions and account
+    // values are included as well.
+    return this.auditLogSvc
+      .AuditLogServiceListAuditLogEntries({
+        pageSize: 200,
+        filter: `resource:"${this.budgetName(organizationId, budgetId)}"`,
+      })
+      .pipe(map((resp) => (resp.audit_log_entries ?? []).map(auditLogHistoryEntryFromApi)));
+  }
+
+  override listAccountLabels(organizationId: string): Observable<ReadonlyMap<string, string>> {
+    return this.accountSvc
+      .AccountServiceListAccounts({
+        parent: `organizations/${organizationId}`,
+        pageSize: 100,
+      })
+      .pipe(
+        map((resp) => {
+          const map = new Map<string, string>();
+          for (const a of resp.accounts ?? []) {
+            const label = `${a.display_code ?? ''} ${a.display_name ?? ''}`.trim();
+            map.set(a.uid ?? '', label);
+          }
+          return map;
+        }),
+      );
   }
 }

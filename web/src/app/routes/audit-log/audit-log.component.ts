@@ -215,7 +215,9 @@ const ACTION_LABELS: Record<AuditLogAction, string> = {
                           <td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">{{ organizationName(entry) }}</td>
                         }
                         <td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-                          @if (entry.actor) {
+                          @if (entry.actorName) {
+                            <span [title]="entry.actor">{{ entry.actorName }}</span>
+                          } @else if (entry.actor) {
                             <span class="font-mono" [title]="entry.actor">{{ shortActor(entry) }}</span>
                           } @else {
                             <ng-container i18n>System</ng-container>
@@ -473,6 +475,6 @@ export class AuditLogComponent {
   }
 
   shortActor(entry: AuditLogEntry): string {
-    return entry.actorId ?? entry.actor;
+    return entry.actorName ?? entry.actorId ?? entry.actor;
   }
 }

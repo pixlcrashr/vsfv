@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
+  computed,
   OnInit,
   OnDestroy,
 } from '@angular/core';
@@ -19,6 +20,7 @@ import {
   StatusBadgeComponent,
   LoadingSpinnerComponent,
   NotificationService,
+  AuditLogHistoryComponent,
 } from '../../../shared/components';
 import {
   CloseBudgetDialogComponent,
@@ -31,6 +33,7 @@ import {
   CreateTagDialogOutput,
 } from '../../../shared/dialogs/create-tag-dialog/create-tag-dialog.component';
 import { formatDateShort, formatDateForInput } from '../../../shared/utils';
+import { AuditLogHistoryEntry, AuditLogHistoryChange } from '../../../shared/models';
 import { BudgetEditDataService, BudgetDetails, UpdateBudgetParams } from './budget-edit.data-service';
 
 @Component({
@@ -43,6 +46,7 @@ import { BudgetEditDataService, BudgetDetails, UpdateBudgetParams } from './budg
     ButtonComponent,
     StatusBadgeComponent,
     LoadingSpinnerComponent,
+    AuditLogHistoryComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs()">
@@ -241,6 +245,14 @@ import { BudgetEditDataService, BudgetDetails, UpdateBudgetParams } from './budg
                     </div>
                   }
                 </div>
+
+                <!-- Historie -->
+                <app-audit-log-history
+                  [entries]="auditLog()"
+                  [entityLabel]="historyEntityLabel"
+                  [entityResource]="historyResource()"
+                  [entryLabels]="historyEntryLabels()"
+                />
               </div>
 
               <!-- Right Column: Status & Actions -->
@@ -327,6 +339,9 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly budget = signal<BudgetDetails | null>(null);
+  readonly auditLog = signal<AuditLogHistoryEntry[]>([]);
+  readonly accountLabels = signal<ReadonlyMap<string, string>>(new Map());
+  readonly historyResource = signal('');
 
   readonly breadcrumbs = signal<BreadcrumbItem[]>([
     { label: $localize`Haushaltspläne`, path: '' },
@@ -365,7 +380,10 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.budgetId = id;
+      this.historyResource.set(this.budgetResource());
       this.loadBudget(id);
+      this.loadAuditLog();
+      this.loadAccountLabels();
       this.setupAutoSave();
     }
   }
@@ -374,6 +392,91 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  private budgetResource(): string {
+    return `organizations/${this.orgId}/budgets/${this.budgetId}`;
+  }
+
+  private loadAuditLog(): void {
+    this.dataService.getAuditLog(this.orgId, this.budgetId).subscribe({
+      next: (entries) => this.auditLog.set(entries),
+      // Missing audit-log permission or transient errors: show an empty history.
+      error: () => this.auditLog.set([]),
+    });
+  }
+
+  private loadAccountLabels(): void {
+    this.dataService.listAccountLabels(this.orgId).subscribe({
+      next: (labels) => this.accountLabels.set(labels),
+      error: () => this.accountLabels.set(new Map()),
+    });
+  }
+
+  private readonly currencyFormatter = new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+  });
+
+  private formatCurrencyValue(raw: string | undefined): string {
+    if (raw === undefined || raw === '') return '0,00 €';
+    const n = Number(raw);
+    if (isNaN(n)) return raw;
+    return this.currencyFormatter.format(n);
+  }
+
+  private extractRevisionId(resource: string): string | undefined {
+    const match = resource.match(/\/revisions\/([^/]+)/);
+    return match?.[1];
+  }
+
+  private findChange(entry: AuditLogHistoryEntry, field: string): AuditLogHistoryChange | undefined {
+    return entry.changes.find((c) => c.field === field);
+  }
+
+  /**
+   * Custom per-entry labels for the audit log history:
+   *
+   * - Revision creation: "hat Revision <name> erstellt." (no change details)
+   * - Account value create/update: "hat den Revisionswert von Revision <rev>
+   *   und Konto <account> von <old> zu <new> geändert." For created values the
+   *   old value defaults to "0,00 €".
+   */
+  readonly historyEntryLabels = computed<Readonly<Record<string, string>> | undefined>(() => {
+    const budget = this.budget();
+    const entries = this.auditLog();
+    if (!budget || entries.length === 0) return undefined;
+
+    const revisionMap = new Map(budget.tags.map((t) => [t.id, t.name]));
+    const accountMap = this.accountLabels();
+    const labels: Record<string, string> = {};
+
+    for (const entry of entries) {
+      const isRevision = entry.resource.includes('/revisions/');
+      const isAccountValue = entry.resource.includes('/accountValues/');
+
+      if (isRevision && !isAccountValue && entry.action === 'CREATE') {
+        const nameChange = this.findChange(entry, 'display_name');
+        const revName = nameChange?.newValue ?? '';
+        labels[entry.id] = $localize`hat Revision ${revName}:revision: erstellt`;
+      } else if (isAccountValue && (entry.action === 'CREATE' || entry.action === 'UPDATE')) {
+        const valueChange = this.findChange(entry, 'value');
+        if (!valueChange) continue;
+        const revId = this.extractRevisionId(entry.resource);
+        const revName = revId ? (revisionMap.get(revId) ?? revId) : '';
+        const accountIdChange = this.findChange(entry, 'account_id');
+        const accountId = accountIdChange?.newValue;
+        const accountLabel = accountId ? (accountMap.get(accountId) ?? accountId) : '';
+        const oldValue = entry.action === 'CREATE'
+          ? '0,00 €'
+          : this.formatCurrencyValue(valueChange.oldValue);
+        const newValue = this.formatCurrencyValue(valueChange.newValue);
+        labels[entry.id] = $localize`hat den Revisionswert von Revision ${revName}:revision: und Konto ${accountLabel}:account: von ${oldValue}:old: zu ${newValue}:new: geändert`;
+      }
+    }
+
+    return Object.keys(labels).length > 0 ? labels : undefined;
+  });
 
   private setupAutoSave(): void {
     this.budgetForm.valueChanges.pipe(
@@ -454,6 +557,7 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
         next: () => {
           this.saving.set(false);
           this.budgetForm.markAsPristine();
+          this.loadAuditLog();
           // Update breadcrumbs with new name
           this.breadcrumbs.set([
             { label: $localize`Haushaltspläne`, path: `/organizations/${this.orgId}/budgets` },
@@ -516,6 +620,7 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
     this.dataService.createBudgetRevision(this.orgId, budget.id, new Date(), name, description, force).subscribe({
       next: () => {
         this.loadBudget(budget.id);
+        this.loadAuditLog();
         this.notifications.success($localize`Revision erfolgreich erstellt`);
       },
       error: () => {
@@ -538,6 +643,7 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
     this.dataService.updateBudgetRevision(this.orgId, budget.id, tag.id, !tag.isPublished).subscribe({
       next: () => {
         this.loadBudget(budget.id);
+        this.loadAuditLog();
         this.notifications.success(tag.isPublished ? $localize`Revision wurde unveröffentlicht` : $localize`Revision wurde veröffentlicht`);
       },
       error: () => {
@@ -553,6 +659,7 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
     this.dataService.deleteBudgetRevision(this.orgId, tagId).subscribe({
       next: () => {
         this.loadBudget(budget.id);
+        this.loadAuditLog();
         this.notifications.success($localize`Revision erfolgreich entfernt`);
       },
       error: () => {
@@ -581,10 +688,12 @@ export class BudgetEditComponent implements OnInit, OnDestroy {
     dialogRef.closed.subscribe((result) => {
       if (result?.closed) {
         this.loadBudget(budget.id);
+        this.loadAuditLog();
       }
     });
   }
 
   readonly noDescriptionLabel = $localize`Keine Beschreibung`;
+  readonly historyEntityLabel = $localize`den Haushaltsplan`;
   formatDateShort = formatDateShort;
 }

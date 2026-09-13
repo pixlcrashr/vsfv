@@ -499,7 +499,7 @@ module GroupServiceService {
     /**
      * The group to update.
      */
-    group: {uid?: string, display_name: string, display_description?: string, organizations?: Array<string>, permissions?: Array<string>, update_time?: string, create_time?: string, etag?: string};
+    group: {uid?: string, display_name: string, display_description?: string, organizations?: Array<string>, permissions?: Array<string>, is_system?: boolean, update_time?: string, create_time?: string, etag?: string};
   }
 
   /**

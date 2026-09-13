@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
   OnInit,
@@ -16,15 +17,16 @@ import {
   BreadcrumbItem,
   LoadingSpinnerComponent,
   NotificationService,
+  AuditLogHistoryComponent,
 } from '../../../shared/components';
 import {
   DeleteAccountGroupDialogComponent,
   DeleteAccountGroupDialogInput,
   DeleteAccountGroupDialogOutput
 } from '../../../shared/dialogs/delete-account-group-dialog/delete-account-group-dialog.component';
-import { AccountGroupOperation } from '../../../shared/models';
+import { AccountGroupOperation, AuditLogHistoryEntry } from '../../../shared/models';
 import { AccountGroupEditDataService, AccountGroupDetails } from './account-group-edit.data-service';
-import { AccountGroupEditService } from './account-group-edit.service';
+import { AccountGroupEditService, AccountGroupRow } from './account-group-edit.service';
 
 @Component({
   selector: 'app-account-group-edit',
@@ -35,6 +37,7 @@ import { AccountGroupEditService } from './account-group-edit.service';
     ReactiveFormsModule,
     PageContentLayoutComponent,
     LoadingSpinnerComponent,
+    AuditLogHistoryComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs()">
@@ -168,8 +171,9 @@ import { AccountGroupEditService } from './account-group-edit.service';
                                   type="radio"
                                   [name]="'operation-' + row.accountId"
                                   [checked]="row.operation === 'I'"
-                                  (change)="onOperationChange(row.accountId, 'I')"
-                                  class="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                                  [disabled]="updatingOperation()"
+                                  (change)="onOperationChange(row, 'I')"
+                                  class="w-4 h-4 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                                 />
                               </td>
                               <td class="px-1 py-1 text-center">
@@ -177,8 +181,9 @@ import { AccountGroupEditService } from './account-group-edit.service';
                                   type="radio"
                                   [name]="'operation-' + row.accountId"
                                   [checked]="row.operation === 'A'"
-                                  (change)="onOperationChange(row.accountId, 'A')"
-                                  class="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                                  [disabled]="updatingOperation()"
+                                  (change)="onOperationChange(row, 'A')"
+                                  class="w-4 h-4 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                                 />
                               </td>
                               <td class="px-1 py-1 text-center">
@@ -186,8 +191,9 @@ import { AccountGroupEditService } from './account-group-edit.service';
                                   type="radio"
                                   [name]="'operation-' + row.accountId"
                                   [checked]="row.operation === 'S'"
-                                  (change)="onOperationChange(row.accountId, 'S')"
-                                  class="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                                  [disabled]="updatingOperation()"
+                                  (change)="onOperationChange(row, 'S')"
+                                  class="w-4 h-4 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                                 />
                               </td>
                             </tr>
@@ -197,6 +203,15 @@ import { AccountGroupEditService } from './account-group-edit.service';
                     </div>
                   }
                 </div>
+
+                <!-- Historie -->
+                <app-audit-log-history
+                  [entries]="auditLog()"
+                  [entityLabel]="historyEntityLabel"
+                  [entityResource]="historyResource()"
+                  [entryLabels]="assignmentEntryLabels()"
+                  [entryActions]="assignmentEntryActions()"
+                />
               </div>
 
               <!-- Right Column: Actions -->
@@ -243,7 +258,12 @@ export class AccountGroupEditComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly loadingAccounts = signal(true);
+  readonly updatingOperation = signal(false);
   readonly group = signal<AccountGroupDetails | null>(null);
+  readonly auditLog = signal<AuditLogHistoryEntry[]>([]);
+  readonly historyResource = signal('');
+
+  readonly historyEntityLabel = $localize`die Kontengruppe`;
 
   readonly breadcrumbs = signal<BreadcrumbItem[]>([
     { label: $localize`Kontengruppen`, path: '' },
@@ -277,8 +297,10 @@ export class AccountGroupEditComponent implements OnInit, OnDestroy {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.groupId = id;
+      this.historyResource.set(`organizations/${this.orgId}/accountGroups/${this.groupId}`);
       this.loadGroup(id);
       this.loadAccountsWithOperations(id);
+      this.loadAuditLog();
       this.setupAutoSave();
     }
   }
@@ -286,6 +308,84 @@ export class AccountGroupEditComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private loadAuditLog(): void {
+    this.dataService.getAuditLog(this.orgId, this.groupId).subscribe({
+      next: (entries) => this.auditLog.set(entries),
+      // Missing audit-log permission or transient errors: show an empty history.
+      error: () => this.auditLog.set([]),
+    });
+  }
+
+  /**
+   * Dense labels for assignment audit entries: instead of the raw field diff
+   * (custom_id, UUIDs, negate) each entry becomes a single line naming the
+   * account and the operation it was set to. Recomputes when the audit log
+   * or the account list changes. Entries without a resolvable label fall
+   * back to the default rendering.
+   */
+  readonly assignmentEntryLabels = computed<Record<string, string>>(() =>
+    this.describeAssignmentEntries(this.auditLog(), this.editService.rows()),
+  );
+
+  /**
+   * Forces every assignment audit entry to render with the edit (UPDATE)
+   * icon regardless of its underlying action, since assignments are only
+   * ever toggled between operations.
+   */
+  readonly assignmentEntryActions = computed<Record<string, 'UPDATE'>>(() => {
+    const actions: Record<string, 'UPDATE'> = {};
+    for (const entry of this.auditLog()) {
+      if (entry.resource.includes('/assignments/')) {
+        actions[entry.id] = 'UPDATE';
+      }
+    }
+    return actions;
+  });
+
+  private describeAssignmentEntries(
+    entries: AuditLogHistoryEntry[],
+    rows: AccountGroupRow[],
+  ): Record<string, string> {
+    const labels: Record<string, string> = {};
+
+    for (const entry of entries) {
+      if (!entry.resource.includes('/assignments/')) {
+        continue;
+      }
+
+      // CREATE/DELETE entries carry the account id in their changes; UPDATE
+      // entries only carry the negate change, so resolve the account via the
+      // assignment id from the resource name.
+      let accountId: string | undefined;
+      for (const change of entry.changes) {
+        if (change.field === 'account_id') {
+          accountId = (entry.action === 'DELETE' ? change.oldValue : change.newValue) ?? accountId;
+        }
+      }
+      if (!accountId) {
+        const assignmentId = entry.resource.split('/').pop();
+        accountId = rows.find((row) => row.assignmentId === assignmentId)?.accountId;
+      }
+      const row = rows.find((r) => r.accountId === accountId);
+      if (!row) {
+        continue;
+      }
+
+      const account = `${row.displayCode} — ${row.displayName}`;
+      if (entry.action === 'DELETE') {
+        labels[entry.id] = $localize`hat ${account}:account: ignoriert`;
+        continue;
+      }
+      const negateChange = entry.changes.find((change) => change.field === 'negate');
+      const negate = negateChange ? negateChange.newValue === 'true' : row.operation === 'S';
+      labels[entry.id] = negate
+        ? $localize`hat ${account}:account: subtrahiert`
+        : $localize`hat ${account}:account: addiert`;
+    }
+
+    return labels;
   }
 
   private setupAutoSave(): void {
@@ -336,16 +436,26 @@ export class AccountGroupEditComponent implements OnInit, OnDestroy {
     });
   }
 
-  onOperationChange(accountId: string, operation: AccountGroupOperation): void {
-    this.dataService.updateAccountOperation(this.orgId, this.groupId, accountId, operation).subscribe({
-      next: () => {
-        // Reload accounts to update the display
-        this.loadAccountsWithOperations(this.groupId);
-      },
-      error: () => {
-        this.notifications.error($localize`Fehler beim Aktualisieren der Operation`);
-      },
-    });
+  onOperationChange(row: AccountGroupRow, operation: AccountGroupOperation): void {
+    if (this.updatingOperation()) return;
+
+    this.updatingOperation.set(true);
+    this.dataService
+      .updateAccountOperation(this.orgId, this.groupId, row.accountId, operation, row.assignmentId)
+      .subscribe({
+        next: (assignmentId) => {
+          this.updatingOperation.set(false);
+          // Apply the persisted state locally instead of reloading the whole list.
+          this.editService.applyOperation(row.accountId, operation, assignmentId);
+          this.loadAuditLog();
+        },
+        error: () => {
+          this.updatingOperation.set(false);
+          this.notifications.error($localize`Fehler beim Aktualisieren der Operation`);
+          // Re-sync with the persisted state (also reverts the clicked radio).
+          this.loadAccountsWithOperations(this.groupId);
+        },
+      });
   }
 
   private saveGroup(): void {
@@ -358,6 +468,7 @@ export class AccountGroupEditComponent implements OnInit, OnDestroy {
       next: () => {
         this.saving.set(false);
         this.groupForm.markAsPristine();
+        this.loadAuditLog();
         // Update breadcrumbs with new name
         this.breadcrumbs.set([
           { label: $localize`Kontengruppen`, path: `/organizations/${this.orgId}/accountGroups` },

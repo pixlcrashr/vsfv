@@ -3,19 +3,21 @@ import { Observable, combineLatest, map, of, switchMap } from 'rxjs';
 import { AccountGroupServiceService } from '../../api/services/account-group-service.service';
 import { AccountGroupAssignmentServiceService } from '../../api/services/account-group-assignment-service.service';
 import { AccountServiceService } from '../../api/services/account-service.service';
-import { Account, AccountGroupOperation } from '../../../app/shared/models';
+import { AuditLogServiceService } from '../../api/services/audit-log-service.service';
+import { Account, AccountGroupOperation, AuditLogHistoryEntry } from '../../../app/shared/models';
 import {
   AccountGroupEditDataService,
   AccountGroupDetails,
   AccountWithOperation,
 } from '../../../app/routes/account-groups/account-group-edit/account-group-edit.data-service';
-import { mapApiAccount, mapApiAccountGroupAssignment } from './_mappers';
+import { mapApiAccount, mapApiAccountGroupAssignment, auditLogHistoryEntryFromApi } from './_mappers';
 
 @Injectable()
 export class HttpAccountGroupEditDataService extends AccountGroupEditDataService {
   private readonly groupSvc = inject(AccountGroupServiceService);
   private readonly assignmentSvc = inject(AccountGroupAssignmentServiceService);
   private readonly accountSvc = inject(AccountServiceService);
+  private readonly auditLogSvc = inject(AuditLogServiceService);
 
   private groupName(organizationId: string, uid: string): string {
     return `organizations/${organizationId}/accountGroups/${uid}`;
@@ -100,25 +102,54 @@ export class HttpAccountGroupEditDataService extends AccountGroupEditDataService
     );
   }
 
-  addAssignment(organizationId: string, groupId: string, accountId: string): Observable<void> {
-    return this.assignmentSvc.AccountGroupAssignmentServiceCreateAccountGroupAssignment({
-      parent: this.groupName(organizationId, groupId),
-      assignment: { account_id: accountId, negate: false },
-    }).pipe(map(() => undefined));
-  }
+  override updateAccountOperation(
+    organizationId: string,
+    accountGroupId: string,
+    accountId: string,
+    operation: AccountGroupOperation,
+    assignmentId?: string | null,
+  ): Observable<string | null> {
+    // 'I' (ignore) is represented by the absence of an assignment.
+    if (operation === 'I') {
+      if (!assignmentId) {
+        return of(null);
+      }
+      return this.assignmentSvc
+        .AccountGroupAssignmentServiceDeleteAccountGroupAssignment(
+          this.assignmentName(organizationId, accountGroupId, assignmentId),
+        )
+        .pipe(map(() => null));
+    }
 
-  removeAssignment(organizationId: string, groupId: string, assignmentId: string): Observable<void> {
-    return this.assignmentSvc.AccountGroupAssignmentServiceDeleteAccountGroupAssignment(
-      this.assignmentName(organizationId, groupId, assignmentId),
-    ).pipe(map(() => undefined));
-  }
+    const negate = operation === 'S';
+    if (assignmentId) {
+      return this.assignmentSvc
+        .AccountGroupAssignmentServiceUpdateAccountGroupAssignment({
+          assignmentName: this.assignmentName(organizationId, accountGroupId, assignmentId),
+          assignment: { account_id: accountId, negate },
+        })
+        .pipe(map((a) => a.uid ?? assignmentId));
+    }
 
-  updateAccountOperation(_organizationId: string, _groupId: string, _accountId: string, _operation: AccountGroupOperation): Observable<void> {
-    // TODO: Implement when backend API supports operation updates
-    return of(undefined);
+    return this.assignmentSvc
+      .AccountGroupAssignmentServiceCreateAccountGroupAssignment({
+        parent: this.groupName(organizationId, accountGroupId),
+        assignment: { account_id: accountId, negate },
+      })
+      .pipe(map((a) => a.uid ?? ''));
   }
 
   deleteGroup(organizationId: string, id: string): Observable<void> {
     return this.groupSvc.AccountGroupServiceDeleteAccountGroup(this.groupName(organizationId, id)).pipe(map(() => undefined));
+  }
+
+  getAuditLog(organizationId: string, accountGroupId: string): Observable<AuditLogHistoryEntry[]> {
+    // Substring match so entries for the group's assignments are included as well.
+    return this.auditLogSvc
+      .AuditLogServiceListAuditLogEntries({
+        pageSize: 200,
+        filter: `resource:"${this.groupName(organizationId, accountGroupId)}"`,
+      })
+      .pipe(map((resp) => (resp.audit_log_entries ?? []).map(auditLogHistoryEntryFromApi)));
   }
 }

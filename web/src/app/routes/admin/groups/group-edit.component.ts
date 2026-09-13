@@ -41,6 +41,23 @@ import { OrganizationListDataService } from '../organizations/organization-list.
           <app-loading-spinner [fullPage]="true" i18n-text text="Gruppe wird geladen..." />
         } @else if (group()) {
           <div class="w-full max-w-4xl">
+            @if (isSystem()) {
+              <div class="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="h-4 w-4 shrink-0 text-blue-500 mt-0.5"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span class="text-xs text-blue-800" i18n>Diese Gruppe ist eine Systemgruppe und kann nicht bearbeitet werden.</span>
+              </div>
+            }
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <!-- Left Column: Form (auto-saving) -->
               <div class="lg:col-span-2 space-y-4">
@@ -73,7 +90,7 @@ import { OrganizationListDataService } from '../organizations/organization-list.
                           id="name"
                           type="text"
                           formControlName="name"
-                          class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                         />
                       </div>
                       <div>
@@ -87,7 +104,7 @@ import { OrganizationListDataService } from '../organizations/organization-list.
                           id="description"
                           formControlName="description"
                           rows="2"
-                          class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                         ></textarea>
                       </div>
                     </div>
@@ -106,12 +123,13 @@ import { OrganizationListDataService } from '../organizations/organization-list.
                     <p i18n class="text-xs text-gray-500">Keine Organisationen vorhanden.</p>
                   } @else {
                     <div class="space-y-2">
-                      <label class="flex items-center gap-2 cursor-pointer">
+                      <label class="flex items-center gap-2" [class.cursor-pointer]="!isSystem()">
                         <input
                           type="checkbox"
                           [checked]="isAllOrganizations()"
                           (change)="toggleAllOrganizations($event)"
-                          class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          [disabled]="isSystem()"
+                          class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                         <span class="text-sm font-medium text-gray-900" i18n>Alle Organisationen (*)</span>
                       </label>
@@ -119,12 +137,13 @@ import { OrganizationListDataService } from '../organizations/organization-list.
                       @if (!isAllOrganizations()) {
                         <div class="space-y-1 pl-6 border-l border-gray-200 ml-2">
                           @for (org of organizations(); track org.id) {
-                            <label class="flex items-center gap-2 cursor-pointer">
+                            <label class="flex items-center gap-2" [class.cursor-pointer]="!isSystem()">
                               <input
                                 type="checkbox"
                                 [checked]="isOrganizationAssigned(org.id)"
                                 (change)="toggleOrganization(org.id, $event)"
-                                class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                [disabled]="isSystem()"
+                                class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                               />
                               <span class="text-sm text-gray-900">{{ org.name }}</span>
                             </label>
@@ -155,13 +174,15 @@ import { OrganizationListDataService } from '../organizations/organization-list.
                           <div class="space-y-1">
                             @for (permission of category.permissions; track permission.id) {
                               <label
-                                class="flex items-center gap-2 cursor-pointer"
+                                class="flex items-center gap-2"
+                                [class.cursor-pointer]="!isSystem()"
                               >
                                 <input
                                   type="checkbox"
                                   [checked]="isPermissionAssigned(permission.id)"
                                   (change)="togglePermission(permission.id, $event)"
-                                  class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  [disabled]="isSystem()"
+                                  class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 />
                                 <div>
                                   <span class="text-sm text-gray-900">{{ permission.name }}</span>
@@ -222,6 +243,7 @@ export class GroupEditComponent implements OnInit, OnDestroy {
   readonly allOrganizations = signal(false);
 
   readonly isAllOrganizations = computed(() => this.allOrganizations());
+  readonly isSystem = computed(() => this.group()?.isSystem ?? false);
 
   readonly groupForm: FormGroup;
 
@@ -270,6 +292,11 @@ export class GroupEditComponent implements OnInit, OnDestroy {
         }, { emitEvent: false });
         this.groupForm.markAsPristine();
 
+        // System groups cannot be modified; disable the auto-saving form.
+        if (group.isSystem) {
+          this.groupForm.disable({ emitEvent: false });
+        }
+
         // Load assigned permissions and organizations from the group.
         this.assignedPermissionIds.set(new Set(group.permissions));
 
@@ -310,7 +337,7 @@ export class GroupEditComponent implements OnInit, OnDestroy {
   }
 
   private saveGroup(): void {
-    if (this.groupForm.invalid) return;
+    if (this.groupForm.invalid || this.isSystem()) return;
 
     this.saving.set(true);
     const { name, description } = this.groupForm.value;

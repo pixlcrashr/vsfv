@@ -18,3 +18,4 @@ export { PageContentLayoutComponent } from './page-content-layout/page-content-l
 export { AdminContentHeaderComponent } from './admin-content-header/admin-content-header.component';
 export { AdminContentComponent } from './admin-content/admin-content.component';
 export { StatusBadgeComponent, type BadgeVariant } from './status-badge/status-badge.component';
+export { AuditLogHistoryComponent } from './audit-log-history/audit-log-history.component';

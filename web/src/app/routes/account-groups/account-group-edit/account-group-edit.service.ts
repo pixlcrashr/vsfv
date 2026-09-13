@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { Account, AccountGroupOperation } from '../../../shared/models';
+import { Account, AccountGroupAssignment, AccountGroupOperation } from '../../../shared/models';
 import { AccountWithOperation } from './account-group-edit.data-service';
 
 export interface AccountGroupRow {
@@ -10,6 +10,7 @@ export interface AccountGroupRow {
   depth: number;
   isArchived: boolean;
   operation: AccountGroupOperation;
+  assignmentId: string | null;
   account: Account;
 }
 
@@ -19,6 +20,36 @@ export class AccountGroupEditService {
 
   setAccountsWithOperations(accounts: AccountWithOperation[]): void {
     this.accountsWithOps.set(accounts);
+  }
+
+  /**
+   * Applies a locally persisted operation change for one account without
+   * reloading the whole list. `assignmentId` is the id returned by the
+   * backend (null when the assignment was removed with 'I').
+   */
+  applyOperation(accountId: string, operation: AccountGroupOperation, assignmentId: string | null): void {
+    this.accountsWithOps.update((items) =>
+      items.map((item) => {
+        if (item.account.id !== accountId) {
+          return item;
+        }
+        if (operation === 'I' || !assignmentId) {
+          return { ...item, assignment: null };
+        }
+        const assignment: AccountGroupAssignment = item.assignment
+          ? { ...item.assignment, id: assignmentId, operation }
+          : {
+              id: assignmentId,
+              accountId,
+              accountCode: item.account.code,
+              accountName: item.account.name,
+              operation,
+              targetValue: '0',
+              actualValue: '0',
+            };
+        return { ...item, assignment };
+      }),
+    );
   }
 
   readonly maxDepth = computed(() => {
@@ -46,6 +77,7 @@ export class AccountGroupEditService {
       depth: this.computeDepth(item.account),
       isArchived: item.account.isArchived,
       operation: item.assignment?.operation ?? 'I',
+      assignmentId: item.assignment?.id ?? null,
       account: item.account,
     }));
   });

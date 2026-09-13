@@ -2,6 +2,7 @@ import {
   V1Account as ApiAccount,
   V1AccountGroup as ApiAccountGroup,
   V1AccountGroupAssignment as ApiAccountGroupAssignment,
+  V1AuditLogEntry as ApiAuditLogEntry,
   V1Budget as ApiBudget,
   V1BudgetRevision as ApiBudgetRevision,
   V1NestedAccount as ApiNestedAccount,
@@ -15,6 +16,9 @@ import {
   Account,
   AccountGroup,
   AccountGroupAssignment,
+  AuditLogHistoryAction,
+  AuditLogHistoryChange,
+  AuditLogHistoryEntry,
   Budget,
   BudgetRevision,
   BudgetTag,
@@ -160,6 +164,35 @@ export function extractUidFromResourceName(resourceName: string): string {
   return resourceName.split('/').pop() ?? '';
 }
 
+function auditLogHistoryActionFromApi(value: string | undefined): AuditLogHistoryAction {
+  const normalized = (value ?? '').replace(/^ACTION_/, '');
+  return normalized === 'CREATE' || normalized === 'DELETE' ? normalized : 'UPDATE';
+}
+
+export function auditLogHistoryChangeFromApi(c: {
+  field?: string;
+  old_value?: string;
+  new_value?: string;
+}): AuditLogHistoryChange {
+  return {
+    field: c.field ?? '',
+    oldValue: c.old_value === '' || c.old_value === undefined ? undefined : c.old_value,
+    newValue: c.new_value === '' || c.new_value === undefined ? undefined : c.new_value,
+  };
+}
+
+export function auditLogHistoryEntryFromApi(e: ApiAuditLogEntry): AuditLogHistoryEntry {
+  return {
+    id: e.uid ?? '',
+    resource: e.resource ?? '',
+    action: auditLogHistoryActionFromApi(e.action),
+    actorId: e.actor ? extractUidFromResourceName(e.actor) || undefined : undefined,
+    actorName: e.actor_display_name || undefined,
+    changes: (e.changes ?? []).map(auditLogHistoryChangeFromApi),
+    timestamp: e.timestamp ? new Date(e.timestamp) : new Date(0),
+  };
+}
+
 export function mapApiTransaction(
   t: ApiTransaction,
   debitAccountCode: string,
@@ -167,6 +200,7 @@ export function mapApiTransaction(
   creditAccountCode: string,
   creditAccountName: string,
   assignments: TransactionAssignment[],
+  isLedgerClosed = false,
 ): Transaction {
   return {
     id: t.uid ?? '',
@@ -182,6 +216,7 @@ export function mapApiTransaction(
     creditAccountName,
     description: t.description ?? '',
     assignedAccountId: null,
+    isLedgerClosed,
     accountAssignments: assignments,
   };
 }

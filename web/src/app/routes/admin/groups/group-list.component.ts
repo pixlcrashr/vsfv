@@ -105,13 +105,13 @@ import { GroupListDataService } from './group-list.data-service';
                         </td>
                         <td class="px-3 py-2 text-right text-xs">
                           <div class="flex items-center justify-end gap-2">
-                            <a
-                              [routerLink]="['/admin/groups', group.id, 'edit']"
-                              class="text-xs text-blue-600 hover:underline"
-                            >
-                              <ng-container i18n>Bearbeiten</ng-container>
-                            </a>
                             @if (!group.isSystem) {
+                              <a
+                                [routerLink]="['/admin/groups', group.id, 'edit']"
+                                class="text-xs text-blue-600 hover:underline"
+                              >
+                                <ng-container i18n>Bearbeiten</ng-container>
+                              </a>
                               <button
                                 type="button"
                                 class="text-xs text-red-600 hover:underline"
