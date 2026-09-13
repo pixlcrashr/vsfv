@@ -44,6 +44,7 @@ import { MockAuthorizationDataService } from '../lib/data/mock/authorization-dat
 import { MockCurrentUserService } from '../lib/data/mock/current-user.service.mock';
 import { MockUserProfileDataService } from '../lib/data/mock/user-profile.data-service.mock';
 import { MockAuditLogDataService } from '../lib/data/mock/audit-log.data-service.mock';
+import { MockLoginDataService } from '../lib/data/mock/login.data-service.mock';
 
 
 
@@ -99,5 +100,6 @@ export const environment = {
     currentUser: MockCurrentUserService,
     userProfile: MockUserProfileDataService,
     auditLog: MockAuditLogDataService,
+    login: MockLoginDataService,
   },
 };

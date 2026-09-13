@@ -1,4 +1,5 @@
 export { AuditLogServiceService } from './services/audit-log-service.service';
+export { AuthServiceService } from './services/auth-service.service';
 export { GroupServiceService } from './services/group-service.service';
 export { OrganizationServiceService } from './services/organization-service.service';
 export { ReportTemplateServiceService } from './services/report-template-service.service';

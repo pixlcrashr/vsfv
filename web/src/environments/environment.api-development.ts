@@ -46,6 +46,7 @@ import { HttpAuthorizationDataService } from '../lib/data/http/authorization-dat
 import { HttpCurrentUserService } from '../lib/data/http/current-user.service.http';
 import { HttpUserProfileDataService } from '../lib/data/http/user-profile.data-service.http';
 import { HttpAuditLogDataService } from '../lib/data/http/audit-log.data-service.http';
+import { HttpLoginDataService } from '../lib/data/http/login.data-service.http';
 
 
 
@@ -101,5 +102,6 @@ export const environment = {
     currentUser: HttpCurrentUserService,
     userProfile: HttpUserProfileDataService,
     auditLog: HttpAuditLogDataService,
+    login: HttpLoginDataService,
   },
 };

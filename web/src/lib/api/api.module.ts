@@ -4,6 +4,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { ApiConfiguration, ApiConfigurationInterface } from './api-configuration';
 
 import { AuditLogServiceService } from './services/audit-log-service.service';
+import { AuthServiceService } from './services/auth-service.service';
 import { GroupServiceService } from './services/group-service.service';
 import { OrganizationServiceService } from './services/organization-service.service';
 import { ReportTemplateServiceService } from './services/report-template-service.service';
@@ -38,6 +39,7 @@ import { BudgetRevisionAccountValueServiceService } from './services/budget-revi
   providers: [
     ApiConfiguration,
     AuditLogServiceService,
+    AuthServiceService,
     GroupServiceService,
     OrganizationServiceService,
     ReportTemplateServiceService,

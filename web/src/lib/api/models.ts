@@ -56,6 +56,9 @@ export { V1ListTransactionsResponse } from './models/v1list-transactions-respons
 export { V1ListUserGroupsResponse } from './models/v1list-user-groups-response';
 export { V1ListUserIdentitiesResponse } from './models/v1list-user-identities-response';
 export { V1ListUsersResponse } from './models/v1list-users-response';
+export { V1LoginOptions } from './models/v1login-options';
+export { V1LoginRequest } from './models/v1login-request';
+export { V1LoginResponse } from './models/v1login-response';
 export { V1Month } from './models/v1month';
 export { V1NestedAccount } from './models/v1nested-account';
 export { V1Organization } from './models/v1organization';

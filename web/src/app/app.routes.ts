@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { MainLayoutDataService } from './shared/layout/main-layout/main-layout.data-service';
 import { ReportTemplateEditDataService } from './routes/report-templates/report-template-edit/report-template-edit.data-service';
 import { UserProfileDataService } from './routes/profile/user-profile.data-service';
+import { LoginDataService } from './routes/login/login.data-service';
 import { environment } from '../environments/environment';
 import { authGuard } from './auth/auth.guard';
 import { organizationRedirectGuard } from './auth/organization-redirect.guard';
@@ -27,6 +28,9 @@ export const routes: Routes = [
       import('./routes/login/login.component').then(
         (m) => m.LoginComponent,
       ),
+    providers: [
+      { provide: LoginDataService, useClass: environment.dataServices.login },
+    ],
   },
   // Logout route (no main layout, no auth guard, no menu)
   {
