@@ -9,7 +9,7 @@ database:
 auth:
   secret: "dev-secret-do-not-use-in-production"
   gitlab:
-    enabled: true
+    enabled: false
     client-id: "clientID"
     client-secret: "clientSecret"
     issuer: "https://gitlab.oauth-provider.com"
