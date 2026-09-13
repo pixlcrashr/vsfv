@@ -17,10 +17,8 @@ auth:
     - "http://localhost:4200/login"
     - "http://localhost:8080/login"
     - "http://127.0.0.1:8080/login"
-
 gotenberg:
   url: "http://127.0.0.1:3000"
-
 cors:
   enabled: true
   allow-origins:
@@ -38,5 +36,5 @@ cors:
     - "Content-Type"
     - "Accept"
     - "Authorization"
-  allow-credentials: false
+  allow-credentials: true
   max-age: 300

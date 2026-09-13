@@ -80,3 +80,14 @@ func (r *OAuth2ClientRepository) Create(ctx context.Context, params CreateOAuth2
 	}
 	return m, nil
 }
+
+// UpdateScopes replaces the scope list of the client with the given one.
+func (r *OAuth2ClientRepository) UpdateScopes(ctx context.Context, clientID string, scopes types.StringArray) error {
+	_, err := r.q.OAuth2Client.WithContext(ctx).
+		Where(r.q.OAuth2Client.ClientID.Eq(clientID)).
+		Update(r.q.OAuth2Client.Scopes, scopes)
+	if err != nil {
+		return fmt.Errorf("update oauth2 client scopes client_id=%s: %w", clientID, err)
+	}
+	return nil
+}

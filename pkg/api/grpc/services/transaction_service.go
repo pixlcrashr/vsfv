@@ -208,7 +208,6 @@ func (s *transactionServiceServer) CreateTransaction(ctx context.Context, req *g
 		DebitLedgerAccountID:  debitID,
 		Description:           t.Description,
 		Reference:             t.Reference,
-		CustomID:              req.TransactionId,
 	}
 	if t.BookedAt != nil {
 		params.BookedAt = t.BookedAt.AsTime()
@@ -242,7 +241,7 @@ func (s *transactionServiceServer) CreateTransaction(ctx context.Context, req *g
 	}
 
 	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.TransactionResourceName(m.CustomID).String(), orgID, m.ID,
+		n.TransactionResourceName(m.ID.String()).String(), orgID, m.ID,
 	), AuditActionCreate, nil, m); err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}

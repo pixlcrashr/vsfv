@@ -118,11 +118,12 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 		return nil, &ServerError{Err: err, Status: statusInvalidFilter}
 	}
 
-	// Pre-collect all "account" and "transaction" resource name values from
-	// the filter condition tree so we can batch-resolve them in a single query
-	// each, instead of fetching one-by-one inside cond.Transform.
+	// Pre-collect all "account" resource name values from the filter
+	// condition tree so we can batch-resolve them in a single query,
+	// instead of fetching one-by-one inside cond.Transform.
+	// Transaction resource names now use the transaction UUID directly as
+	// the resource name segment, so no batch lookup is needed for those.
 	var accountLookups []repository.AccountResourceNameLookup
-	var transactionLookups []repository.TransactionResourceNameLookup
 	collectResourceNames(c, func(field, value string) {
 		switch field {
 		case "account":
@@ -131,14 +132,6 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 				accountLookups = append(accountLookups, repository.AccountResourceNameLookup{
 					OrganizationCustomID: rn.Organization,
 					AccountCustomID:      rn.Account,
-				})
-			}
-		case "transaction":
-			var rn gen.TransactionResourceName
-			if err := rn.UnmarshalString(value); err == nil {
-				transactionLookups = append(transactionLookups, repository.TransactionResourceNameLookup{
-					OrganizationCustomID: rn.Organization,
-					TransactionCustomID:  rn.Transaction,
 				})
 			}
 		}
@@ -162,26 +155,11 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 		}
 	}
 
-	// Batch-resolve transaction resource names -> UUID strings.
-	transactionUUIDByResourceName := make(map[string]string)
-	if len(transactionLookups) > 0 {
-		txns, err := s.transactionRepo.BatchGetByResourceName(ctx, transactionLookups)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
-		}
-		for i, l := range transactionLookups {
-			if txns[i] != nil {
-				rn := gen.TransactionResourceName{
-					Organization: l.OrganizationCustomID,
-					Transaction:  l.TransactionCustomID,
-				}
-				transactionUUIDByResourceName[rn.String()] = txns[i].ID.String()
-			}
-		}
-	}
-
 	// Transform the condition tree, replacing resource name values with
-	// resolved UUIDs using the pre-built lookup maps.
+	// resolved UUIDs.
+	// - account: resolved via the batch lookup above.
+	// - transaction: the resource name segment is already the transaction
+	//   UUID, so parse it directly and pass it through.
 	c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
 		switch field {
 		case "account":
@@ -199,11 +177,14 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 			if !ok {
 				return field, value, true
 			}
-			uid, found := transactionUUIDByResourceName[txName]
-			if !found {
+			var rn gen.TransactionResourceName
+			if err := rn.UnmarshalString(txName); err != nil {
 				return field, value, false
 			}
-			return "transaction", uid, true
+			if _, err := uuid.Parse(rn.Transaction); err != nil {
+				return field, value, false
+			}
+			return "transaction", rn.Transaction, true
 		default:
 			return field, value, true
 		}
@@ -240,39 +221,11 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 
 	resp := &gen.ListTransactionAssignmentsResponse{TotalSize: total}
 
-	// When listing with a wildcard parent, each assignment belongs to a
-	// different transaction. We need to resolve the transaction CustomID for
-	// each assignment to build the correct resource name. Bulk-load all
-	// relevant transactions to avoid N+1 queries.
-	var txCustomIDByUUID map[uuid.UUID]string
-	if isWildcard && len(ms) > 0 {
-		txIDs := make([]uuid.UUID, 0, len(ms))
-		seen := make(map[uuid.UUID]struct{}, len(ms))
-		for _, m := range ms {
-			if _, ok := seen[m.TransactionID]; !ok {
-				seen[m.TransactionID] = struct{}{}
-				txIDs = append(txIDs, m.TransactionID)
-			}
-		}
-		txns, err := s.transactionRepo.ListByIDs(ctx, txIDs)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
-		}
-		txCustomIDByUUID = make(map[uuid.UUID]string, len(txns))
-		for _, t := range txns {
-			txCustomIDByUUID[t.ID] = t.CustomID
-		}
-	}
-
 	for _, m := range ms {
 		if isWildcard {
-			customID, ok := txCustomIDByUUID[m.TransactionID]
-			if !ok {
-				continue
-			}
 			txRN := gen.TransactionResourceName{
 				Organization: pn.Organization,
-				Transaction:  customID,
+				Transaction:  m.TransactionID.String(),
 			}
 			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(txRN, m, &model.Account{CustomID: m.AccountID.String()}))
 		} else {

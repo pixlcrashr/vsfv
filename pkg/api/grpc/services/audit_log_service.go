@@ -33,11 +33,12 @@ type auditLogServiceServer struct {
 	gen.UnimplementedAuditLogServiceServer
 	repo     *repository.AuditLogEntryRepository
 	orgRepo  *repository.OrganizationRepository
+	userRepo *repository.UserRepository
 	enforcer *authz.Enforcer
 }
 
-func newAuditLogServiceServer(repo *repository.AuditLogEntryRepository, orgRepo *repository.OrganizationRepository, enforcer *authz.Enforcer) gen.AuditLogServiceServer {
-	return &auditLogServiceServer{repo: repo, orgRepo: orgRepo, enforcer: enforcer}
+func newAuditLogServiceServer(repo *repository.AuditLogEntryRepository, orgRepo *repository.OrganizationRepository, userRepo *repository.UserRepository, enforcer *authz.Enforcer) gen.AuditLogServiceServer {
+	return &auditLogServiceServer{repo: repo, orgRepo: orgRepo, userRepo: userRepo, enforcer: enforcer}
 }
 
 // auditAccess describes the caller's effective audit log access. unrestricted
@@ -135,7 +136,20 @@ func (s *auditLogServiceServer) GetAuditLogEntry(ctx context.Context, req *gen.G
 		}
 	}
 
-	return AuditLogEntryToProto(m, orgResourceName), nil
+	return AuditLogEntryToProto(m, orgResourceName, s.actorDisplayName(ctx, m)), nil
+}
+
+// actorDisplayName resolves the display name for an entry's actor. It returns
+// an empty string for system entries and for actors that have been deleted.
+func (s *auditLogServiceServer) actorDisplayName(ctx context.Context, m *model.AuditLogEntry) string {
+	if !m.ActorID.Valid {
+		return ""
+	}
+	user, err := s.userRepo.GetByID(ctx, m.ActorID.UUID)
+	if err != nil {
+		return ""
+	}
+	return user.Name
 }
 
 func (s *auditLogServiceServer) ListAuditLogEntries(ctx context.Context, req *gen.ListAuditLogEntriesRequest) (*gen.ListAuditLogEntriesResponse, error) {
@@ -251,20 +265,37 @@ func (s *auditLogServiceServer) ListAuditLogEntries(ctx context.Context, req *ge
 		return nil, &ServerError{Err: err, Status: statusFailedListAuditLogEntries}
 	}
 
-	// Batch-resolve the organization resource names for the page.
+	// Batch-resolve the organization resource names and actor display names
+	// for the page.
 	orgRNByID := make(map[uuid.UUID]string)
+	actorIDSet := make(map[uuid.UUID]struct{}, len(ms))
+	actorIDs := make([]uuid.UUID, 0, len(ms))
 	for _, m := range ms {
-		if !m.OrganizationID.Valid {
-			continue
+		if m.OrganizationID.Valid {
+			if _, ok := orgRNByID[m.OrganizationID.UUID]; !ok {
+				org, err := s.orgRepo.GetByID(ctx, m.OrganizationID.UUID)
+				if err == nil {
+					orgRNByID[org.ID] = organizationResourceName(org.CustomID)
+				}
+			}
 		}
-		if _, ok := orgRNByID[m.OrganizationID.UUID]; ok {
-			continue
+		if m.ActorID.Valid {
+			if _, seen := actorIDSet[m.ActorID.UUID]; !seen {
+				actorIDSet[m.ActorID.UUID] = struct{}{}
+				actorIDs = append(actorIDs, m.ActorID.UUID)
+			}
 		}
-		org, err := s.orgRepo.GetByID(ctx, m.OrganizationID.UUID)
+	}
+
+	actorNameByID := make(map[uuid.UUID]string)
+	if len(actorIDs) > 0 {
+		users, err := s.userRepo.GetByIDs(ctx, actorIDs)
 		if err != nil {
-			continue
+			return nil, &ServerError{Err: err, Status: statusFailedListAuditLogEntries}
 		}
-		orgRNByID[org.ID] = organizationResourceName(org.CustomID)
+		for _, u := range users {
+			actorNameByID[u.ID] = u.Name
+		}
 	}
 
 	resp := &gen.ListAuditLogEntriesResponse{TotalSize: total}
@@ -273,7 +304,7 @@ func (s *auditLogServiceServer) ListAuditLogEntries(ctx context.Context, req *ge
 		if m.OrganizationID.Valid {
 			orgRN = orgRNByID[m.OrganizationID.UUID]
 		}
-		resp.AuditLogEntries = append(resp.AuditLogEntries, AuditLogEntryToProto(m, orgRN))
+		resp.AuditLogEntries = append(resp.AuditLogEntries, AuditLogEntryToProto(m, orgRN, actorNameByID[m.ActorID.UUID]))
 	}
 
 	nextOffset := offset + int64(len(ms))
@@ -291,15 +322,17 @@ func organizationResourceName(customID string) string {
 }
 
 // AuditLogEntryToProto maps an audit log entry model to its proto message.
-// orgResourceName may be empty for entries of global resources.
-func AuditLogEntryToProto(m *model.AuditLogEntry, orgResourceName string) *gen.AuditLogEntry {
+// orgResourceName may be empty for entries of global resources;
+// actorDisplayName may be empty when the actor is the system or a deleted user.
+func AuditLogEntryToProto(m *model.AuditLogEntry, orgResourceName, actorDisplayName string) *gen.AuditLogEntry {
 	e := &gen.AuditLogEntry{
-		Name:         gen.AuditLogEntryResourceName{AuditLogEntry: m.ID.String()}.String(),
-		Uid:          m.ID.String(),
-		Resource:     m.ResourceName,
-		Organization: orgResourceName,
-		Action:       auditActionToProto(m.Action),
-		Timestamp:    ts(m.CreatedAt),
+		Name:            gen.AuditLogEntryResourceName{AuditLogEntry: m.ID.String()}.String(),
+		Uid:             m.ID.String(),
+		Resource:        m.ResourceName,
+		Organization:    orgResourceName,
+		Action:          auditActionToProto(m.Action),
+		ActorDisplayName: actorDisplayName,
+		Timestamp:       ts(m.CreatedAt),
 	}
 
 	if m.ActorID.Valid {

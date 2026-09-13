@@ -109,6 +109,19 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User
 	return m, nil
 }
 
+// GetByIDs returns the users with the given IDs. IDs without a matching user
+// are silently omitted; the caller decides how to handle missing users.
+func (r *UserRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]*model.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var ms []*model.User
+	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&ms).Error; err != nil {
+		return nil, fmt.Errorf("get users by ids: %w", err)
+	}
+	return ms, nil
+}
+
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	m, err := r.q.User.WithContext(ctx).Where(r.q.User.Email.Eq(email)).First()
 	if err != nil {

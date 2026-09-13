@@ -141,12 +141,15 @@ func (r *TransactionAssignmentRepository) Create(ctx context.Context, params Cre
 	if transCount == 0 {
 		return nil, errors.Join(ErrTransactionNotFound, fmt.Errorf("transaction_id=%s: %w", params.TransactionID, gorm.ErrRecordNotFound))
 	}
-	existingCount, err := r.q.TransactionAssignment.WithContext(ctx).Where(r.q.TransactionAssignment.TransactionID.Eq(params.TransactionID)).Count()
+	existingCount, err := r.q.TransactionAssignment.WithContext(ctx).Where(
+		r.q.TransactionAssignment.TransactionID.Eq(params.TransactionID),
+		r.q.TransactionAssignment.AccountID.Eq(params.AccountID),
+	).Count()
 	if err != nil {
-		return nil, fmt.Errorf("create transaction assignment: check existing assignment transaction_id=%s: %w", params.TransactionID, err)
+		return nil, fmt.Errorf("create transaction assignment: check existing assignment transaction_id=%s account_id=%s: %w", params.TransactionID, params.AccountID, err)
 	}
 	if existingCount > 0 {
-		return nil, errors.Join(ErrTransactionAssignmentAlreadyExists, fmt.Errorf("transaction_id=%s", params.TransactionID))
+		return nil, errors.Join(ErrTransactionAssignmentAlreadyExists, fmt.Errorf("transaction_id=%s account_id=%s", params.TransactionID, params.AccountID))
 	}
 	m := &model.TransactionAssignment{
 		OrganizationID: params.OrganizationID,
@@ -181,13 +184,14 @@ func (r *TransactionAssignmentRepository) Update(ctx context.Context, id uuid.UU
 		}
 		existingCount, err := r.q.TransactionAssignment.WithContext(ctx).
 			Where(r.q.TransactionAssignment.TransactionID.Eq(m.TransactionID)).
+			Where(r.q.TransactionAssignment.AccountID.Eq(params.AccountID.Value)).
 			Where(r.q.TransactionAssignment.ID.Neq(id)).
 			Count()
 		if err != nil {
 			return fmt.Errorf("update transaction assignment id=%s: check existing assignment: %w", id, err)
 		}
 		if existingCount > 0 {
-			return errors.Join(ErrTransactionAssignmentAlreadyExists, fmt.Errorf("id=%s transaction_id=%s", id, m.TransactionID))
+			return errors.Join(ErrTransactionAssignmentAlreadyExists, fmt.Errorf("id=%s transaction_id=%s account_id=%s", id, m.TransactionID, params.AccountID.Value))
 		}
 		cols = append(cols, r.q.TransactionAssignment.AccountID.Value(params.AccountID.Value))
 	}

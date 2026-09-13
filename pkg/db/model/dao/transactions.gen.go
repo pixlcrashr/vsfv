@@ -29,6 +29,7 @@ func newTransaction_(db *gorm.DB, opts ...gen.DOOption) transaction_ {
 	_transaction_.ALL = field.NewAsterisk(tableName)
 	_transaction_.ID = field.NewField(tableName, "id")
 	_transaction_.CustomID = field.NewString(tableName, "custom_id")
+	_transaction_.JournalKey = field.NewString(tableName, "journal_key")
 	_transaction_.OrganizationID = field.NewField(tableName, "organization_id")
 	_transaction_.CreditLedgerAccountID = field.NewField(tableName, "credit_ledger_account_id")
 	_transaction_.DebitLedgerAccountID = field.NewField(tableName, "debit_ledger_account_id")
@@ -740,6 +741,7 @@ type transaction_ struct {
 	ALL                    field.Asterisk
 	ID                     field.Field
 	CustomID               field.String
+	JournalKey             field.String
 	OrganizationID         field.Field
 	CreditLedgerAccountID  field.Field
 	DebitLedgerAccountID   field.Field
@@ -775,6 +777,7 @@ func (t *transaction_) updateTableName(table string) *transaction_ {
 	t.ALL = field.NewAsterisk(table)
 	t.ID = field.NewField(table, "id")
 	t.CustomID = field.NewString(table, "custom_id")
+	t.JournalKey = field.NewString(table, "journal_key")
 	t.OrganizationID = field.NewField(table, "organization_id")
 	t.CreditLedgerAccountID = field.NewField(table, "credit_ledger_account_id")
 	t.DebitLedgerAccountID = field.NewField(table, "debit_ledger_account_id")
@@ -813,9 +816,10 @@ func (t *transaction_) GetFieldByName(fieldName string) (field.OrderExpr, bool) 
 }
 
 func (t *transaction_) fillFieldMap() {
-	t.fieldMap = make(map[string]field.Expr, 16)
+	t.fieldMap = make(map[string]field.Expr, 17)
 	t.fieldMap["id"] = t.ID
 	t.fieldMap["custom_id"] = t.CustomID
+	t.fieldMap["journal_key"] = t.JournalKey
 	t.fieldMap["organization_id"] = t.OrganizationID
 	t.fieldMap["credit_ledger_account_id"] = t.CreditLedgerAccountID
 	t.fieldMap["debit_ledger_account_id"] = t.DebitLedgerAccountID

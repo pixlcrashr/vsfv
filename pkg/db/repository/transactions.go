@@ -354,6 +354,11 @@ func (r *TransactionRepository) ListByIDs(ctx context.Context, ids []uuid.UUID) 
 }
 
 // CreateTransactionParams holds the fields required to create a transaction.
+//
+// CustomID is not accepted here: a transaction's custom_id is always its
+// primary key id (enforced by the model's BeforeCreate hook). The
+// JournalKey (the deterministic cross-journal dedup identifier) is computed
+// inside Create from the ledger account codes and the transaction fields.
 type CreateTransactionParams struct {
 	OrganizationID        uuid.UUID
 	CreditLedgerAccountID uuid.UUID
@@ -363,25 +368,29 @@ type CreateTransactionParams struct {
 	Reference             string
 	BookedAt              time.Time
 	DocumentDate          time.Time
-	CustomID              string
 }
 
 // Create inserts a new transaction.
 func (r *TransactionRepository) Create(ctx context.Context, params CreateTransactionParams) (*model.Transaction_, error) {
-	creditCount, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(params.CreditLedgerAccountID)).Count()
+	creditLA, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(params.CreditLedgerAccountID)).First()
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.Join(ErrLedgerAccountNotFound, fmt.Errorf("credit_ledger_account_id=%s: %w", params.CreditLedgerAccountID, err))
+		}
 		return nil, fmt.Errorf("create transaction: check credit account credit_ledger_account_id=%s: %w", params.CreditLedgerAccountID, err)
 	}
-	if creditCount == 0 {
-		return nil, errors.Join(ErrLedgerAccountNotFound, fmt.Errorf("credit_ledger_account_id=%s: %w", params.CreditLedgerAccountID, gorm.ErrRecordNotFound))
-	}
-	debitCount, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(params.DebitLedgerAccountID)).Count()
+	debitLA, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(params.DebitLedgerAccountID)).First()
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.Join(ErrLedgerAccountNotFound, fmt.Errorf("debit_ledger_account_id=%s: %w", params.DebitLedgerAccountID, err))
+		}
 		return nil, fmt.Errorf("create transaction: check debit account debit_ledger_account_id=%s: %w", params.DebitLedgerAccountID, err)
 	}
-	if debitCount == 0 {
-		return nil, errors.Join(ErrLedgerAccountNotFound, fmt.Errorf("debit_ledger_account_id=%s: %w", params.DebitLedgerAccountID, gorm.ErrRecordNotFound))
-	}
+	journalKey := model.ComputeTransactionJournalKey(
+		params.BookedAt, params.DocumentDate,
+		creditLA.Code, debitLA.Code,
+		params.Amount, params.Reference, params.Description,
+	)
 	m := &model.Transaction_{
 		OrganizationID:        params.OrganizationID,
 		CreditLedgerAccountID: params.CreditLedgerAccountID,
@@ -391,11 +400,11 @@ func (r *TransactionRepository) Create(ctx context.Context, params CreateTransac
 		Reference:             params.Reference,
 		BookedAt:              params.BookedAt,
 		DocumentDate:          params.DocumentDate,
-		CustomID:              params.CustomID,
+		JournalKey:            journalKey,
 	}
 	if err := r.q.Transaction_.WithContext(ctx).Create(m); err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, errors.Join(ErrTransactionAlreadyExists, fmt.Errorf("custom_id=%s: %w", m.CustomID, err))
+			return nil, errors.Join(ErrTransactionAlreadyExists, fmt.Errorf("journal_key=%s: %w", m.JournalKey, err))
 		}
 		return nil, fmt.Errorf("create transaction: %w", err)
 	}
@@ -403,6 +412,10 @@ func (r *TransactionRepository) Create(ctx context.Context, params CreateTransac
 }
 
 // UpdateTransactionParams holds the fields that can be updated for a transaction.
+//
+// CustomID is not updatable: it always equals the transaction's primary key id.
+// The JournalKey is recomputed inside Update from the merged field values and
+// the credit/debit ledger account codes, so it is not a parameter either.
 type UpdateTransactionParams struct {
 	CreditLedgerAccountID optional.Optional[uuid.UUID]
 	DebitLedgerAccountID  optional.Optional[uuid.UUID]
@@ -411,10 +424,12 @@ type UpdateTransactionParams struct {
 	Reference             optional.Optional[string]
 	BookedAt              optional.Optional[time.Time]
 	DocumentDate          optional.Optional[time.Time]
-	CustomID              optional.Optional[string]
 }
 
 // Update updates fields of an existing transaction matched by its primary key.
+// The JournalKey is recomputed from the post-update field values and the
+// credit/debit ledger account codes so it stays consistent with the stored
+// data.
 func (r *TransactionRepository) Update(ctx context.Context, id uuid.UUID, params UpdateTransactionParams) error {
 	var cols []field.AssignExpr
 
@@ -446,15 +461,77 @@ func (r *TransactionRepository) Update(ctx context.Context, id uuid.UUID, params
 		cols = append(cols, r.q.Transaction_.DocumentDate.Value(params.DocumentDate.Value))
 	}
 
-	if params.CustomID.IsSet {
-		cols = append(cols, r.q.Transaction_.CustomID.Value(params.CustomID.Value))
-	}
-
 	if len(cols) == 0 {
 		return nil
 	}
 
+	// Recompute the JournalKey from the merged state of the transaction. Load
+	// the current row to obtain the fields that are not being updated, then
+	// apply the optional updates and fetch the credit/debit ledger account
+	// codes.
+	existing, err := r.q.Transaction_.WithContext(ctx).Where(r.q.Transaction_.ID.Eq(id)).First()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.Join(ErrTransactionNotFound, fmt.Errorf("id=%s: %w", id, err))
+		}
+		return fmt.Errorf("update transaction id=%s: load existing: %w", id, err)
+	}
+
+	creditID := existing.CreditLedgerAccountID
+	if params.CreditLedgerAccountID.IsSet {
+		creditID = params.CreditLedgerAccountID.Value
+	}
+	debitID := existing.DebitLedgerAccountID
+	if params.DebitLedgerAccountID.IsSet {
+		debitID = params.DebitLedgerAccountID.Value
+	}
+	creditLA, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(creditID)).First()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.Join(ErrLedgerAccountNotFound, fmt.Errorf("credit_ledger_account_id=%s: %w", creditID, err))
+		}
+		return fmt.Errorf("update transaction id=%s: load credit ledger account: %w", id, err)
+	}
+	debitLA, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(debitID)).First()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.Join(ErrLedgerAccountNotFound, fmt.Errorf("debit_ledger_account_id=%s: %w", debitID, err))
+		}
+		return fmt.Errorf("update transaction id=%s: load debit ledger account: %w", id, err)
+	}
+
+	amount := existing.Amount
+	if params.Amount.IsSet {
+		amount = params.Amount.Value
+	}
+	description := existing.Description
+	if params.Description.IsSet {
+		description = params.Description.Value
+	}
+	reference := existing.Reference
+	if params.Reference.IsSet {
+		reference = params.Reference.Value
+	}
+	bookedAt := existing.BookedAt
+	if params.BookedAt.IsSet {
+		bookedAt = params.BookedAt.Value
+	}
+	documentDate := existing.DocumentDate
+	if params.DocumentDate.IsSet {
+		documentDate = params.DocumentDate.Value
+	}
+
+	journalKey := model.ComputeTransactionJournalKey(
+		bookedAt, documentDate,
+		creditLA.Code, debitLA.Code,
+		amount, reference, description,
+	)
+	cols = append(cols, r.q.Transaction_.JournalKey.Value(journalKey))
+
 	if _, err := r.q.Transaction_.WithContext(ctx).Where(r.q.Transaction_.ID.Eq(id)).UpdateSimple(cols...); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return errors.Join(ErrTransactionAlreadyExists, fmt.Errorf("journal_key=%s: %w", journalKey, err))
+		}
 		return fmt.Errorf("update transaction id=%s: %w", id, err)
 	}
 

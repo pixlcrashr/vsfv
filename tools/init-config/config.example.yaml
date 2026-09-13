@@ -1,0 +1,31 @@
+# Example configuration for tools/init-config.
+# This file creates an initial system user and organization in a single
+# database transaction. It is idempotent: existing users or organizations are
+# skipped and the program exits successfully.
+#
+# WARNING: If a password is set below, it is stored as a bcrypt hash. Remove
+# or secure this file after initial bootstrap.
+
+# Database connection string. Supported schemes: postgres://, postgresql://, sqlite://
+database:
+  dsn: "sqlite://dev.sqlite"
+
+# Initial system user. Password is optional; omit it to create a user that can
+# only log in via an external OAuth provider.
+user:
+  email: "admin@example.com"
+  name: "System Administrator"
+  password: "change-me"
+
+# Initial organization.
+organization:
+  display_name: "My Organization"
+  description: "Initial organization created by init-config"
+  start_month: 1
+  # Optional stable identifier. When set, subsequent runs will skip creation if
+  # an organization with this custom_id already exists.
+  custom_id: "default"
+
+# Whether to assign the newly created user to the built-in admin system group.
+# The admin group has wildcard access to all resources and organizations.
+assign_admin_group: true

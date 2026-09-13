@@ -230,7 +230,7 @@ func LedgerYearToProto(orgRN gen.OrganizationResourceName, m *model.LedgerYear) 
 // TransactionToProto maps a model.Transaction_ to its proto representation.
 func TransactionToProto(orgRN gen.OrganizationResourceName, m *model.Transaction_, creditLA *model.LedgerAccount, debitLA *model.LedgerAccount) *gen.Transaction {
 	p := &gen.Transaction{
-		Name:                orgRN.TransactionResourceName(m.CustomID).String(),
+		Name:                orgRN.TransactionResourceName(m.ID.String()).String(),
 		Uid:                 m.ID.String(),
 		CreditLedgerAccount: orgRN.LedgerAccountResourceName(creditLA.CustomID).String(),
 		DebitLedgerAccount:  orgRN.LedgerAccountResourceName(debitLA.CustomID).String(),
@@ -346,6 +346,7 @@ func UserGroupToProto(m *model.UserGroup, organizations, permissions []string) *
 		DisplayDescription: m.Description,
 		Organizations:      organizations,
 		Permissions:        permissions,
+		IsSystem:           m.IsSystem,
 		UpdateTime:         ts(m.UpdatedAt),
 		CreateTime:         ts(m.CreatedAt),
 	}

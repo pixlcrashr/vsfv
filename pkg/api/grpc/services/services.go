@@ -55,6 +55,6 @@ func New(db *gorm.DB, enforcer *authz.Enforcer) *Services {
 		UserSettings:               newUserSettingsServiceServer(repository.NewUserSettingsRepository(db), audits, enforcer),
 		UserIdentity:               newUserIdentityServiceServer(repository.NewUserIdentityRepository(db), enforcer),
 		Group:                      newGroupServiceServer(repository.NewUserGroupRepository(db, enforcer), audits, enforcer),
-		AuditLog:                   newAuditLogServiceServer(repository.NewAuditLogEntryRepository(db), repository.NewOrganizationRepository(db), enforcer),
+		AuditLog:                   newAuditLogServiceServer(repository.NewAuditLogEntryRepository(db), repository.NewOrganizationRepository(db), repository.NewUserRepository(db), enforcer),
 	}
 }
