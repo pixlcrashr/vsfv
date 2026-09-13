@@ -271,7 +271,7 @@ func (g *GitLabHandler) findOrCreateUser(ctx context.Context, info *gitlabUserIn
 		if info.Picture != "" {
 			pictureURL = sql.NullString{String: info.Picture, Valid: true}
 		}
-		user, err = g.userRepo.CreateWithPassword(ctx, repository.CreateUserWithPasswordParams{
+		user, err = g.userRepo.Create(ctx, repository.CreateUserParams{
 			Email:      info.Email,
 			Name:       info.Name,
 			PictureURL: optional.From(pictureURL.String),

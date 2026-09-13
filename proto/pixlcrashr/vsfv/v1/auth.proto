@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+
+// LoginRequest authenticates an existing user with email and password.
+// There is no registration: accounts are provisioned by the administrator
+// (adduser CLI) or through the SSO flow.
+message LoginRequest {
+  // The e-mail address of the user.
+  string email = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The user's password.
+  string password = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// LoginResponse reports a successful login. The browser session cookie is
+// already set on the response.
+message LoginResponse {
+  // The OAuth2 authorization endpoint URL the client should follow to
+  // complete the login and obtain tokens. Because the session cookie is
+  // set, following this URL immediately redirects back with an
+  // authorization code.
+  string redirect_url = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// GetLoginOptionsRequest requests the login methods the server accepts.
+message GetLoginOptionsRequest {}
+
+// LoginOptions describes which login methods the server currently accepts.
+// The login page uses this to decide which login options to display.
+message LoginOptions {
+  // Whether password-based login is enabled.
+  bool password_enabled = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether GitLab SSO login is enabled.
+  bool gitlab_enabled = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
+// AuthService provides password-based login for existing users. It is
+// served by the HTTP gateway only and its endpoints are public: they do not
+// require a bearer token.
+service AuthService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Verifies the credentials, creates a browser session and returns the
+  // OAuth2 URL to continue the login with (custom method, AIP-136).
+  // Fails with FAILED_PRECONDITION when password login is disabled and
+  // UNAUTHENTICATED for unknown users or wrong passwords.
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth:login"
+      body: "*"
+    };
+    option (google.api.method_signature) = "email,password";
+  }
+
+  // Reports which login methods are enabled (custom method, AIP-136).
+  rpc GetLoginOptions(GetLoginOptionsRequest) returns (LoginOptions) {
+    option (google.api.http) = {get: "/v1/auth:loginOptions"};
+  }
+}

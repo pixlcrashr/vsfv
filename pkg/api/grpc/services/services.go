@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/pixlcrashr/vsfv/pkg/auth"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -29,11 +30,13 @@ type Services struct {
 	UserIdentity               gen.UserIdentityServiceServer
 	Group                      gen.GroupServiceServer
 	AuditLog                   gen.AuditLogServiceServer
+	Auth                       gen.AuthServiceServer
 }
 
 // New creates a Services instance wiring all concrete service implementations
-// backed by repositories constructed from db.
-func New(db *gorm.DB, enforcer *authz.Enforcer) *Services {
+// backed by repositories constructed from db. passwordLogin backs the public
+// AuthService; gitlabEnabled reports whether GitLab SSO login is enabled.
+func New(db *gorm.DB, enforcer *authz.Enforcer, passwordLogin *auth.PasswordLoginProvider, gitlabEnabled bool) *Services {
 	audits := newAuditWriter(db)
 	return &Services{
 		Organization:               newOrganizationServiceServer(repository.NewOrganizationRepository(db), audits, enforcer),
@@ -56,5 +59,6 @@ func New(db *gorm.DB, enforcer *authz.Enforcer) *Services {
 		UserIdentity:               newUserIdentityServiceServer(repository.NewUserIdentityRepository(db), enforcer),
 		Group:                      newGroupServiceServer(repository.NewUserGroupRepository(db, enforcer), audits, enforcer),
 		AuditLog:                   newAuditLogServiceServer(repository.NewAuditLogEntryRepository(db), repository.NewOrganizationRepository(db), repository.NewUserRepository(db), enforcer),
+		Auth:                       newAuthServiceServer(passwordLogin, gitlabEnabled),
 	}
 }

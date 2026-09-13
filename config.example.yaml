@@ -35,6 +35,10 @@ auth:
     client-secret: "your-gitlab-client-secret"
     # Base URL of the GitLab instance used as the OAuth2 issuer.
     issuer: "https://gitlab.com"
+  password:
+    # Enable password-based login (users created via the adduser CLI tool
+    # can then sign in with email and password). Defaults to false.
+    enabled: false
 
 gotenberg:
   # URL of the Gotenberg HTTP server for PDF conversion.

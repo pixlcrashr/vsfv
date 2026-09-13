@@ -10,9 +10,11 @@ auth:
   secret: "dev-secret-do-not-use-in-production"
   gitlab:
     enabled: true
-    client-id: "a14f354382377ca5b75714826032d5791542f11ea0aabe799044978354c06465"
-    client-secret: "gloas-7ee892cf1be1741ea672cbf26e7f30ec42cf9d8c0c53bb91ea0be679b1a1b548"
-    issuer: "https://collaborating.tuhh.de"
+    client-id: "clientID"
+    client-secret: "clientSecret"
+    issuer: "https://gitlab.oauth-provider.com"
+  password:
+    enabled: true
   web-redirect-uris:
     - "http://localhost:4200/login"
     - "http://localhost:8080/login"

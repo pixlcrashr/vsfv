@@ -43,8 +43,8 @@ func (sm *SessionManager) DeleteSession(ctx context.Context, token string) error
 	return sm.repo.DeleteByToken(ctx, token)
 }
 
-func (sm *SessionManager) SetSessionCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
+func (sm *SessionManager) sessionCookie(token string) *http.Cookie {
+	return &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    token,
 		Path:     "/",
@@ -52,7 +52,20 @@ func (sm *SessionManager) SetSessionCookie(w http.ResponseWriter, token string) 
 		Secure:   sm.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(sm.ttl.Seconds()),
-	})
+	}
+}
+
+// SetSessionCookie sets the session cookie on the given response writer.
+func (sm *SessionManager) SetSessionCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, sm.sessionCookie(token))
+}
+
+// SessionCookieString returns the Set-Cookie header value for a session
+// cookie with the given token. For handlers that cannot use http.SetCookie,
+// e.g. gRPC services whose cookie must be forwarded through response
+// metadata.
+func (sm *SessionManager) SessionCookieString(token string) string {
+	return sm.sessionCookie(token).String()
 }
 
 func (sm *SessionManager) ClearSessionCookie(w http.ResponseWriter) {

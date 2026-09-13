@@ -20,6 +20,11 @@ tags:
       filters. The audit log itself is not bound to any organization: entries for
       resources below an organization carry that organization's resource name and
       can be filtered by it.
+  - name: AuthService
+    description: |-
+      AuthService provides password-based login for existing users. It is
+      served by the HTTP gateway only and its endpoints are public: they do not
+      require a bearer token.
   - name: BudgetService
     description: BudgetService manages financial budgets.
   - name: BudgetAccountValueService
@@ -131,6 +136,50 @@ paths:
           type: string
       tags:
         - AuditLogService
+  /v1/auth:login:
+    post:
+      summary: |-
+        Verifies the credentials, creates a browser session and returns the
+        OAuth2 URL to continue the login with (custom method, AIP-136).
+        Fails with FAILED_PRECONDITION when password login is disabled and
+        UNAUTHENTICATED for unknown users or wrong passwords.
+      operationId: AuthService_Login
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1LoginResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          description: |-
+            LoginRequest authenticates an existing user with email and password.
+            There is no registration: accounts are provisioned by the administrator
+            (adduser CLI) or through the SSO flow.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1LoginRequest'
+      tags:
+        - AuthService
+  /v1/auth:loginOptions:
+    get:
+      summary: Reports which login methods are enabled (custom method, AIP-136).
+      operationId: AuthService_GetLoginOptions
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1LoginOptions'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      tags:
+        - AuthService
   /v1/groups:
     get:
       summary: |-
@@ -5259,6 +5308,50 @@ definitions:
         type: string
         format: int64
         description: Total number of users matching the filter (may be an estimate).
+  v1LoginOptions:
+    type: object
+    properties:
+      password_enabled:
+        type: boolean
+        description: Whether password-based login is enabled.
+        readOnly: true
+      gitlab_enabled:
+        type: boolean
+        description: Whether GitLab SSO login is enabled.
+        readOnly: true
+    description: |-
+      LoginOptions describes which login methods the server currently accepts.
+      The login page uses this to decide which login options to display.
+  v1LoginRequest:
+    type: object
+    properties:
+      email:
+        type: string
+        description: The e-mail address of the user.
+      password:
+        type: string
+        description: The user's password.
+    description: |-
+      LoginRequest authenticates an existing user with email and password.
+      There is no registration: accounts are provisioned by the administrator
+      (adduser CLI) or through the SSO flow.
+    required:
+      - email
+      - password
+  v1LoginResponse:
+    type: object
+    properties:
+      redirect_url:
+        type: string
+        description: |-
+          The OAuth2 authorization endpoint URL the client should follow to
+          complete the login and obtain tokens. Because the session cookie is
+          set, following this URL immediately redirects back with an
+          authorization code.
+        readOnly: true
+    description: |-
+      LoginResponse reports a successful login. The browser session cookie is
+      already set on the response.
   v1Month:
     type: string
     enum:

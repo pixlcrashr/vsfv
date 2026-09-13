@@ -7,12 +7,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/pixlcrashr/vsfv/pkg/auth/passwordhash"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/model/dao"
 	"github.com/pixlcrashr/vsfv/pkg/query/cond"
 	"github.com/pixlcrashr/vsfv/pkg/query/order"
 	"github.com/theater-improrama/go-utils/optional"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -150,23 +150,18 @@ func (r *UserRepository) GetByName(ctx context.Context, name string, isCaseInsen
 	return m, nil
 }
 
-type CreateUserWithPasswordParams struct {
+type CreateUserParams struct {
 	Email      string
 	Name       string
-	Password   string
 	PictureURL optional.Optional[string]
 }
 
-func (r *UserRepository) CreateWithPassword(ctx context.Context, params CreateUserWithPasswordParams) (*model.User, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
+// Create creates a user without a password hash. Used for SSO-provisioned
+// users, which cannot sign in with a password.
+func (r *UserRepository) Create(ctx context.Context, params CreateUserParams) (*model.User, error) {
 	m := &model.User{
-		Email:        params.Email,
-		Name:         params.Name,
-		PasswordHash: sql.NullString{String: string(hash), Valid: true},
+		Email: params.Email,
+		Name:  params.Name,
 	}
 	if params.PictureURL.IsSet {
 		m.PictureURL = sql.NullString{String: params.PictureURL.Value, Valid: true}
@@ -178,4 +173,46 @@ func (r *UserRepository) CreateWithPassword(ctx context.Context, params CreateUs
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 	return m, nil
+}
+
+type CreateUserWithPasswordParams struct {
+	Email      string
+	Name       string
+	Password   string
+	PictureURL optional.Optional[string]
+}
+
+func (r *UserRepository) CreateWithPassword(ctx context.Context, params CreateUserWithPasswordParams) (*model.User, error) {
+	hash, err := passwordhash.Hash(params.Password)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	m := &model.User{
+		Email:        params.Email,
+		Name:         params.Name,
+		PasswordHash: sql.NullString{String: hash, Valid: true},
+	}
+	if params.PictureURL.IsSet {
+		m.PictureURL = sql.NullString{String: params.PictureURL.Value, Valid: true}
+	}
+	if err := r.q.User.WithContext(ctx).Create(m); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, fmt.Errorf("create user email=%s: already exists: %w", params.Email, err)
+		}
+		return nil, fmt.Errorf("create user: %w", err)
+	}
+	return m, nil
+}
+
+// UpdatePasswordHash replaces the stored password hash, e.g. when a legacy
+// hash is upgraded to the current format after a successful login.
+func (r *UserRepository) UpdatePasswordHash(ctx context.Context, id uuid.UUID, hash string) error {
+	_, err := r.q.User.WithContext(ctx).
+		Where(r.q.User.ID.Eq(id)).
+		Update(r.q.User.PasswordHash, sql.NullString{String: hash, Valid: true})
+	if err != nil {
+		return fmt.Errorf("update password hash user id=%s: %w", id, err)
+	}
+	return nil
 }

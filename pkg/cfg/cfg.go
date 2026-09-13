@@ -35,6 +35,7 @@ type Auth struct {
 	WebRedirectURIs []string      `mapstructure:"web-redirect-uris"`
 	JWKS            JWKSConfig    `mapstructure:"jwks"`
 	GitLab          GitLabOAuth   `mapstructure:"gitlab"`
+	Password        PasswordAuth  `mapstructure:"password"`
 }
 
 type GitLabOAuth struct {
@@ -42,6 +43,10 @@ type GitLabOAuth struct {
 	ClientID     string `mapstructure:"client-id"`
 	ClientSecret string `mapstructure:"client-secret"`
 	Issuer       string `mapstructure:"issuer"`
+}
+
+type PasswordAuth struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 type JWKSConfig struct {
@@ -95,6 +100,7 @@ func Load(cfgFile string) (*Config, error) {
 	viper.SetDefault("auth.secure-cookies", false)
 	viper.SetDefault("auth.web-redirect-uris", []string{})
 	viper.SetDefault("auth.gitlab.enabled", false)
+	viper.SetDefault("auth.password.enabled", false)
 	viper.SetDefault("auth.jwks.key-files", []string{})
 
 	if err := viper.ReadInConfig(); err != nil {

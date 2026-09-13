@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"runtime/debug"
+	"strings"
 
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
@@ -36,20 +37,45 @@ func (h *recoveryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // the given Fiber app. All gRPC service implementations are wired in-process
 // (no TCP gRPC listener is required). If authMiddleware is non-nil, it is
 // applied to all /api/v1/* routes for Bearer token authentication.
+//
+// The AuthService endpoints (/api/v1/auth:login, /api/v1/auth:loginOptions)
+// are mounted on a separate unauthenticated gateway mux registered before
+// the main one, so they work without a Bearer token. That mux forwards
+// "set-cookie" metadata as real Set-Cookie headers so Login can establish
+// the browser session.
 func RegisterRoutes(app *fiber.App, svc *services.Services, authMiddleware func(http.Handler) http.Handler) {
-	mux := runtime.NewServeMux(
-		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
-			MarshalOptions: protojson.MarshalOptions{
-				UseProtoNames:   true,
-				EmitUnpopulated: false,
-			},
-			UnmarshalOptions: protojson.UnmarshalOptions{
-				DiscardUnknown: true,
-			},
-		}),
-	)
+	jsonMarshaler := &runtime.JSONPb{
+		MarshalOptions: protojson.MarshalOptions{
+			UseProtoNames:   true,
+			EmitUnpopulated: false,
+		},
+		UnmarshalOptions: protojson.UnmarshalOptions{
+			DiscardUnknown: true,
+		},
+	}
+	outgoingHeaderMatcher := func(key string) (string, bool) {
+		if strings.EqualFold(key, "set-cookie") {
+			return "Set-Cookie", true
+		}
+		return runtime.MetadataHeaderPrefix + key, true
+	}
 
 	ctx := context.Background()
+
+	// Public (unauthenticated) routes.
+	publicMux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, jsonMarshaler),
+		runtime.WithOutgoingHeaderMatcher(outgoingHeaderMatcher),
+	)
+	mustRegister(gen.RegisterAuthServiceHandlerServer(ctx, publicMux, svc.Auth))
+
+	publicHandler := &recoveryHandler{inner: http.StripPrefix("/api", http.Handler(publicMux))}
+	app.All("/api/v1/auth*", adaptor.HTTPHandler(publicHandler))
+
+	// Authenticated routes.
+	mux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, jsonMarshaler),
+	)
 
 	mustRegister(gen.RegisterOrganizationServiceHandlerServer(ctx, mux, svc.Organization))
 	mustRegister(gen.RegisterAccountServiceHandlerServer(ctx, mux, svc.Account))

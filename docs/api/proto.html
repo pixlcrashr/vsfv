@@ -378,6 +378,37 @@
         
           
           <li>
+            <a href="#pixlcrashr%2fvsfv%2fv1%2fauth.proto">pixlcrashr/vsfv/v1/auth.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.GetLoginOptionsRequest"><span class="badge">M</span>GetLoginOptionsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.LoginOptions"><span class="badge">M</span>LoginOptions</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.LoginRequest"><span class="badge">M</span>LoginRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.LoginResponse"><span class="badge">M</span>LoginResponse</a>
+                </li>
+              
+              
+              
+              
+                <li>
+                  <a href="#pixlcrashr.vsfv.v1.AuthService"><span class="badge">S</span>AuthService</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
             <a href="#pixlcrashr%2fvsfv%2fv1%2fbudget.proto">pixlcrashr/vsfv/v1/budget.proto</a>
             <ul>
               
@@ -3067,6 +3098,183 @@ Authorization:
                 <td>ListAuditLogEntries</td>
                 <td>GET</td>
                 <td>/v1/auditLogEntries</td>
+                <td></td>
+              </tr>
+              
+            
+            </tbody>
+          </table>
+          
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="pixlcrashr/vsfv/v1/auth.proto">pixlcrashr/vsfv/v1/auth.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="pixlcrashr.vsfv.v1.GetLoginOptionsRequest">GetLoginOptionsRequest</h3>
+        <p>GetLoginOptionsRequest requests the login methods the server accepts.</p>
+
+        
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.LoginOptions">LoginOptions</h3>
+        <p>LoginOptions describes which login methods the server currently accepts.</p><p>The login page uses this to decide which login options to display.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>password_enabled</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Whether password-based login is enabled. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>gitlab_enabled</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Whether GitLab SSO login is enabled. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.LoginRequest">LoginRequest</h3>
+        <p>LoginRequest authenticates an existing user with email and password.</p><p>There is no registration: accounts are provisioned by the administrator</p><p>(adduser CLI) or through the SSO flow.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>email</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The e-mail address of the user. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>password</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The user&#39;s password. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="pixlcrashr.vsfv.v1.LoginResponse">LoginResponse</h3>
+        <p>LoginResponse reports a successful login. The browser session cookie is</p><p>already set on the response.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>redirect_url</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The OAuth2 authorization endpoint URL the client should follow to
+complete the login and obtain tokens. Because the session cookie is
+set, following this URL immediately redirects back with an
+authorization code. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+        <h3 id="pixlcrashr.vsfv.v1.AuthService">AuthService</h3>
+        <p>AuthService provides password-based login for existing users. It is</p><p>served by the HTTP gateway only and its endpoints are public: they do not</p><p>require a bearer token.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>Login</td>
+                <td><a href="#pixlcrashr.vsfv.v1.LoginRequest">LoginRequest</a></td>
+                <td><a href="#pixlcrashr.vsfv.v1.LoginResponse">LoginResponse</a></td>
+                <td><p>Verifies the credentials, creates a browser session and returns the
+OAuth2 URL to continue the login with (custom method, AIP-136).
+Fails with FAILED_PRECONDITION when password login is disabled and
+UNAUTHENTICATED for unknown users or wrong passwords.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetLoginOptions</td>
+                <td><a href="#pixlcrashr.vsfv.v1.GetLoginOptionsRequest">GetLoginOptionsRequest</a></td>
+                <td><a href="#pixlcrashr.vsfv.v1.LoginOptions">LoginOptions</a></td>
+                <td><p>Reports which login methods are enabled (custom method, AIP-136).</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+          
+          
+          <h4>Methods with HTTP bindings</h4>
+          <table>
+            <thead>
+              <tr>
+                <td>Method Name</td>
+                <td>Method</td>
+                <td>Pattern</td>
+                <td>Body</td>
+              </tr>
+            </thead>
+            <tbody>
+            
+              
+              
+              <tr>
+                <td>Login</td>
+                <td>POST</td>
+                <td>/v1/auth:login</td>
+                <td>*</td>
+              </tr>
+              
+            
+              
+              
+              <tr>
+                <td>GetLoginOptions</td>
+                <td>GET</td>
+                <td>/v1/auth:loginOptions</td>
                 <td></td>
               </tr>
               
