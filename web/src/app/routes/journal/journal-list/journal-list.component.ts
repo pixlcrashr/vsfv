@@ -165,58 +165,58 @@ import { Permissions } from '../../../../lib/authz/permissions';
               } @else {
               <div class="bg-white rounded-lg border border-gray-200 overflow-hidden" [class.opacity-50]="loading()">
                 <div class="overflow-x-auto">
-                  <table class="min-w-full divide-y divide-gray-200 border-b-0">
+                  <table class="w-full divide-y divide-gray-200 border-b-0">
                     <thead class="bg-gray-50">
                       <tr>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                         >
                           <ng-container i18n>Belegdatum</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                         >
-                          <ng-container i18n>Belegnummer</ng-container>
+                          <ng-container i18n>Belegnr.</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                         >
                           <ng-container i18n>Soll</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                         >
                           <ng-container i18n>Haben</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-right text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-right text-gray-500"
                         >
                           <ng-container i18n>Betrag</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 max-w-[450px]"
                         >
                           <ng-container i18n>Beschreibung</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-full"
                         >
                           <ng-container i18n>Haushaltskonten</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 whitespace-nowrap"
                         >
                           <ng-container i18n>Status</ng-container>
                         </th>
-                        <th scope="col" class="px-3 py-2 text-right">
+                        <th scope="col" class="px-3 py-1 text-right whitespace-nowrap">
                           <span class="sr-only">Actions</span>
                         </th>
                       </tr>
@@ -224,26 +224,29 @@ import { Permissions } from '../../../../lib/authz/permissions';
                     <tbody class="bg-white">
                       @for (entry of entries(); track trackById(entry)) {
                         <tr class="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors">
-                          <td class="px-3 py-2 text-xs text-gray-900">{{ formatDate(entry.documentDate) }}</td>
-                          <td class="px-3 py-2 text-xs text-gray-900">{{ entry.reference }}</td>
-                          <td class="px-3 py-2 text-xs text-gray-900">
+                          <td class="px-3 py-1 text-xs text-gray-900">{{ formatDate(entry.documentDate) }}</td>
+                          <td class="px-3 py-1 text-xs text-gray-900">{{ entry.reference }}</td>
+                          <td class="px-3 py-1 text-xs text-gray-900">
                             <span [title]="entry.debitAccountName">{{ entry.debitAccountCode }}</span>
                           </td>
-                          <td class="px-3 py-2 text-xs text-gray-900">
+                          <td class="px-3 py-1 text-xs text-gray-900">
                             <span [title]="entry.creditAccountName">{{ entry.creditAccountCode }}</span>
                           </td>
-                          <td class="px-3 py-2 text-xs text-right text-gray-900">{{ formatAmount(entry.amount) }}</td>
-                          <td class="px-3 py-2 text-xs text-gray-900">
-                            <div class="max-w-sm truncate" [title]="entry.description">
+                          <td class="px-3 py-1 text-xs text-right text-gray-900">{{ formatAmount(entry.amount) }}</td>
+                          <td class="px-3 py-1 text-xs text-gray-900 max-w-[450px]">
+                            <div class="w-full truncate" [title]="entry.description">
                               {{ entry.description }}
                             </div>
                           </td>
-                          <td class="px-3 py-2 text-xs text-gray-900">
+                          <td class="px-3 py-1 text-xs text-gray-900 w-full">
                             @if (entry.accountAssignments.length > 0) {
                               <ul class="space-y-0.5">
                                 @for (assignment of entry.accountAssignments; track $index) {
                                   <li class="flex items-center justify-between gap-2">
-                                    <span [title]="assignment.accountName">{{ assignment.accountCode }}</span>
+                                    <span
+                                      class="truncate"
+                                      [title]="assignment.accountFullCode + ' - ' + assignment.accountName"
+                                    >{{ assignment.accountFullCode }} - {{ assignment.accountName }}</span>
                                     <span class="text-gray-500">{{ formatAmount(assignment.value) }}</span>
                                   </li>
                                 }
@@ -254,7 +257,7 @@ import { Permissions } from '../../../../lib/authz/permissions';
                               </p>
                             }
                           </td>
-                          <td class="px-3 py-2 text-xs text-gray-900">
+                          <td class="px-3 py-1 text-xs text-gray-900 whitespace-nowrap">
                             <app-status-badge
                               size="sm"
                               [variant]="statusVariant(entry.assignmentStatus)"
@@ -262,7 +265,7 @@ import { Permissions } from '../../../../lib/authz/permissions';
                               {{ statusLabel(entry.assignmentStatus) }}
                             </app-status-badge>
                           </td>
-                          <td class="px-3 py-2 text-right text-xs">
+                          <td class="px-3 py-1 text-right text-xs whitespace-nowrap">
                             <a
                               [routerLink]="['/organizations', orgId, 'transactions', entry.id]"
                               class="text-xs text-blue-600 hover:underline"

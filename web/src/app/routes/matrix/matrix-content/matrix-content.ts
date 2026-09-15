@@ -1,5 +1,4 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { MatrixHeader } from '../matrix-header/matrix-header';
 import { MatrixData } from '../matrix-data-provider.service';
 import { MatrixValueSpan } from "../matrix-value-span/matrix-value-span";
@@ -10,7 +9,7 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
 
 @Component({
   selector: 'app-matrix-content',
-  imports: [CommonModule, MatrixValueSpan, MatrixValueInput],
+  imports: [MatrixValueSpan, MatrixValueInput],
   styles: `
     :host {
       display: block;
@@ -27,17 +26,13 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
       height: 100%;
     }
 
-    table {
-      font-size: 10pt;
-      /* font-family: "Arial", monospace; */
-      background-color: var(--color-bg-primary);
-      color: var(--color-text-primary);
+      table {
+        font-size: 10pt;
+        /* font-family: "Arial", monospace; */
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
 
-      .vertical-divider {
-        border-right: 4px solid var(--color-border);
-      }
-
-      tbody > tr:first-child > :is(td, th) {
+        tbody > tr:first-child > :is(td, th) {
         border-color: var(--color-border);
       }
 
@@ -50,9 +45,37 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
       }
 
       thead {
-        tr:last-child {
-          border-bottom: 4px solid var(--color-border);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+
+        th {
+          background-color: var(--color-bg-primary);
         }
+      }
+
+      /* The bold separators below the header and after the account columns are
+         drawn as inset shadows on the boundary cells: collapsed-table borders
+         on tr/colgroup do not travel with sticky cells, shadows do. */
+      thead tr:last-child th,
+      thead th[rowspan="3"] {
+        box-shadow: inset 0 -4px 0 var(--color-border);
+      }
+
+      .account-block-end {
+        box-shadow: inset -4px 0 0 var(--color-border);
+      }
+
+      thead tr:last-child th.account-block-end {
+        box-shadow:
+          inset -4px 0 0 var(--color-border),
+          inset 0 -4px 0 var(--color-border);
+      }
+
+      .sticky-left {
+        position: sticky;
+        left: 0;
+        z-index: 10;
       }
 
       .account-indent-col {
@@ -93,6 +116,10 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
         padding: 0px 20px 0px 20px;
       }
 
+      .revision-column {
+        vertical-align: top;
+      }
+
       .last-revision-column, .revision-column, .budget-column {
         border-right: 1px solid var(--color-border);
       }
@@ -113,6 +140,7 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
   template: `
     @let header = matrixHeader();
     @let descriptionEnabled = header.isDescriptionButtonSelected();
+    @let revisionDescriptionEnabled = header.isRevisionDescriptionButtonSelected();
     @let targetEnabled = header.isTargetButtonSelected();
     @let actualEnabled = header.isActualButtonSelected();
     @let differenceEnabled = header.isDifferenceButtonSelected();
@@ -123,7 +151,7 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
 
     <div class="fullwidth fullheight overflow-auto">
       <table class="table is-narrow">
-        <colgroup class="vertical-divider">
+        <colgroup>
           @for (colIndex of accountCols(); track colIndex) {
             <col [class.account-indent-col]="colIndex < accColSpan - 1" [class.account-name-col]="colIndex === accColSpan - 1" />
           }
@@ -133,7 +161,7 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
         </colgroup>
         <thead>
           <tr>
-            <th [rowSpan]="2" [colSpan]="accColSpan">Konto</th>
+            <th [rowSpan]="2" [colSpan]="accColSpan" class="sticky-left account-block-end">Konto</th>
 
             @if (descriptionEnabled) {
               <th [rowSpan]="3">Beschreibung</th>
@@ -153,15 +181,18 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
 
               @for (tag of col.tags; track tag.tagId) {
                 <th [colSpan]="revisionColSpan()" class="revision-column">
-                  {{ tag.displayName }}<br />
-                  {{ tag.createdAt | date:'dd.MM.yyyy' }}
+                  {{ tag.displayName }}
+                  @if (revisionDescriptionEnabled && tag.displayDescription) {
+                    <br />
+                    <span class="font-normal">{{ tag.displayDescription }}</span>
+                  }
                 </th>
               }
             }
           </tr>
           <tr>
             @for (colIndex of accountCols(); track colIndex) {
-              <th [class.account-prefix-width]="colIndex < accColSpan - 1"></th>
+              <th class="sticky-left" [class.account-prefix-width]="colIndex < accColSpan - 1" [class.account-block-end]="colIndex === accColSpan - 1" [style.left]="colIndex * 1.25 + 'rem'"></th>
             }
 
             @for (col of selectedBudgets; track col.budgetId) {
@@ -188,14 +219,14 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
             <tr [class.font-bold]="row.isSumRow || parentAccountIds().has(row.accountId)">
               @for (colIndex of accountCols(); track colIndex) {
                 @if (row.depth === colIndex) {
-                  <td [colSpan]="accColSpan - colIndex" class="title-cell">
+                  <td [colSpan]="accColSpan - colIndex" class="title-cell sticky-left account-block-end" [style.left]="colIndex * 1.25 + 'rem'">
                     {{ row.displayCode }} &mdash; {{ row.displayName }}
                     @if (row.isArchived) {
                       <span class="ml-1.5 px-1 py-0.5 text-[10px] bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded" i18n>Archiviert</span>
                     }
                   </td>
                 } @else if (row.depth > colIndex) {
-                  <td class="account-prefix-width"></td>
+                  <td class="account-prefix-width sticky-left" [style.left]="colIndex * 1.25 + 'rem'"></td>
                 }
               }
 
@@ -242,7 +273,7 @@ import { MatrixValueStoreService } from '../matrix-value-store.service';
             @if (row.isSumRow) {
               <tr class="empty-row">
                 @for (colIndex of accountCols(); track colIndex) {
-                  <td [class.account-prefix-width]="colIndex < accColSpan - 1"></td>
+                  <td class="sticky-left" [class.account-prefix-width]="colIndex < accColSpan - 1" [class.account-block-end]="colIndex === accColSpan - 1" [style.left]="colIndex * 1.25 + 'rem'"></td>
                 }
                 @if (descriptionEnabled) {
                   <td></td>

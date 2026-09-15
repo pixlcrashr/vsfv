@@ -56,6 +56,8 @@ export class MockTransactionEditDataService extends TransactionEditDataService {
       id: faker.string.uuid(),
       code,
       fullCode: code,
+      displayFullCode: code,
+      displayFullName: name,
       name,
       description: '',
       isArchived: false,

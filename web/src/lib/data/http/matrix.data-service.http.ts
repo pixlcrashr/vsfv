@@ -93,6 +93,7 @@ export class HttpMatrixDataService extends MatrixDataService {
             id: a.uid ?? '',
             name: a.display_name,
             displayCode: a.display_code,
+            displayDescription: a.display_description ?? '',
             depth: 0,
             parentAccountId: a.parent_account ? a.parent_account.split('/').pop() ?? null : null,
             isArchived: a.is_archived ?? false,

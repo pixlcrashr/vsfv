@@ -6,6 +6,7 @@ import {
   LedgerAccountListFilter,
 } from '../../../app/routes/ledger/ledger-accounts/ledger-account-list.data-service';
 import { LedgerAccountServiceService } from '../../api/services/ledger-account-service.service';
+import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
 @Injectable({ providedIn: 'root' })
 export class HttpLedgerAccountListDataService implements LedgerAccountListDataService {
@@ -47,6 +48,12 @@ export class HttpLedgerAccountListDataService implements LedgerAccountListDataSe
             })) || [],
           nextPageToken: response.next_page_token,
           totalSize: Number(response.total_size) || 0,
+        })),
+        // The server's order_by is a plain string sort; order the page
+        // naturally (1, 2, 10) for display.
+        map((result) => ({
+          ...result,
+          accounts: result.accounts.sort((a, b) => naturalCompare(a.code, b.code)),
         }))
       );
   }

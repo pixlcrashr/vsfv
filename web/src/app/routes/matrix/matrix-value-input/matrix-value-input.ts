@@ -15,7 +15,7 @@ import { faXmark } from '@fortawesome/free-solid-svg-icons';
       <input
         #inputEl
         type="text"
-        class="appearance-none border-2 rounded w-full px-2 text-right leading-tight focus:outline-none transition-opacity"
+        class="appearance-none border-2 rounded w-full min-w-[100px] px-2 text-right leading-tight focus:outline-none transition-opacity"
         [class.opacity-40]="disabled()"
         [class.cursor-not-allowed]="disabled()"
         [class.text-black]="!disabled()"

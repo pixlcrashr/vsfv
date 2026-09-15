@@ -141,6 +141,7 @@ export class HttpJournalListDataService extends JournalListDataService {
                 id: a.uid ?? '',
                 accountId: accountUid,
                 accountCode: acct?.display_code ?? '',
+                accountFullCode: acct?.display_full_code ?? acct?.display_code ?? '',
                 accountName: acct?.display_name ?? '',
                 value: a.value?.value ?? '',
               };
@@ -162,8 +163,8 @@ export class HttpJournalListDataService extends JournalListDataService {
             };
           });
 
-          // Apply filters that the API does not support (text query and
-          // assignment status). Date filtering is already done server-side.
+          // Apply filters that the API does not support (text query only).
+          // Date and assignment status filtering are done server-side.
           let filtered = entries;
           if (filters?.query) {
             const q = filters.query.toLowerCase();
@@ -173,11 +174,6 @@ export class HttpJournalListDataService extends JournalListDataService {
                 e.reference.toLowerCase().includes(q) ||
                 e.debitAccountName.toLowerCase().includes(q) ||
                 e.creditAccountName.toLowerCase().includes(q),
-            );
-          }
-          if (filters?.assignmentStatus && filters.assignmentStatus !== 'all') {
-            filtered = filtered.filter(
-              (e) => e.assignmentStatus === filters.assignmentStatus,
             );
           }
 
@@ -292,14 +288,16 @@ export class HttpJournalListDataService extends JournalListDataService {
   }
 
   private buildApiFilter(filters?: JournalEntryFilters): string | undefined {
-    // The backend only supports booked_at in transaction filters, so use that
-    // as a server-side pre-filter for the date range.
+    // The backend supports booked_at and assignment_status filters.
     const parts: string[] = [];
     if (filters?.afterDate) {
       parts.push(`booked_at>="${filters.afterDate}T00:00:00Z"`);
     }
     if (filters?.beforeDate) {
       parts.push(`booked_at<="${filters.beforeDate}T23:59:59Z"`);
+    }
+    if (filters?.assignmentStatus && filters.assignmentStatus !== 'all') {
+      parts.push(`assignment_status="${filters.assignmentStatus}"`);
     }
     return parts.length > 0 ? parts.join(' AND ') : undefined;
   }

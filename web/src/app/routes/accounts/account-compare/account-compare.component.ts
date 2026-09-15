@@ -16,7 +16,7 @@ import {
   EmptyStateComponent,
   NotificationService,
 } from '../../../shared/components';
-import { formatDateShort } from '../../../shared/utils';
+import { formatDateShort, naturalCompare } from '../../../shared/utils';
 import {
   AccountCompareDataService,
   BudgetOption,
@@ -404,7 +404,7 @@ export class AccountCompareComponent {
     });
 
     childrenByParentId.forEach((siblings) => {
-      siblings.sort((left, right) => left.code.localeCompare(right.code));
+      siblings.sort((left, right) => naturalCompare(left.code, right.code));
     });
 
     const arranged: CompareAccountOption[] = [];
@@ -429,7 +429,7 @@ export class AccountCompareComponent {
 
     accounts
       .filter((account) => !visited.has(account.id))
-      .sort((left, right) => left.code.localeCompare(right.code))
+      .sort((left, right) => naturalCompare(left.code, right.code))
       .forEach((account) => appendAccount(account, account.depth ?? 0));
 
     return arranged;

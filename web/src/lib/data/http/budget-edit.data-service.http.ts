@@ -21,6 +21,7 @@ import {
   extractUidFromResourceName,
   auditLogHistoryEntryFromApi,
 } from './_mappers';
+import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
 @Injectable()
 export class HttpBudgetEditDataService extends BudgetEditDataService {
@@ -138,6 +139,7 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
                       c.accountName = info.name;
                     }
                   }
+                  changes.sort((a, b) => naturalCompare(a.accountFullCode, b.accountFullCode));
                   return {
                     ...mapApiBudget(budget),
                     tags,

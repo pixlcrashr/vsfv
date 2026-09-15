@@ -6,6 +6,7 @@ import {
   CreatedAccount,
   ParentAccountOption,
 } from '../../../app/shared/dialogs/create-account-dialog/create-account-dialog.component';
+import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
 interface FlatAccount {
   id: string;
@@ -40,6 +41,10 @@ export class HttpCreateAccountDialogDataService extends CreateAccountDialogDataS
       const key = a.parentAccountId;
       if (!childrenMap.has(key)) childrenMap.set(key, []);
       childrenMap.get(key)!.push(a);
+    }
+
+    for (const siblings of childrenMap.values()) {
+      siblings.sort((a, b) => naturalCompare(a.code, b.code));
     }
 
     const result: ParentAccountOption[] = [];

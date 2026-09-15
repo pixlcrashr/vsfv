@@ -106,6 +106,20 @@ export const ADMIN_ROUTES: Routes = [
         ],
       },
       {
+        path: 'importExport',
+        canActivate: [requireAllGlobalPermissions(Permissions.ORGANIZATIONS_READ)],
+        resolve: {
+          permissions: resolveGlobalPermissions(Permissions.ORGANIZATIONS_CREATE),
+        },
+        loadComponent: () =>
+          import('./import-export/import-export.component').then(
+            (m) => m.ImportExportComponent
+          ),
+        providers: [
+          { provide: OrganizationListDataService, useClass: environment.dataServices.organizationList },
+        ],
+      },
+      {
         path: 'auditLog',
         canActivate: [requireAllGlobalPermissions(Permissions.AUDIT_LOGS_READ)],
         resolve: {

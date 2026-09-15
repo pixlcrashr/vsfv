@@ -31,20 +31,20 @@ const ACCOUNT_IDS = [
 ];
 
 const MOCK_ACCOUNTS: Account[] = [
-  { id: ACCOUNT_IDS[0], displayCode: '1000', name: 'Einnahmen', depth: 0, parentAccountId: null, isArchived: false },
-  { id: ACCOUNT_IDS[1], displayCode: '1100', name: 'Steuern', depth: 1, parentAccountId: ACCOUNT_IDS[0], isArchived: false },
-  { id: ACCOUNT_IDS[2], displayCode: '1110', name: 'Umsatzsteuer', depth: 2, parentAccountId: ACCOUNT_IDS[1], isArchived: false },
-  { id: ACCOUNT_IDS[3], displayCode: '1120', name: 'Gewerbesteuer', depth: 2, parentAccountId: ACCOUNT_IDS[1], isArchived: false },
-  { id: ACCOUNT_IDS[4], displayCode: '1200', name: 'Zuweisungen', depth: 1, parentAccountId: ACCOUNT_IDS[0], isArchived: false },
-  { id: ACCOUNT_IDS[5], displayCode: '1210', name: 'Landesmittel', depth: 2, parentAccountId: ACCOUNT_IDS[4], isArchived: false },
-  { id: ACCOUNT_IDS[6], displayCode: '1211', name: 'Projektfoerderung', depth: 3, parentAccountId: ACCOUNT_IDS[5], isArchived: false },
-  { id: ACCOUNT_IDS[7], displayCode: '2000', name: 'Ausgaben', depth: 0, parentAccountId: null, isArchived: false },
-  { id: ACCOUNT_IDS[8], displayCode: '2100', name: 'Personal', depth: 1, parentAccountId: ACCOUNT_IDS[7], isArchived: false },
-  { id: ACCOUNT_IDS[9], displayCode: '2110', name: 'Wissenschaftliches Personal', depth: 2, parentAccountId: ACCOUNT_IDS[8], isArchived: false },
-  { id: ACCOUNT_IDS[10], displayCode: '2200', name: 'Sachausgaben', depth: 1, parentAccountId: ACCOUNT_IDS[7], isArchived: false },
-  { id: ACCOUNT_IDS[11], displayCode: '2210', name: 'IT-Infrastruktur', depth: 2, parentAccountId: ACCOUNT_IDS[10], isArchived: false },
-  { id: ACCOUNT_IDS[12], displayCode: '2211', name: 'Lizenzen', depth: 3, parentAccountId: ACCOUNT_IDS[11], isArchived: false },
-  { id: ACCOUNT_IDS[13], displayCode: '9000', name: 'Archiviertes Konto', depth: 0, parentAccountId: null, isArchived: true },
+  { id: ACCOUNT_IDS[0], displayCode: '1000', name: 'Einnahmen', displayDescription: 'Alle Einnahmen des Haushaltsplans', depth: 0, parentAccountId: null, isArchived: false },
+  { id: ACCOUNT_IDS[1], displayCode: '1100', name: 'Steuern', displayDescription: 'Steuereinnahmen', depth: 1, parentAccountId: ACCOUNT_IDS[0], isArchived: false },
+  { id: ACCOUNT_IDS[2], displayCode: '1110', name: 'Umsatzsteuer', displayDescription: 'Umsatzsteuer des laufenden Jahres', depth: 2, parentAccountId: ACCOUNT_IDS[1], isArchived: false },
+  { id: ACCOUNT_IDS[3], displayCode: '1120', name: 'Gewerbesteuer', displayDescription: 'Gemeinsame Steuern nach KoDex', depth: 2, parentAccountId: ACCOUNT_IDS[1], isArchived: false },
+  { id: ACCOUNT_IDS[4], displayCode: '1200', name: 'Zuweisungen', displayDescription: 'Zuweisungen von Land und Bund', depth: 1, parentAccountId: ACCOUNT_IDS[0], isArchived: false },
+  { id: ACCOUNT_IDS[5], displayCode: '1210', name: 'Landesmittel', displayDescription: 'Landeszuschüsse', depth: 2, parentAccountId: ACCOUNT_IDS[4], isArchived: false },
+  { id: ACCOUNT_IDS[6], displayCode: '1211', name: 'Projektfoerderung', displayDescription: 'Förderung einzelner Projekte', depth: 3, parentAccountId: ACCOUNT_IDS[5], isArchived: false },
+  { id: ACCOUNT_IDS[7], displayCode: '2000', name: 'Ausgaben', displayDescription: 'Alle Ausgaben des Haushaltsplans', depth: 0, parentAccountId: null, isArchived: false },
+  { id: ACCOUNT_IDS[8], displayCode: '2100', name: 'Personal', displayDescription: 'Personalausgaben', depth: 1, parentAccountId: ACCOUNT_IDS[7], isArchived: false },
+  { id: ACCOUNT_IDS[9], displayCode: '2110', name: 'Wissenschaftliches Personal', displayDescription: 'Tutorien und wissenschaftliche Mitarbeiter', depth: 2, parentAccountId: ACCOUNT_IDS[8], isArchived: false },
+  { id: ACCOUNT_IDS[10], displayCode: '2200', name: 'Sachausgaben', displayDescription: 'Sachmittel', depth: 1, parentAccountId: ACCOUNT_IDS[7], isArchived: false },
+  { id: ACCOUNT_IDS[11], displayCode: '2210', name: 'IT-Infrastruktur', displayDescription: 'Server, Netzwerk und Arbeitsplätze', depth: 2, parentAccountId: ACCOUNT_IDS[10], isArchived: false },
+  { id: ACCOUNT_IDS[12], displayCode: '2211', name: 'Lizenzen', displayDescription: 'Softwarelizenzen', depth: 3, parentAccountId: ACCOUNT_IDS[11], isArchived: false },
+  { id: ACCOUNT_IDS[13], displayCode: '9000', name: 'Archiviertes Konto', displayDescription: '', depth: 0, parentAccountId: null, isArchived: true },
 ];
 
 const LEAF_ACCOUNTS = MOCK_ACCOUNTS.filter(

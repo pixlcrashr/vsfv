@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Account, HierarchicalAccount } from '../models';
+import { sortAccountTreeByCode } from '../utils/account-sort.utils';
 
 @Injectable({ providedIn: 'root' })
 export class AccountHierarchyService {
@@ -19,12 +20,7 @@ export class AccountHierarchyService {
       }
     }
 
-    function sortByCode(accounts: HierarchicalAccount[]): void {
-      accounts.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
-      for (const a of accounts) {
-        sortByCode(a.children);
-      }
-    }
+    sortAccountTreeByCode(roots);
 
     function setDepth(accounts: HierarchicalAccount[], depth: number): void {
       for (const a of accounts) {
@@ -33,7 +29,6 @@ export class AccountHierarchyService {
       }
     }
 
-    sortByCode(roots);
     setDepth(roots, 0);
 
     return roots;

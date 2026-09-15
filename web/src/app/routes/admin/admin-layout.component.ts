@@ -63,6 +63,7 @@ export class AdminLayoutComponent implements OnDestroy {
 
   readonly menuItems: AdminMenuItem[] = [
     { label: $localize`Organisationen`, path: '/admin/organizations' },
+    { label: $localize`Import / Export`, path: '/admin/importExport' },
     { label: $localize`Benutzer`, path: '/admin/users' },
     { label: $localize`Gruppen`, path: '/admin/groups' },
     { label: $localize`Audit-Log`, path: '/admin/auditLog' },

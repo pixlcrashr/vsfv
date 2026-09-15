@@ -7,6 +7,7 @@ import { BudgetServiceService } from '../../api/services/budget-service.service'
 import { AccountGroupStats, Budget, BudgetTag } from '../../../app/shared/models';
 import { AccountGroupStatsDataService } from '../../../app/routes/account-groups/account-group-stats/account-group-stats.data-service';
 import { mapApiAccountGroupAssignment, mapApiBudget } from './_mappers';
+import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
 @Injectable()
 export class HttpAccountGroupStatsDataService extends AccountGroupStatsDataService {
@@ -49,6 +50,7 @@ export class HttpAccountGroupStatsDataService extends AccountGroupStatsDataServi
             acct?.display_code ?? '',
           );
         });
+        accounts.sort((a, b) => naturalCompare(a.accountCode, b.accountCode));
         return {
           id: group.uid ?? '',
           name: group.display_name,

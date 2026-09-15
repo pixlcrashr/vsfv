@@ -17,7 +17,7 @@ import {
   StatusBadgeComponent,
   NotificationService,
 } from '../../../shared/components';
-import { formatDateShort, formatCurrency } from '../../../shared/utils';
+import { formatDateShort, formatCurrency, naturalCompare } from '../../../shared/utils';
 import { Transaction, Account } from '../../../shared/models';
 import { TransactionEditDataService } from './transaction-edit.data-service';
 
@@ -179,7 +179,7 @@ import { TransactionEditDataService } from './transaction-edit.data-service';
                         <option value="" i18n>Konto wählen...</option>
                         @for (account of selectableAccounts(); track account.id) {
                           <option [value]="account.id" [disabled]="account.id !== assignment.accountId && usedAccountIds().has(account.id)">
-                            {{ account.code }} {{ account.name }}
+                            {{ account.displayFullCode }} - {{ account.displayFullName }}
                           </option>
                         }
                       </select>
@@ -255,7 +255,7 @@ export class TransactionEditComponent implements OnInit {
   readonly availableAccounts = signal<Account[]>([]);
 
   readonly selectableAccounts = computed(() =>
-    this.availableAccounts().filter(a => !a.isContainer)
+    this.availableAccounts().filter(a => !a.isContainer).sort((a, b) => naturalCompare(a.code, b.code))
   );
   readonly usedAccountIds = computed(() =>
     new Set(this.editableAssignments().map(a => a.accountId).filter(Boolean))

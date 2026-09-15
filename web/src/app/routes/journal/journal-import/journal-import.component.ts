@@ -15,6 +15,7 @@ import {
   LoadingSpinnerComponent,
   NotificationService,
 } from '../../../shared/components';
+import { naturalCompare } from '../../../shared/utils';
 import {
   JournalImportDataService,
   ImportTransaction,
@@ -305,7 +306,7 @@ export class JournalImportComponent implements OnInit {
   readonly closedYearsCount = signal(0);
 
   readonly activeAccounts = computed(() =>
-    this.accounts().filter(a => !a.isArchived)
+    this.accounts().filter(a => !a.isArchived).sort((a, b) => naturalCompare(a.name, b.name))
   );
 
   readonly pendingRows = computed(() =>

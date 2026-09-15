@@ -6,6 +6,11 @@ export interface JournalAccountAssignment {
   id: string;
   accountId: string;
   accountCode: string;
+  /**
+   * Dash-joined ancestor code chain from the root account down to the account
+   * itself (e.g. "A-1-2-3-4"), provided by the API's full_code field.
+   */
+  accountFullCode: string;
   accountName: string;
   value: string;
 }

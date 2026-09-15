@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, combineLatest, map, switchMap, catchError, of } from 'rxjs';
+import { Observable, EMPTY, combineLatest, map, switchMap, catchError, of, expand, reduce } from 'rxjs';
 import { TransactionServiceService } from '../../api/services/transaction-service.service';
 import { TransactionAssignmentServiceService } from '../../api/services/transaction-assignment-service.service';
 import { LedgerAccountServiceService } from '../../api/services/ledger-account-service.service';
@@ -7,7 +7,8 @@ import { LedgerYearServiceService } from '../../api/services/ledger-year-service
 import { AccountServiceService } from '../../api/services/account-service.service';
 import { Transaction, Account, TransactionAssignment } from '../../../app/shared/models';
 import { TransactionEditDataService, CreateAssignmentParams, UpdateAssignmentParams } from '../../../app/routes/transactions/transaction-edit/transaction-edit.data-service';
-import { mapApiAccount, mapApiTransaction, mapApiTransactionAssignment } from './_mappers';
+import { V1Account } from '../../api/models/v1account';
+import { extractUidFromResourceName, mapApiAccount, mapApiTransaction, mapApiTransactionAssignment } from './_mappers';
 
 @Injectable()
 export class HttpTransactionEditDataService extends TransactionEditDataService {
@@ -32,17 +33,17 @@ export class HttpTransactionEditDataService extends TransactionEditDataService {
         return combineLatest([
           this.assignmentSvc.TransactionAssignmentServiceListTransactionAssignments({ parent1: txnName, pageSize: 100 }),
           this.ledgerAccountSvc.LedgerAccountServiceListLedgerAccounts({ parent, pageSize: 100 }),
-          this.accountSvc.AccountServiceListAccounts({ parent, pageSize: 100, showDeleted: false }),
+          this.loadAllAccounts(parent),
           this.ledgerYearSvc.LedgerYearServiceListLedgerYears({ parent, pageSize: 2, filter: `year=${bookedYear}` }).pipe(
             catchError(() => of({ ledger_years: [] })),
           ),
         ]).pipe(
-          map(([assignmentsResp, ledgerAccountsResp, accountsResp, ledgerYearsResp]) => {
+          map(([assignmentsResp, ledgerAccountsResp, accounts, ledgerYearsResp]) => {
             const ledgerAccountsMap = new Map(
               (ledgerAccountsResp.ledger_accounts ?? []).map((a) => [a.uid ?? '', a]),
             );
             const accountsMap = new Map(
-              (accountsResp.accounts ?? []).map((a) => [a.uid ?? '', a]),
+              accounts.map((a) => [extractUidFromResourceName(a.name ?? '') || (a.uid ?? ''), a]),
             );
 
             const debitUid = txn.debit_ledger_account?.split('/').pop() ?? '';
@@ -101,8 +102,24 @@ export class HttpTransactionEditDataService extends TransactionEditDataService {
   }
 
   listAvailableAccounts(organizationId: string): Observable<Account[]> {
-    return this.accountSvc.AccountServiceListAccounts({ parent: `organizations/${organizationId}`, pageSize: 100, showDeleted: false }).pipe(
-      map((resp) => (resp.accounts ?? []).map(mapApiAccount)),
+    return this.loadAllAccounts(`organizations/${organizationId}`).pipe(
+      map((accounts) => accounts.map(mapApiAccount)),
+    );
+  }
+
+  private loadAllAccounts(parent: string): Observable<V1Account[]> {
+    return this.accountSvc.AccountServiceListAccounts({ parent, pageSize: 100, showDeleted: false }).pipe(
+      expand((resp) =>
+        resp.next_page_token
+          ? this.accountSvc.AccountServiceListAccounts({
+              parent,
+              pageSize: 100,
+              pageToken: resp.next_page_token,
+              showDeleted: false,
+            })
+          : EMPTY,
+      ),
+      reduce((all: V1Account[], resp) => all.concat(resp.accounts ?? []), []),
     );
   }
 

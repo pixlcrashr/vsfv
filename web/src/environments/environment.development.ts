@@ -51,7 +51,7 @@ import { MockLoginDataService } from '../lib/data/mock/login.data-service.mock';
 export const environment = {
   production: false,
   apiBaseUrl: '',
-  oauthIssuer: 'http://127.0.0.1:8080',
+  oauthIssuer: 'http://localhost:8080',
   dataServices: {
     accountGroupList: MockAccountGroupListDataService,
     accountGroupEdit: MockAccountGroupEditDataService,

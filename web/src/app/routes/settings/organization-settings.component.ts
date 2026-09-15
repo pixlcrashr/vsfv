@@ -5,12 +5,9 @@ import {
   signal,
   OnInit,
   DestroyRef,
-  viewChild,
-  ElementRef,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import {
   FormControl,
   FormGroup,
@@ -84,38 +81,6 @@ import {
                 </div>
               }
             </div>
-
-            <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
-              <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100" i18n>Datenimport / -export</h2>
-              <p class="text-xs text-gray-500 dark:text-gray-400" i18n>
-                Exportiert oder importiert den kompletten Haushaltsplan inklusive Konten, Budgets, Buchungen und Zuordnungen als XML-Datei.
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  (click)="exportXml()"
-                  class="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                  i18n
-                >
-                  Als XML exportieren
-                </button>
-                <button
-                  type="button"
-                  (click)="openImportFilePicker()"
-                  class="px-3 py-1.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
-                  i18n
-                >
-                  Aus XML importieren
-                </button>
-              </div>
-              <input
-                #importInput
-                type="file"
-                accept=".xml,application/xml"
-                class="hidden"
-                (change)="importXml($event)"
-              />
-            </div>
           </div>
         }
       </div>
@@ -127,9 +92,6 @@ export class OrganizationSettingsComponent implements OnInit {
   private readonly dataService = inject(OrganizationSettingsDataService);
   private readonly notifications = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly http = inject(HttpClient);
-
-  readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -207,53 +169,5 @@ export class OrganizationSettingsComponent implements OnInit {
       $localize`September`, $localize`Oktober`, $localize`November`, $localize`Dezember`,
     ];
     return names[month - 1] || '';
-  }
-
-  exportXml(): void {
-    const orgId = this.orgId();
-    if (!orgId) return;
-
-    const url = `/api/v1/organizations/${orgId}/data:export-xml`;
-    this.http.get(url, { responseType: 'blob' }).subscribe({
-      next: (blob) => {
-        const a = document.createElement('a');
-        const objectUrl = window.URL.createObjectURL(blob);
-        a.href = objectUrl;
-        a.download = `vsfv-export-${orgId}.xml`;
-        a.click();
-        window.URL.revokeObjectURL(objectUrl);
-      },
-      error: () => {
-        this.notifications.error($localize`Fehler beim Exportieren der XML-Datei`);
-      },
-    });
-  }
-
-  openImportFilePicker(): void {
-    const input = this.importInput().nativeElement;
-    input.value = '';
-    input.click();
-  }
-
-  importXml(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.item(0);
-    if (!file) return;
-
-    const orgId = this.orgId();
-    if (!orgId) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const url = `/api/v1/organizations/${orgId}/data:import-xml`;
-    this.http.post(url, formData, { responseType: 'text' }).subscribe({
-      next: () => {
-        this.notifications.success($localize`XML-Import erfolgreich`);
-      },
-      error: () => {
-        this.notifications.error($localize`Fehler beim Importieren der XML-Datei`);
-      },
-    });
   }
 }

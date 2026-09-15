@@ -5,6 +5,7 @@ import {
   LedgerAccountListFilter,
 } from '../../../app/routes/ledger/ledger-accounts/ledger-account-list.data-service';
 import { faker } from '@faker-js/faker';
+import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
 const accountTypes = [
   'ACCOUNT_TYPE_ASSET',
@@ -45,7 +46,7 @@ export class MockLedgerAccountListDataService implements LedgerAccountListDataSe
       this.accounts.push(createMockLedgerAccount());
     }
     // Sort by code
-    this.accounts.sort((a, b) => a.code.localeCompare(b.code));
+    this.accounts.sort((a, b) => naturalCompare(a.code, b.code));
   }
 
   listLedgerAccounts(

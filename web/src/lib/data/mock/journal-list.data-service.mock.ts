@@ -94,12 +94,12 @@ export class MockJournalListDataService extends JournalListDataService {
       { id: 'ta-3200', code: '3200', name: 'Zuschüsse' },
     ];
     const budgetAccounts = [
-      { id: 'acc-1', code: '2.1.1', name: 'Gehälter' },
-      { id: 'acc-2', code: '2.1.2', name: 'Sozialabgaben' },
-      { id: 'acc-3', code: '2.2.1', name: 'Büromaterial' },
-      { id: 'acc-4', code: '2.2.2', name: 'IT-Ausstattung' },
-      { id: 'acc-5', code: '2.3.1', name: 'Veranstaltungsräume' },
-      { id: 'acc-6', code: '3.1.1', name: 'Mitgliedsverwaltung' },
+      { id: 'acc-1', code: '2.1.1', fullCode: '2-1-1', name: 'Gehälter' },
+      { id: 'acc-2', code: '2.1.2', fullCode: '2-1-2', name: 'Sozialabgaben' },
+      { id: 'acc-3', code: '2.2.1', fullCode: '2-2-1', name: 'Büromaterial' },
+      { id: 'acc-4', code: '2.2.2', fullCode: '2-2-2', name: 'IT-Ausstattung' },
+      { id: 'acc-5', code: '2.3.1', fullCode: '2-3-1', name: 'Veranstaltungsräume' },
+      { id: 'acc-6', code: '3.1.1', fullCode: '3-1-1', name: 'Mitgliedsverwaltung' },
     ];
     const statuses: JournalAssignmentStatus[] = ['ignored', 'assigned', 'partial', 'open'];
 
@@ -138,7 +138,7 @@ export class MockJournalListDataService extends JournalListDataService {
   private generateAssignments(
     status: JournalAssignmentStatus,
     amount: string,
-    accounts: { id: string; code: string; name: string }[],
+    accounts: { id: string; code: string; fullCode: string; name: string }[],
   ): JournalEntry['accountAssignments'] {
     if (status === 'ignored' || status === 'open') {
       return [];
@@ -158,6 +158,7 @@ export class MockJournalListDataService extends JournalListDataService {
         id: faker.string.uuid(),
         accountId: account.id,
         accountCode: account.code,
+        accountFullCode: account.fullCode,
         accountName: account.name,
         value: (targetCents / 100).toFixed(2),
       },

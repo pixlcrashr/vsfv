@@ -3,6 +3,8 @@ export interface Account {
   name: string;
   code: string;
   fullCode: string;
+  displayFullCode?: string;
+  displayFullName?: string;
   description: string;
   isArchived: boolean;
   isContainer?: boolean;

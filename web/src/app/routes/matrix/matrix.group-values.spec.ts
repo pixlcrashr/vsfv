@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { Decimal } from 'decimal.js';
+import { firstValueFrom, of, Observable } from 'rxjs';
 
 import { Matrix } from './matrix.component';
-import { MatrixData } from './matrix-data-provider.service';
+import { Account, MatrixData, MatrixDataProviderService } from './matrix-data-provider.service';
 import { MatrixDataService } from './matrix.data-service';
+import { MatrixValueStoreService } from './matrix-value-store.service';
 import { MockMatrixDataService } from '../../../lib/data/mock/matrix.data-service.mock';
 
 describe('Matrix group account values', () => {
@@ -113,5 +115,41 @@ describe('Matrix group account values', () => {
       const sumRow = component.matrixData().rows.find(r => r.sourceAccountId === row.accountId);
       expect(sumRow).toBeDefined();
     }
+  });
+});
+
+describe('Matrix account tree ordering', () => {
+  it('sorts the account tree naturally by display code (1, 2, 10 — not 1, 10, 2)', async () => {
+    const scrambledAccounts: Account[] = [
+      { id: 'a-10', displayCode: '10', name: 'Ten', displayDescription: '', depth: 0, parentAccountId: null, isArchived: false },
+      { id: 'a-300', displayCode: '300', name: 'Three hundred', displayDescription: '', depth: 0, parentAccountId: null, isArchived: false },
+      { id: 'a-2', displayCode: '2', name: 'Two', displayDescription: '', depth: 0, parentAccountId: null, isArchived: false },
+      { id: 'a-2-10', displayCode: '2.10', name: 'Two point ten', displayDescription: '', depth: 1, parentAccountId: 'a-2', isArchived: false },
+      { id: 'a-1', displayCode: '1', name: 'One', displayDescription: '', depth: 0, parentAccountId: null, isArchived: false },
+      { id: 'a-20', displayCode: '20', name: 'Twenty', displayDescription: '', depth: 0, parentAccountId: null, isArchived: false },
+      { id: 'a-2-2', displayCode: '2.2', name: 'Two point two', displayDescription: '', depth: 1, parentAccountId: 'a-2', isArchived: false },
+      { id: 'a-3', displayCode: '3', name: 'Three', displayDescription: '', depth: 0, parentAccountId: null, isArchived: false },
+    ];
+
+    class ScrambledAccountsMock extends MockMatrixDataService {
+      override listAccounts(): Observable<Account[]> {
+        return of(scrambledAccounts);
+      }
+    }
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: MatrixDataService, useClass: ScrambledAccountsMock },
+        MatrixDataProviderService,
+        MatrixValueStoreService,
+      ],
+    });
+
+    const provider = TestBed.inject(MatrixDataProviderService);
+    const data = await firstValueFrom(provider.getMatrixData('test-org'));
+
+    const expectedOrder = ['1', '2', '2.2', '2.10', '3', '10', '20', '300'];
+    expect(data.accounts.map(a => a.displayCode)).toEqual(expectedOrder);
+    expect(data.rows.filter(r => !r.isSumRow).map(r => r.displayCode)).toEqual(expectedOrder);
   });
 });

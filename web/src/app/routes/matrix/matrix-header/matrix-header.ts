@@ -14,6 +14,7 @@ export interface ExportButtonClickArgs {
   actualValuesEnabled: boolean;
   differenceValuesEnabled: boolean;
   accountDescriptionsEnabled: boolean;
+  revisionDescriptionsEnabled: boolean;
 }
 
 @Component({
@@ -265,6 +266,18 @@ export interface ExportButtonClickArgs {
                       />
                     </td>
                   </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" (click)="isRevisionDescriptionButtonSelected.set(!isRevisionDescriptionButtonSelected())">
+                    <td class="px-2.5 py-1.5 text-gray-900 dark:text-gray-100" i18n>Revisionsbeschreibung</td>
+                    <td class="px-2.5 py-1.5 w-8 text-center">
+                      <input
+                        type="checkbox"
+                        class="cursor-pointer"
+                        [checked]="isRevisionDescriptionButtonSelected()"
+                        (click)="$event.stopPropagation()"
+                        (change)="isRevisionDescriptionButtonSelected.set(!isRevisionDescriptionButtonSelected())"
+                      />
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -358,6 +371,7 @@ export class MatrixHeader {
   isActualButtonSelected = model<boolean>(false);
   isDifferenceButtonSelected = model<boolean>(false);
   isDescriptionButtonSelected = model<boolean>(false);
+  isRevisionDescriptionButtonSelected = model<boolean>(false);
   isLoading = input<boolean>(false);
   isSaving = input<boolean>(false);
   hasPendingChanges = input<boolean>(false);
@@ -479,6 +493,7 @@ export class MatrixHeader {
       actualValuesEnabled: this.isActualButtonSelected(),
       differenceValuesEnabled: this.isDifferenceButtonSelected(),
       accountDescriptionsEnabled: this.isDescriptionButtonSelected(),
+      revisionDescriptionsEnabled: this.isRevisionDescriptionButtonSelected(),
     });
   }
 }

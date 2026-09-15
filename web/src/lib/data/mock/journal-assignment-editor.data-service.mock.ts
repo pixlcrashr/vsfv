@@ -41,6 +41,7 @@ export class MockJournalAssignmentEditorDataService extends JournalAssignmentEdi
       id: faker.string.uuid(),
       accountId: params.accountId,
       accountCode: account?.code ?? '',
+      accountFullCode: account?.fullCode ?? account?.code ?? '',
       accountName: account?.name ?? '',
       value: params.value,
     };
@@ -61,6 +62,7 @@ export class MockJournalAssignmentEditorDataService extends JournalAssignmentEdi
       existing.accountId = params.accountId;
       existing.value = params.value;
       existing.accountCode = account?.code ?? '';
+      existing.accountFullCode = account?.fullCode ?? account?.code ?? '';
       existing.accountName = account?.name ?? '';
       return of(existing).pipe(delay(200));
     }
@@ -68,6 +70,7 @@ export class MockJournalAssignmentEditorDataService extends JournalAssignmentEdi
       id: assignmentId,
       accountId: params.accountId,
       accountCode: account?.code ?? '',
+      accountFullCode: account?.fullCode ?? account?.code ?? '',
       accountName: account?.name ?? '',
       value: params.value,
     };

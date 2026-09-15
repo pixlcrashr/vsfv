@@ -89,6 +89,7 @@ export class HttpJournalAssignmentEditorDataService extends JournalAssignmentEdi
       id: a.uid ?? '',
       accountId: uid || fallbackAccountId,
       accountCode: '',
+      accountFullCode: '',
       accountName: '',
       value: a.value?.value ?? '',
     };

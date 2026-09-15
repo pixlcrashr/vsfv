@@ -52,7 +52,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8953033926734869941" datatype="html">
@@ -76,6 +76,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/groups/group-list.component.ts</context>
           <context context-type="linenumber">71</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">98</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
@@ -157,6 +161,10 @@
           <context context-type="linenumber">70</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">104</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/organizations/organization-edit.component.ts</context>
           <context context-type="linenumber">84</context>
         </context-group>
@@ -194,7 +202,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">54</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/transactions/transaction-edit/transaction-edit.component.ts</context>
@@ -609,7 +617,7 @@
         <source>Soll</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/account-groups/account-group-stats/account-group-stats.component.ts</context>
-          <context context-type="linenumber">89</context>
+          <context context-type="linenumber">88,89</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/account-groups/account-group-stats/account-group-stats.component.ts</context>
@@ -1230,11 +1238,22 @@
           <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="909114780120402669" datatype="html">
+        <source>Import / Export</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/admin-layout.component.ts</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">44,45</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="4586989554085646197" datatype="html">
         <source>Benutzer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/admin-layout.component.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">67</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/users/user-list.component.ts</context>
@@ -1245,7 +1264,7 @@
         <source>Gruppen</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/admin-layout.component.ts</context>
-          <context context-type="linenumber">67</context>
+          <context context-type="linenumber">68</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/groups/group-list.component.ts</context>
@@ -1264,7 +1283,7 @@
         <source>Audit-Log</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/admin-layout.component.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">69</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/audit-log/audit-log.component.ts</context>
@@ -1554,6 +1573,130 @@
           <context context-type="linenumber">195</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="4990171137485649003" datatype="html">
+        <source>Organisationen werden geladen...</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">47,48</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
+          <context context-type="linenumber">44,45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4288893109186981092" datatype="html">
+        <source>Organisation importieren</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">52,53</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4103285170454264856" datatype="html">
+        <source> Importiert eine komplette Organisation inklusive Konten, Budgets, Buchungen und Zuordnungen aus einer XML-Datei. Die Organisation wird neu erstellt; Benutzer und Gruppen werden nicht importiert. </source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2270667080791357242" datatype="html">
+        <source>Import läuft...</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">59</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7190179474354109397" datatype="html">
+        <source>Aus XML importieren</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7337280175653162488" datatype="html">
+        <source>Organisation exportieren</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">77,78</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5145457832979442508" datatype="html">
+        <source> Exportiert eine bestehende Organisation als XML-Datei. </source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">79</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5626371516868800870" datatype="html">
+        <source>Keine Organisationen vorhanden</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">85,86</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
+          <context context-type="linenumber">47,48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3700843042055566879" datatype="html">
+        <source>Erstellen oder importieren Sie eine Organisation, um zu beginnen.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">86,87</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6362799563314674755" datatype="html">
+        <source> Exportieren </source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">123</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2670151714485800923" datatype="html">
+        <source>Fehler beim Laden der Organisationen</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">167</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
+          <context context-type="linenumber">125</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6082135330156460027" datatype="html">
+        <source>Organisation &quot;<x id="PH" equiv-text="name"/>&quot; wurde importiert</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">193</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7649850361206355682" datatype="html">
+        <source>Organisation wurde importiert</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">194</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8179648332933011463" datatype="html">
+        <source>Import fehlgeschlagen: <x id="PH" equiv-text="message"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">203</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2164345355846981758" datatype="html">
+        <source>Fehler beim Importieren der XML-Datei</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">204</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4091867820772651380" datatype="html">
+        <source>Fehler beim Exportieren der XML-Datei</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/routes/admin/import-export/import-export.component.ts</context>
+          <context context-type="linenumber">222</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="1777062436557272431" datatype="html">
         <source>Organisation bearbeiten</source>
         <context-group purpose="location">
@@ -1631,20 +1774,6 @@
           <context context-type="linenumber">257</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4990171137485649003" datatype="html">
-        <source>Organisationen werden geladen...</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
-          <context context-type="linenumber">44,45</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="5626371516868800870" datatype="html">
-        <source>Keine Organisationen vorhanden</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
-          <context context-type="linenumber">47,48</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="5830761093563242860" datatype="html">
         <source>Erstellen Sie Ihre erste Organisation, um zu beginnen.</source>
         <context-group purpose="location">
@@ -1668,13 +1797,6 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
           <context context-type="linenumber">89</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="2670151714485800923" datatype="html">
-        <source>Fehler beim Laden der Organisationen</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/admin/organizations/organization-list.component.ts</context>
-          <context context-type="linenumber">125</context>
         </context-group>
       </trans-unit>
       <trans-unit id="6665083705214944141" datatype="html">
@@ -3236,7 +3358,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">197</context>
+          <context context-type="linenumber">159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="7503739756155315891" datatype="html">
@@ -4562,7 +4684,7 @@
         <source> <x id="INTERPOLATION" equiv-text="{{ report()!.templateName }}"/> · Erstellt am <x id="INTERPOLATION_1" equiv-text="{{ formatDate(report()!.createdAt) }}"/> </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/reports/report-view/report-view.component.ts</context>
-          <context context-type="linenumber">57,59</context>
+          <context context-type="linenumber">57,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="6312842243610565501" datatype="html">
@@ -4583,21 +4705,21 @@
         <source>Einstellungen werden geladen...</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">38,39</context>
+          <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5762585372881387986" datatype="html">
         <source>Organisationsname</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8797390309922540142" datatype="html">
         <source>Geschäftsjahr Beginn (Monat)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">66</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4608,42 +4730,14 @@
         <source> Das Geschäftsjahr kann nach der Erstellung nicht mehr geändert werden. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">75</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="8080031780847258153" datatype="html">
-        <source>Datenimport / -export</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">89,90</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="7931554078886546931" datatype="html">
-        <source> Exportiert oder importiert den kompletten Haushaltsplan inklusive Konten, Budgets, Buchungen und Zuordnungen als XML-Datei. </source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">91</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="8803382521580565036" datatype="html">
-        <source> Als XML exportieren </source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">100</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="8878901268253548969" datatype="html">
-        <source> Aus XML importieren </source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">108</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4435703504669117699" datatype="html">
         <source>Einstellungen</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">108</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/layout/main-layout/main-layout.component.ts</context>
@@ -4654,14 +4748,14 @@
         <source>Fehler beim Laden der Einstellungen</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">177</context>
+          <context context-type="linenumber">139</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8044499984033738120" datatype="html">
         <source>Januar</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">167</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4672,7 +4766,7 @@
         <source>Februar</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">167</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4683,7 +4777,7 @@
         <source>März</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">167</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4694,7 +4788,7 @@
         <source>April</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">167</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4705,7 +4799,7 @@
         <source>Mai</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">206</context>
+          <context context-type="linenumber">168</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4716,7 +4810,7 @@
         <source>Juni</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">206</context>
+          <context context-type="linenumber">168</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4727,7 +4821,7 @@
         <source>Juli</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">206</context>
+          <context context-type="linenumber">168</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4738,7 +4832,7 @@
         <source>August</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">206</context>
+          <context context-type="linenumber">168</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4749,7 +4843,7 @@
         <source>September</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">169</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4760,7 +4854,7 @@
         <source>Oktober</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">169</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4771,7 +4865,7 @@
         <source>November</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">169</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
@@ -4782,32 +4876,11 @@
         <source>Dezember</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">169</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/dialogs/create-organization-dialog/create-organization-dialog.component.ts</context>
           <context context-type="linenumber">118,119</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="4091867820772651380" datatype="html">
-        <source>Fehler beim Exportieren der XML-Datei</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">227</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="516061622240357707" datatype="html">
-        <source>XML-Import erfolgreich</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">252</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="2164345355846981758" datatype="html">
-        <source>Fehler beim Importieren der XML-Datei</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/routes/settings/organization-settings.component.ts</context>
-          <context context-type="linenumber">255</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8250630496466248060" datatype="html">

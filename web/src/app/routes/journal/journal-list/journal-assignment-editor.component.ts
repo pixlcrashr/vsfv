@@ -12,7 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Observable, forkJoin } from 'rxjs';
 import { Account } from '../../../shared/models';
-import { formatCurrency } from '../../../shared/utils';
+import { formatCurrency, naturalCompare } from '../../../shared/utils';
 import { NotificationService } from '../../../shared/components';
 import {
   JournalAssignmentEditorDataService,
@@ -129,7 +129,7 @@ export class JournalAssignmentEditorComponent implements OnChanges {
   readonly saving = signal(false);
 
   readonly selectableAccounts = computed(() =>
-    this.availableAccounts().filter((a) => !a.isContainer),
+    this.availableAccounts().filter((a) => !a.isContainer).sort((a, b) => naturalCompare(a.code, b.code)),
   );
 
   readonly assignedTotal = computed(() => {
@@ -238,6 +238,7 @@ export class JournalAssignmentEditorComponent implements OnChanges {
                   id: latest.id,
                   accountId: latest.accountId,
                   accountCode: accountsMap.get(latest.accountId)?.code ?? '',
+                  accountFullCode: accountsMap.get(latest.accountId)?.fullCode ?? '',
                   accountName: accountsMap.get(latest.accountId)?.name ?? '',
                   value: latest.value,
                 },

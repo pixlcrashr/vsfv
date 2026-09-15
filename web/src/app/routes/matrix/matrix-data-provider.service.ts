@@ -6,6 +6,7 @@ import {
 import { MatrixValueStoreService } from './matrix-value-store.service';
 import { forkJoin, map, Observable } from 'rxjs';
 import { Decimal } from 'decimal.js';
+import { naturalCompare } from '../../shared/utils/account-sort.utils';
 
 
 
@@ -28,6 +29,7 @@ export interface Account {
   id: string;
   name: string;
   displayCode: string;
+  displayDescription: string;
   depth: number;
   parentAccountId: string | null;
   isArchived: boolean;
@@ -41,6 +43,7 @@ export interface MatrixColumn {
   tags: {
     tagId: string;
     displayName: string;
+    displayDescription: string;
     createdAt: Date;
   }[];
 }
@@ -139,6 +142,33 @@ export class MatrixDataProviderService {
           siblings.push(account);
           childrenByParentId.set(account.parentAccountId, siblings);
         });
+
+        // Sort siblings naturally by display code (1, 2, 10 — not 1, 10, 2) and
+        // flatten depth-first, so the flat order drives both the matrix row tree
+        // and the header account list.
+        const compareByDisplayCode = (a: Account, b: Account) => naturalCompare(a.displayCode, b.displayCode);
+
+        for (const siblings of childrenByParentId.values()) {
+          siblings.sort(compareByDisplayCode);
+        }
+
+        const sortedAccounts: Account[] = [];
+        const appendedAccountIds = new Set<string>();
+        const appendWithDescendants = (account: Account): void => {
+          if (appendedAccountIds.has(account.id)) {
+            return;
+          }
+          appendedAccountIds.add(account.id);
+          sortedAccounts.push(account);
+          (childrenByParentId.get(account.id) ?? []).forEach(appendWithDescendants);
+        };
+        (childrenByParentId.get(null) ?? []).forEach(appendWithDescendants);
+        // Accounts whose parent is not part of the list render at the end, like
+        // the unvisited rows below.
+        accounts
+          .filter(account => !appendedAccountIds.has(account.id))
+          .sort(compareByDisplayCode)
+          .forEach(appendWithDescendants);
 
         const targetValuesByBudgetAccountTag = new Map<string, Decimal>();
         Object.entries(targetValues).forEach(([tagId, accountMap]) => {
@@ -254,11 +284,12 @@ export class MatrixDataProviderService {
           tags: budget.tags.map(tag => ({
             tagId: tag.id,
             displayName: tag.displayName,
+            displayDescription: tag.displayDescription,
             createdAt: tag.createdAt
           }))
         }));
 
-        const rows: MatrixRow[] = accounts.map(account => {
+        const rows: MatrixRow[] = sortedAccounts.map(account => {
           const isParent = (childrenByParentId.get(account.id) ?? []).length > 0;
 
           return {
@@ -266,7 +297,7 @@ export class MatrixDataProviderService {
             depth: account.depth,
             displayCode: account.displayCode,
             displayName: account.name,
-            displayDescription: '', // Could be filled if Account had a description
+            displayDescription: account.displayDescription,
             isSumRow: false,
             sourceAccountId: null,
             isParent,
@@ -351,7 +382,7 @@ export class MatrixDataProviderService {
           columns,
           rows: rowsWithSums,
           budgets,
-          accounts
+          accounts: sortedAccounts
         };
       })
     );

@@ -52,8 +52,10 @@ import { HttpLoginDataService } from '../lib/data/http/login.data-service.http';
 
 export const environment = {
   production: false,
-  apiBaseUrl: 'http://127.0.0.1:8080/api',
-  oauthIssuer: 'http://127.0.0.1:8080',
+  // Use "localhost" (not "127.0.0.1") so API and SPA share a site and the
+  // login session cookie is not treated as a third-party cookie.
+  apiBaseUrl: 'http://localhost:8080/api',
+  oauthIssuer: 'http://localhost:8080',
   dataServices: {
     accountGroupList: HttpAccountGroupListDataService,
     accountGroupEdit: HttpAccountGroupEditDataService,

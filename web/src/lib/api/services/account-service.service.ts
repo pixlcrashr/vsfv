@@ -562,7 +562,7 @@ module AccountServiceService {
     /**
      * The account to update.
      */
-    account: {uid?: string, parent_account?: string, display_name: string, display_code: string, display_description?: string, is_container?: boolean, is_archived?: boolean, update_time?: string, create_time?: string, etag?: string};
+    account: {uid?: string, parent_account?: string, display_name: string, display_code: string, display_full_code?: string, display_full_name?: string, display_description?: string, is_container?: boolean, is_archived?: boolean, update_time?: string, create_time?: string, etag?: string};
   }
 
   /**

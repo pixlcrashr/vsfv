@@ -52,11 +52,14 @@ export function mapApiAccountGroup(g: ApiAccountGroup): AccountGroup {
 
 export function mapApiAccount(a: ApiAccount): Account {
   const parentUid = a.parent_account ? a.parent_account.split('/').pop() ?? null : null;
+  const id = a.name ? (a.name.split('/').pop() ?? a.uid ?? '') : (a.uid ?? '');
   return {
-    id: a.uid ?? '',
+    id,
     name: a.display_name,
     code: a.display_code,
-    fullCode: a.display_code,
+    fullCode: a.display_full_code || a.display_code,
+    displayFullCode: a.display_full_code || a.display_code,
+    displayFullName: a.display_full_name || a.display_name,
     description: a.display_description ?? '',
     isArchived: a.is_archived ?? false,
     isContainer: a.is_container ?? false,
@@ -67,11 +70,14 @@ export function mapApiAccount(a: ApiAccount): Account {
 export function mapApiNestedAccount(n: ApiNestedAccount, depth = 0): HierarchicalAccount {
   const a = n.account;
   const parentUid = a?.parent_account ? a.parent_account.split('/').pop() ?? null : null;
+  const id = a?.name ? (a.name.split('/').pop() ?? a?.uid ?? '') : (a?.uid ?? '');
   return {
-    id: a?.uid ?? '',
+    id,
     name: a?.display_name ?? '',
     code: a?.display_code ?? '',
-    fullCode: a?.display_code ?? '',
+    fullCode: a?.display_full_code || a?.display_code || '',
+    displayFullCode: a?.display_full_code || a?.display_code || '',
+    displayFullName: a?.display_full_name || a?.display_name || '',
     description: a?.display_description ?? '',
     isArchived: a?.is_archived ?? false,
     isContainer: a?.is_container ?? false,

@@ -8,6 +8,7 @@ import {
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent, LoadingSpinnerComponent } from '../../components';
+import { naturalCompare } from '../../utils/account-sort.utils';
 import { AddAccountToGroupDialogDataService } from './add-account-to-group-dialog.data-service';
 
 export interface AvailableAccount {
@@ -98,7 +99,7 @@ export class AddAccountToGroupDialogComponent implements OnInit {
   private loadAvailableAccounts(): void {
     this.dataService.listAvailableAccounts(this.data.organizationId, this.data.groupId).subscribe({
       next: (accounts) => {
-        this.availableAccounts.set(accounts);
+        this.availableAccounts.set([...accounts].sort((a, b) => naturalCompare(a.code, b.code)));
         this.loadingAccounts.set(false);
       },
       error: () => {
