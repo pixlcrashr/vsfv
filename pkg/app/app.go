@@ -56,7 +56,7 @@ func Run(cfg *cfg.Config) error {
 		return fmt.Errorf("creating gRPC server: %w", err)
 	}
 
-	srv := api.New(gormDB, svcSet, "dev", cfg.CORS, authDeps.server, authDeps.gitlabHandler)
+	srv := api.New(gormDB, svcSet, "dev", cfg.CORS, authDeps.server, authDeps.gitlabHandler, enforcer)
 
 	return runServers(srv, grpcSrv, cfg.Server.Address)
 }

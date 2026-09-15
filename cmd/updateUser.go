@@ -23,8 +23,9 @@ var (
 )
 
 var updateUserCmd = &cobra.Command{
-	Use:   "user <uuid>",
-	Short: "Update an existing user",
+	Use:     "user <uuid>",
+	Aliases: []string{"u <uuid>"},
+	Short:   "Update an existing user",
 	Long: `Update an existing user's email, name, and/or group assignments.
 
 The --groups flag accepts a comma-separated list of group UUIDs or custom IDs.

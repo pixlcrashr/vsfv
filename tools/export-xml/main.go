@@ -7,6 +7,17 @@
 // Old-to-new schema mapping
 // -------------------------
 //
+// (none) → <organizations><organization>
+//
+//	The old schema is single-tenant and has no organization record. The tool
+//	emits exactly one <organization> element carrying the display name passed
+//	on the command line (defaulting to the legacy application name) and a
+//	January start month; all other sections are nested inside it. The format
+//	supports multiple organizations per file in theory, but exactly one is
+//	emitted. The id is left empty: on import the organization is restored into
+//	the caller-chosen target organization, and the element's id is
+//	informational only. Users and groups are never exported.
+//
 // accounts → <accounts><account>
 //
 //	Flat table with self-referencing parent_account_id. Nested recursively in XML.
@@ -76,16 +87,25 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/api/importexport/xmlformat"
 )
 
+// defaultOrganizationDisplayName is used for the <organization> element when
+// the caller does not provide one. The legacy schema is single-tenant and has
+// no organization record to take a name from.
+const defaultOrganizationDisplayName = "VS Finanzverwaltung"
+
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "Usage: export-xml <postgres-dsn> <schema> <output.xml>")
-		fmt.Fprintln(os.Stderr, "Example: export-xml postgres://user:pass@localhost/olddb?sslmode=disable public output.xml")
+	if len(os.Args) < 4 || len(os.Args) > 5 {
+		fmt.Fprintln(os.Stderr, "Usage: export-xml <postgres-dsn> <schema> <output.xml> [organization-display-name]")
+		fmt.Fprintln(os.Stderr, "Example: export-xml postgres://user:pass@localhost/olddb?sslmode=disable public output.xml \"Mein Verein\"")
 		os.Exit(1)
 	}
 
 	dsn := os.Args[1]
 	schema := os.Args[2]
 	outPath := os.Args[3]
+	orgDisplayName := defaultOrganizationDisplayName
+	if len(os.Args) == 5 {
+		orgDisplayName = os.Args[4]
+	}
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -99,7 +119,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	doc, err := exportOldSchema(db, schema)
+	doc, err := exportOldSchema(db, schema, orgDisplayName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "export: %v\n", err)
 		os.Exit(1)
@@ -120,25 +140,32 @@ func main() {
 }
 
 // exportOldSchema reads the legacy Prisma schema (as defined in vsfv_public.sql)
-// and maps it to the current XML import/export format. Organization identifiers are
-// intentionally omitted because the XML is a self-contained image of one organization.
-func exportOldSchema(db *sql.DB, schema string) (*xmlformat.Document, error) {
+// and maps it to the current XML import/export format. The old schema is
+// single-tenant and has no organization record, so the exported document
+// carries exactly one <organization> element (containing all data) built from
+// orgDisplayName.
+func exportOldSchema(db *sql.DB, schema, orgDisplayName string) (*xmlformat.Document, error) {
 	doc := &xmlformat.Document{
 		Version:    xmlformat.Version,
 		ExportedAt: xmlformat.FormatExportedAt(),
+		Organizations: []xmlformat.Organization{{
+			DisplayName: orgDisplayName,
+			StartMonth:  1,
+		}},
 	}
+	org := &doc.Organizations[0]
 
 	accounts, err := loadAccounts(db, schema)
 	if err != nil {
 		return nil, fmt.Errorf("load accounts: %w", err)
 	}
-	doc.Accounts = accounts
+	org.Accounts = accounts
 
 	groups, err := loadAccountGroups(db, schema)
 	if err != nil {
 		return nil, fmt.Errorf("load account groups: %w", err)
 	}
-	doc.AccountGroups = groups
+	org.AccountGroups = groups
 
 	// Load transactions before ledger accounts so we know exactly which
 	// transaction_account IDs are referenced by journal entries. Some legacy data
@@ -148,7 +175,7 @@ func exportOldSchema(db *sql.DB, schema string) (*xmlformat.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load transactions: %w", err)
 	}
-	doc.Transactions = transactions
+	org.Transactions = transactions
 
 	referencedLedgerAccountIDs := collectReferencedLedgerAccountIDs(transactions)
 
@@ -158,7 +185,7 @@ func exportOldSchema(db *sql.DB, schema string) (*xmlformat.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load ledger accounts: %w", err)
 	}
-	doc.LedgerAccounts = ledgerAccounts
+	org.LedgerAccounts = ledgerAccounts
 
 	// The old schema has no ledger_years table. import_source_periods contain a
 	// year and is_closed flag; every period row is exported as a ledger year.
@@ -166,13 +193,13 @@ func exportOldSchema(db *sql.DB, schema string) (*xmlformat.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load ledger years: %w", err)
 	}
-	doc.LedgerYears = ledgerYears
+	org.LedgerYears = ledgerYears
 
 	budgets, err := loadBudgets(db, schema)
 	if err != nil {
 		return nil, fmt.Errorf("load budgets: %w", err)
 	}
-	doc.Budgets = budgets
+	org.Budgets = budgets
 
 	return doc, nil
 }

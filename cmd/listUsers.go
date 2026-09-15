@@ -15,9 +15,10 @@ import (
 )
 
 var listUsersCmd = &cobra.Command{
-	Use:   "users",
-	Short: "List all users",
-	Long:  `List all users with their ID, email, name, and group assignments.`,
+	Use:     "users",
+	Aliases: []string{"u", "us", "user"},
+	Short:   "List all users",
+	Long:    `List all users with their ID, email, name, and group assignments.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		gormDB, err := db.ConnectSilent(config.Database.DSN)
 		if err != nil {

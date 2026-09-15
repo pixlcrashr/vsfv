@@ -14,10 +14,12 @@ import (
 var importXMLCmd = &cobra.Command{
 	Use:   "import-xml <organization_id> <input.xml>",
 	Short: "Import organization data from XML",
-	Long: `Import accounts, account groups, ledger accounts/years, budgets,
-revisions and transactions from an XML file into a single organization. The
-import is performed in one database transaction: either all data is imported or
-none is.`,
+	Long: `Import an XML file containing exactly one organization (the format
+supports more in theory, but only one per file is currently supported) into the
+given target organization. The organization record is restored from the
+document (and created if the target does not exist yet); users and groups are
+never restored. The import is performed in one database transaction: either all
+data is imported or none is, and every change is recorded in the audit log.`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		orgID, err := uuid.Parse(args[0])

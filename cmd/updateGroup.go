@@ -19,8 +19,9 @@ var updateGroupOrganizations string
 var updateGroupForce bool
 
 var updateGroupCmd = &cobra.Command{
-	Use:   "group <uuid|customID>",
-	Short: "Update an existing group",
+	Use:     "group <uuid|customID>",
+	Aliases: []string{"g <uuid|customID>"},
+	Short:   "Update an existing group",
 	Long: `Update an existing group's organization assignments.
 
 The --organizations flag accepts a comma-separated list of organization UUIDs or

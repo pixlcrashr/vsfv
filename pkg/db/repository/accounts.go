@@ -413,6 +413,36 @@ SELECT EXISTS (SELECT 1 FROM ancestors WHERE id = ?) AS has_cycle
 	return res.HasCycle, nil
 }
 
+// GetAncestorsByIDs returns the distinct strict ancestors (parent, grandparent,
+// …) of the given accounts using a single recursive query, regardless of tree
+// depth. The accounts themselves are not part of the result; shared ancestors
+// are returned once. Only the columns needed to build resource names and full
+// codes are populated (ID, ParentAccountID, CustomID, DisplayCode,
+// DisplayName); a parent reference that dangles simply terminates its chain.
+func (r *AccountRepository) GetAncestorsByIDs(ctx context.Context, ids []uuid.UUID) ([]*model.Account, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	var ms []*model.Account
+	err := r.db.WithContext(ctx).Raw(`
+WITH RECURSIVE ancestors(id, parent_account_id, custom_id, display_code, display_name) AS (
+    SELECT id, parent_account_id, custom_id, display_code, display_name
+    FROM accounts
+    WHERE id IN ?
+    UNION
+    SELECT a.id, a.parent_account_id, a.custom_id, a.display_code, a.display_name
+    FROM accounts a
+    JOIN ancestors an ON a.id = an.parent_account_id
+)
+SELECT * FROM ancestors
+`, ids).Scan(&ms).Error
+	if err != nil {
+		return nil, fmt.Errorf("get account ancestors ids=%v: %w", ids, err)
+	}
+	return ms, nil
+}
+
 // HasTransactionAssignments reports whether any transaction_account_assignments
 // row references the given account. Used to block creating children under accounts
 // that already have direct transaction assignments.

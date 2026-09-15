@@ -16,6 +16,27 @@ type Document struct {
 	// ExportedAt is the RFC 3339 timestamp of the export. Ignored on import.
 	ExportedAt string `xml:"exportedAt,attr,omitempty"`
 
+	// Organizations contains the exported organizations, each carrying all of
+	// their data. The structure supports any number of organizations in
+	// theory; the current implementation exports and imports exactly one
+	// organization per file.
+	Organizations []Organization `xml:"organizations>organization,omitempty"`
+}
+
+// Organization represents one exported organization: its record details plus
+// all of its data. The ID and custom ID are informational on import: data is
+// always restored into the target organization chosen by the caller. Users and
+// (user) groups — including their organization assignments — are never part of
+// the export because they are not owned by the organization.
+type Organization struct {
+	ID                 string `xml:"id,attr,omitempty"`
+	CustomID           string `xml:"customId,attr,omitempty"`
+	DisplayName        string `xml:"displayName,attr"`
+	DisplayDescription string `xml:"displayDescription,attr,omitempty"`
+	// StartMonth is the ledger year start month (1 = January … 12 = December).
+	// Zero means unspecified; imports fall back to January.
+	StartMonth int `xml:"startMonth,attr"`
+
 	Accounts       []Account       `xml:"accounts>account"`
 	AccountGroups  []AccountGroup  `xml:"accountGroups>accountGroup"`
 	LedgerAccounts []LedgerAccount `xml:"ledgerAccounts>ledgerAccount"`

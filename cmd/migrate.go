@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/dialect"
 )
@@ -33,7 +35,40 @@ var migrateUpCmd = &cobra.Command{
 
 		printVersion(sqlDB)
 		fmt.Println("Migrations completed successfully.")
+
+		if err := seedSystemGroup(); err != nil {
+			fmt.Fprintf(os.Stderr, "seeding system group failed: %v\n", err)
+			os.Exit(1)
+		}
 	},
+}
+
+// seedSystemGroup ensures the "system" user group exists and has all
+// permissions with access to every organization. It is idempotent, so
+// running it after every `migrate up` only re-syncs the wildcard policy.
+func seedSystemGroup() error {
+	gormDB, err := db.ConnectSilent(config.Database.DSN)
+	if err != nil {
+		return fmt.Errorf("connecting to database: %w", err)
+	}
+
+	sqlConn, err := gormDB.DB()
+	if err != nil {
+		return fmt.Errorf("getting underlying sql.DB: %w", err)
+	}
+	defer sqlConn.Close()
+
+	enforcer, err := authz.NewEnforcer(gormDB)
+	if err != nil {
+		return fmt.Errorf("creating casbin enforcer: %w", err)
+	}
+
+	if err := authz.SeedSystemGroup(context.Background(), gormDB, enforcer); err != nil {
+		return err
+	}
+
+	fmt.Println("System group is available with all permissions.")
+	return nil
 }
 
 var migrateDownCmd = &cobra.Command{

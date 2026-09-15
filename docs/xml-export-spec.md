@@ -1,11 +1,29 @@
 # XML Export/Import Specification
 
 This document defines the XML format used to export and import an organization's
-complete budget planning image — accounts, budgets (including revisions and
-values), account groups, ledger accounts/years, transactions and transaction
-assignments. The format intentionally contains **no organization record**; it is
-always scoped to a single organization and must be imported into a target
-organization by the caller.
+complete budget planning image — the organization record itself, accounts,
+budgets (including revisions and values), account groups, ledger accounts/years,
+transactions and transaction assignments. All data sections are nested inside
+the `<organization>` element they belong to, so the structure supports any
+number of organizations per file in theory; the current implementation exports
+and imports **exactly one** organization per file.
+
+Users and (user) groups are never part of the format: they are not owned by the
+organization, and consequently neither are group-to-organization assignments.
+
+Import and export are organization-administration operations, not per-
+organization features: import creates a new organization from a document and
+export downloads an existing one. They are exposed through the admin area of
+the web application and the following endpoints (both require the
+`organizations:create` / `organizations:read` global permission):
+
+- `POST /api/v1/organizations:import-xml` — multipart upload (field `file`);
+  imports the document as a new organization and returns its IDs and name.
+- `GET /api/v1/organizations/{organization_id}/data:export-xml` — downloads
+  the organization as an XML document.
+
+The `import-xml` / `export-xml` CLI commands restore into an explicit target
+organization.
 
 The format is versioned. The current version is **1**.
 
@@ -16,12 +34,17 @@ All element and attribute names use **camelCase**.
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <vsfvExport version="1" exportedAt="2026-09-02T12:00:00Z">
-  <accounts>...</accounts>
-  <accountGroups>...</accountGroups>
-  <ledgerAccounts>...</ledgerAccounts>
-  <ledgerYears>...</ledgerYears>
-  <budgets>...</budgets>
-  <transactions>...</transactions>
+  <organizations>
+    <organization id="uuid" customId="string" displayName="string"
+                  displayDescription="string" startMonth="1">
+      <accounts>...</accounts>
+      <accountGroups>...</accountGroups>
+      <ledgerAccounts>...</ledgerAccounts>
+      <ledgerYears>...</ledgerYears>
+      <budgets>...</budgets>
+      <transactions>...</transactions>
+    </organization>
+  </organizations>
 </vsfvExport>
 ```
 
@@ -34,7 +57,30 @@ All element and attribute names use **camelCase**.
 
 ## Sections
 
-### `<accounts>`
+### `<organizations>`
+
+Wrapper around the exported organizations. Documents must contain exactly one
+`<organization>`; documents with zero or multiple organizations are rejected on
+import.
+
+### `<organization>`
+
+One exported organization: its record details followed by all of its data
+sections.
+
+| Attribute | Required | Description |
+|-----------|----------|-------------|
+| `id` | no | Original organization UUID. Informational on import: data is always restored into the target organization chosen by the caller. |
+| `customId` | no | Custom identifier. When absent, the target organization keeps its existing custom ID (or falls back to its UUID when newly created). |
+| `displayName` | yes | Human-readable name. Restored onto the target organization. |
+| `displayDescription` | no | Optional description. |
+| `startMonth` | no | Ledger year start month (`1` = January … `12` = December). Defaults to `1` when absent or `0`. |
+
+On import the organization record is restored (created or updated) from these
+attributes, followed by all nested data sections. Every created or updated row
+is recorded in the audit log as a system change.
+
+### `<accounts>` (inside `<organization>`)
 
 Root accounts are listed directly under `<accounts>`. Child accounts are nested
 recursively inside `<children>` of their parent. Every account keeps its original
@@ -62,7 +108,7 @@ UUID as `id`, so cross-references inside the document are stable.
 | `isContainer` | yes | `true` when the account may only hold children. |
 | `isArchived` | yes | `true` when the account is archived. |
 
-### `<accountGroups>`
+### `<accountGroups>` (inside `<organization>`)
 
 An account group and its member assignments.
 
@@ -75,7 +121,7 @@ An account group and its member assignments.
 </accountGroup>
 ```
 
-### `<ledgerAccounts>`
+### `<ledgerAccounts>` (inside `<organization>`)
 
 Ledger accounts used by transactions.
 
@@ -88,7 +134,7 @@ Ledger accounts used by transactions.
 `accountType` values: `unspecified`, `asset`, `liability`, `equity`, `revenue`,
 `expense`, `system`. Defaults to `unspecified` when missing.
 
-### `<ledgerYears>`
+### `<ledgerYears>` (inside `<organization>`)
 
 Fiscal/ledger years.
 
@@ -96,7 +142,7 @@ Fiscal/ledger years.
 <ledgerYear id="uuid" customId="string" year="2026" isClosed="false"/>
 ```
 
-### `<budgets>`
+### `<budgets>` (inside `<organization>`)
 
 A budget with base account values and ordered revisions.
 
@@ -130,7 +176,7 @@ avoid precision loss.
 | `displayDescription` | no | Optional description. |
 | `date` | yes | Revision date (`YYYY-MM-DD`). |
 
-### `<transactions>`
+### `<transactions>` (inside `<organization>`)
 
 Journal transactions and their account assignments.
 
@@ -155,4 +201,5 @@ transaction amount is created for the referenced account.
 
 New versions must use a different `version` attribute. Parsers must reject
 unknown versions. Backward-compatible additions within version `1` use optional
-attributes or elements with sensible defaults.
+attributes or elements with sensible defaults. Documents must contain exactly
+one `<organization>` element carrying all data sections.

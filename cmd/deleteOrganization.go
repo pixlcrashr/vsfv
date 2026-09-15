@@ -15,9 +15,10 @@ import (
 var deleteOrganizationID string
 
 var deleteOrganizationCmd = &cobra.Command{
-	Use:   "organization",
-	Short: "Delete an organization",
-	Long:  `Delete an organization by its ID. This also deletes all data owned by the organization.`,
+	Use:     "organization",
+	Aliases: []string{"o"},
+	Short:   "Delete an organization",
+	Long:    `Delete an organization by its ID. This also deletes all data owned by the organization.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if deleteOrganizationID == "" {
 			fmt.Fprintln(os.Stderr, "error: --id is required")

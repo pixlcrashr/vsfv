@@ -17,9 +17,14 @@ import (
 	apiserv "github.com/pixlcrashr/vsfv/pkg/api/grpc"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services"
 	"github.com/pixlcrashr/vsfv/pkg/auth"
+	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/cfg"
 	"github.com/pixlcrashr/vsfv/web"
 )
+
+// maxXMLRequestBodySize is the Fiber request body limit. It leaves room for
+// full-organization XML imports (fasthttp defaults to 4 MiB).
+const maxXMLRequestBodySize = 32 << 20
 
 // Server wraps the Fiber app and the Huma API instance.
 type Server struct {
@@ -29,13 +34,16 @@ type Server struct {
 
 // New creates a Server, registers all routes, and returns it ready to listen.
 // svc is the shared service set used by both the grpc-gateway JSON API and the
-// Huma REST API.  db is still required for the Huma routes that have not yet
-// been migrated to the service layer.
-func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, authSrv *auth.Server, gitlabHandler *auth.GitLabHandler) *Server {
+// Huma REST API.  db is still required for the routes that have not yet been
+// migrated to the service layer. enforcer guards the routes that cannot use
+// the service-layer permission checks (XML import/export).
+func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, authSrv *auth.Server, gitlabHandler *auth.GitLabHandler, enforcer *authz.Enforcer) *Server {
 	app := fiber.New(fiber.Config{
 		// Disable default startup banner — the serve command prints its own.
 		DisableStartupMessage: true,
 		CaseSensitive:         true,
+		// Room for full-organization XML imports; fasthttp defaults to 4 MiB.
+		BodyLimit: maxXMLRequestBodySize,
 	})
 	app.Use(etag.New())
 
@@ -53,16 +61,17 @@ func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, 
 	humaConfig := huma.DefaultConfig("VS-Finanzverwaltung API", version)
 	api := humafiber.New(app, humaConfig)
 
-	s := &Server{app: app, API: api}
-	RegisterRoutes(s.app, s.API, db)
-
-	// Build auth middleware for gRPC gateway routes
+	// Build auth middleware for the grpc-gateway routes and the XML
+	// import/export routes.
 	var authMiddleware func(http.Handler) http.Handler
 	if authSrv != nil {
 		authMiddleware = auth.HTTPMiddleware(authSrv.OAuth2(), func() fosite.Session {
 			return auth.NewSession(nil)
 		})
 	}
+
+	s := &Server{app: app, API: api}
+	RegisterRoutes(s.app, s.API, db, authMiddleware, enforcer)
 
 	apiserv.RegisterRoutes(app, svc, authMiddleware)
 

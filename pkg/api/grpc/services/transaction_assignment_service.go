@@ -221,15 +221,39 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 
 	resp := &gen.ListTransactionAssignmentsResponse{TotalSize: total}
 
+	// Batch-resolve the referenced accounts so the assignment's account
+	// resource name uses the account custom ID, consistent with
+	// Get/Create/UpdateTransactionAssignment.
+	accountIDSet := make(map[uuid.UUID]struct{})
 	for _, m := range ms {
+		accountIDSet[m.AccountID] = struct{}{}
+	}
+	accountIDs := make([]uuid.UUID, 0, len(accountIDSet))
+	for id := range accountIDSet {
+		accountIDs = append(accountIDs, id)
+	}
+	accounts, err := s.accountRepo.GetByIDs(ctx, accountIDs)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
+	}
+	accountByID := make(map[uuid.UUID]*model.Account, len(accounts))
+	for _, a := range accounts {
+		accountByID[a.ID] = a
+	}
+
+	for _, m := range ms {
+		a, ok := accountByID[m.AccountID]
+		if !ok {
+			a = &model.Account{CustomID: m.AccountID.String()}
+		}
 		if isWildcard {
 			txRN := gen.TransactionResourceName{
 				Organization: pn.Organization,
 				Transaction:  m.TransactionID.String(),
 			}
-			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(txRN, m, &model.Account{CustomID: m.AccountID.String()}))
+			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(txRN, m, a))
 		} else {
-			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(pn, m, &model.Account{CustomID: m.AccountID.String()})) // TODO: very unimportant: replace with custom ID of account
+			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(pn, m, a))
 		}
 	}
 

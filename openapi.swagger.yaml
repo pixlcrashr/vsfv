@@ -522,6 +522,20 @@ paths:
               display_code:
                 type: string
                 description: Short account code.
+              display_full_code:
+                type: string
+                description: |-
+                  The full account code: the account's display_code concatenated with the
+                  display_code of each ancestor, separated by "-", ordered from the root
+                  ancestor down to the account itself. Example: "A-1-2-3-4".
+                readOnly: true
+              display_full_name:
+                type: string
+                description: |-
+                  The full account name: the account's display_name concatenated with the
+                  display_name of each ancestor, separated by " / ", ordered from the root
+                  ancestor down to the account itself. Example: "Root / Child / Grandchild".
+                readOnly: true
               display_description:
                 type: string
                 description: Optional free-text description.
@@ -4256,6 +4270,20 @@ definitions:
       display_code:
         type: string
         description: Short account code.
+      display_full_code:
+        type: string
+        description: |-
+          The full account code: the account's display_code concatenated with the
+          display_code of each ancestor, separated by "-", ordered from the root
+          ancestor down to the account itself. Example: "A-1-2-3-4".
+        readOnly: true
+      display_full_name:
+        type: string
+        description: |-
+          The full account name: the account's display_name concatenated with the
+          display_name of each ancestor, separated by " / ", ordered from the root
+          ancestor down to the account itself. Example: "Root / Child / Grandchild".
+        readOnly: true
       display_description:
         type: string
         description: Optional free-text description.

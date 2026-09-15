@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -52,13 +53,56 @@ func OrganizationToProto(m *model.Organization) *gen.Organization {
 	}
 }
 
-// AccountToProto maps a model.Account to its proto representation.
-func AccountToProto(orgRN gen.OrganizationResourceName, m *model.Account, pM *model.Account) *gen.Account {
+// ancestorChain walks m's ancestor chain from the root ancestor down to m
+// itself, collecting get(a) for each account. ancestorByID must contain every
+// ancestor (and may contain m); a missing entry or a cycle truncates the chain.
+func ancestorChain(m *model.Account, ancestorByID map[uuid.UUID]*model.Account, get func(*model.Account) string) []string {
+	values := []string{get(m)}
+	visited := map[uuid.UUID]struct{}{m.ID: {}}
+	cur := m
+	for cur.ParentAccountID.Valid {
+		p, ok := ancestorByID[cur.ParentAccountID.UUID]
+		if !ok {
+			break
+		}
+		if _, seen := visited[p.ID]; seen {
+			break
+		}
+		visited[p.ID] = struct{}{}
+		values = append(values, get(p))
+		cur = p
+	}
+
+	for i, j := 0, len(values)-1; i < j; i, j = i+1, j-1 {
+		values[i], values[j] = values[j], values[i]
+	}
+	return values
+}
+
+// accountFullCode joins the display codes of m's ancestor chain from the root
+// ancestor down to m itself, separated by "-".
+func accountFullCode(m *model.Account, ancestorByID map[uuid.UUID]*model.Account) string {
+	return strings.Join(ancestorChain(m, ancestorByID, func(a *model.Account) string { return a.DisplayCode }), "-")
+}
+
+// accountDisplayFullName joins the display names of m's ancestor chain from the
+// root ancestor down to m itself, separated by " / ".
+func accountDisplayFullName(m *model.Account, ancestorByID map[uuid.UUID]*model.Account) string {
+	return strings.Join(ancestorChain(m, ancestorByID, func(a *model.Account) string { return a.DisplayName }), " / ")
+}
+
+// AccountToProto maps a model.Account to its proto representation. The
+// ancestorByID lookup lets the mapper populate display_full_code and
+// display_full_name; it may contain m and any subset of its ancestors, and a
+// nil map yields both fields equal to their single-account values.
+func AccountToProto(orgRN gen.OrganizationResourceName, m *model.Account, pM *model.Account, ancestorByID map[uuid.UUID]*model.Account) *gen.Account {
 	p := &gen.Account{
 		Name:               orgRN.AccountResourceName(m.CustomID).String(),
 		Uid:                m.ID.String(),
 		DisplayName:        m.DisplayName,
 		DisplayCode:        m.DisplayCode,
+		DisplayFullCode:    accountFullCode(m, ancestorByID),
+		DisplayFullName:    accountDisplayFullName(m, ancestorByID),
 		DisplayDescription: m.DisplayDescription,
 		IsContainer:        m.IsContainer,
 		IsArchived:         m.IsArchived,
@@ -71,7 +115,7 @@ func AccountToProto(orgRN gen.OrganizationResourceName, m *model.Account, pM *mo
 	return p
 }
 
-func NestedAccountsToProto(orgRN gen.OrganizationResourceName, s []*accountWithChildren) []*gen.NestedAccount {
+func NestedAccountsToProto(orgRN gen.OrganizationResourceName, s []*accountWithChildren, ancestorByID map[uuid.UUID]*model.Account) []*gen.NestedAccount {
 	out := make([]*gen.NestedAccount, 0, len(s))
 
 	type frame struct {
@@ -84,7 +128,7 @@ func NestedAccountsToProto(orgRN gen.OrganizationResourceName, s []*accountWithC
 	stack := make([]frame, 0, len(s))
 
 	for i := 0; i < len(s); i++ {
-		root := NestedAccountToProto(orgRN, s[i].account, nil)
+		root := NestedAccountToProto(orgRN, s[i].account, nil, ancestorByID)
 		out = append(out, root)
 		if len(s[i].children) > 0 {
 			stack = append(stack, frame{dest: root, src: s[i].children, parent: s[i].account})
@@ -102,7 +146,7 @@ func NestedAccountsToProto(orgRN gen.OrganizationResourceName, s []*accountWithC
 		child := top.src[top.idx]
 		top.idx++
 
-		childProto := NestedAccountToProto(orgRN, child.account, top.parent)
+		childProto := NestedAccountToProto(orgRN, child.account, top.parent, ancestorByID)
 		top.dest.Children = append(top.dest.Children, childProto)
 
 		if len(child.children) > 0 {
@@ -114,9 +158,9 @@ func NestedAccountsToProto(orgRN gen.OrganizationResourceName, s []*accountWithC
 }
 
 // NestedAccountToProto maps model.Account to gen.NestedAccount (without children; caller fills them).
-func NestedAccountToProto(orgRN gen.OrganizationResourceName, m *model.Account, pM *model.Account) *gen.NestedAccount {
+func NestedAccountToProto(orgRN gen.OrganizationResourceName, m *model.Account, pM *model.Account, ancestorByID map[uuid.UUID]*model.Account) *gen.NestedAccount {
 	p := &gen.NestedAccount{
-		Account: AccountToProto(orgRN, m, pM),
+		Account: AccountToProto(orgRN, m, pM, ancestorByID),
 	}
 	if m.ParentAccountID.Valid && pM != nil {
 		p.ParentAccount = orgRN.AccountResourceName(pM.CustomID).String()

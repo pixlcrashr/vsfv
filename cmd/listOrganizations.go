@@ -13,9 +13,10 @@ import (
 )
 
 var listOrganizationsCmd = &cobra.Command{
-	Use:   "organizations",
-	Short: "List all organizations",
-	Long:  `List all organizations with their ID, custom ID, and display name.`,
+	Use:     "organizations",
+	Aliases: []string{"o", "os", "organization"},
+	Short:   "List all organizations",
+	Long:    `List all organizations with their ID, custom ID, and display name.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		gormDB, err := db.ConnectSilent(config.Database.DSN)
 		if err != nil {

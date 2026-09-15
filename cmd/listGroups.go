@@ -14,9 +14,10 @@ import (
 )
 
 var listGroupsCmd = &cobra.Command{
-	Use:   "groups",
-	Short: "List all user groups",
-	Long:  `List all user groups with their ID, custom ID, name, system flag, and description.`,
+	Use:     "groups",
+	Aliases: []string{"g", "gs", "group"},
+	Short:   "List all user groups",
+	Long:    `List all user groups with their ID, custom ID, name, system flag, and description.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		gormDB, err := db.ConnectSilent(config.Database.DSN)
 		if err != nil {

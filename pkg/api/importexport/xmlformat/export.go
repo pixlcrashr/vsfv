@@ -13,6 +13,7 @@ import (
 
 // ExportRepositoryDependencies holds the repositories needed for export.
 type ExportRepositoryDependencies struct {
+	OrganizationRepo               *repository.OrganizationRepository
 	AccountRepo                    *repository.AccountRepository
 	AccountGroupRepo               *repository.AccountGroupRepository
 	AccountGroupAssignmentRepo     *repository.AccountGroupAssignmentRepository
@@ -26,8 +27,14 @@ type ExportRepositoryDependencies struct {
 	TransactionAssignmentRepo      *repository.TransactionAssignmentRepository
 }
 
-// ExportOrganization exports all data for a single organization as an XML document.
+// ExportOrganization exports all data for a single organization as an XML
+// document, including the organization record itself.
 func ExportOrganization(ctx context.Context, deps *ExportRepositoryDependencies, orgID uuid.UUID) (*Document, error) {
+	org, err := deps.OrganizationRepo.GetByID(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("get organization: %w", err)
+	}
+
 	allAccounts, _, err := deps.AccountRepo.List(ctx, repository.ListAccountsParams{
 		OrganizationID: orgID,
 		PageSize:       100000,
@@ -273,14 +280,21 @@ func ExportOrganization(ctx context.Context, deps *ExportRepositoryDependencies,
 	}
 
 	return &Document{
-		Version:        Version,
-		ExportedAt:     FormatExportedAt(),
-		Accounts:       docAccounts,
-		AccountGroups:  docAccountGroups,
-		LedgerAccounts: docLedgerAccounts,
-		LedgerYears:    docLedgerYears,
-		Budgets:        docBudgets,
-		Transactions:   docTransactions,
+		Version:    Version,
+		ExportedAt: FormatExportedAt(),
+		Organizations: []Organization{{
+			ID:                 org.ID.String(),
+			CustomID:           org.CustomID,
+			DisplayName:        org.DisplayName,
+			DisplayDescription: org.DisplayDescription,
+			StartMonth:         int(org.StartMonth),
+			Accounts:           docAccounts,
+			AccountGroups:      docAccountGroups,
+			LedgerAccounts:     docLedgerAccounts,
+			LedgerYears:        docLedgerYears,
+			Budgets:            docBudgets,
+			Transactions:       docTransactions,
+		}},
 	}, nil
 }
 

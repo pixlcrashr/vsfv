@@ -34,6 +34,9 @@ type ListTransactionsParams struct {
 	PageSize int
 	// Offset skips the first N rows (used for offset-based pagination).
 	Offset int
+	// AssignmentStatus filters by derived assignment status: "open",
+	// "assigned", or "partial". Empty means no status filter.
+	AssignmentStatus string
 }
 
 // transactionColumnMapper maps filter field names to database column names.
@@ -100,6 +103,21 @@ func (r *TransactionRepository) fieldToExpr(field string, value string, op int) 
 	}
 }
 
+// assignmentStatusWhere returns a raw WHERE clause that filters transactions by
+// their derived assignment status, or "" if no status filter is set.
+// Status values: "open" (no assignments), "assigned" (sum >= amount), "partial"
+// (sum < amount). Any other value matches nothing.
+func assignmentStatusWhere(status string) (string, []interface{}) {
+	if status == "" {
+		return "", nil
+	}
+	return "CASE " +
+		"WHEN NOT EXISTS (SELECT 1 FROM transaction_assignments ta WHERE ta.transaction_id = transactions.id) THEN 'open' " +
+		"WHEN (SELECT COALESCE(SUM(ta.value), 0) FROM transaction_assignments ta WHERE ta.transaction_id = transactions.id) >= transactions.amount THEN 'assigned' " +
+		"ELSE 'partial' " +
+		"END = ?", []interface{}{status}
+}
+
 // List returns transactions matching params using keyset pagination.
 func (r *TransactionRepository) List(ctx context.Context, params ListTransactionsParams) ([]*model.Transaction_, error) {
 	if params.PageSize <= 0 {
@@ -110,6 +128,9 @@ func (r *TransactionRepository) List(ctx context.Context, params ListTransaction
 	if params.Cond != nil && !params.Cond.IsEmpty() {
 		db := r.db.WithContext(ctx).Table("transactions")
 		db = cond.Apply(db, params.Cond, transactionColumnMapper)
+		if sql, args := assignmentStatusWhere(params.AssignmentStatus); sql != "" {
+			db = db.Where(sql, args...)
+		}
 
 		// Apply default ordering if no keyset
 		if len(params.KeysetValues) == 0 {
@@ -129,6 +150,9 @@ func (r *TransactionRepository) List(ctx context.Context, params ListTransaction
 	}
 
 	t := r.q.Transaction_.WithContext(ctx)
+	if sql, args := assignmentStatusWhere(params.AssignmentStatus); sql != "" {
+		t = t.Clauses(clause.Expr{SQL: sql, Vars: args})
+	}
 
 	// Apply keyset cursor if present
 	if len(params.KeysetValues) > 0 {
@@ -205,6 +229,34 @@ func (r *TransactionRepository) List(ctx context.Context, params ListTransaction
 	}
 
 	return ms, nil
+}
+
+// Count returns the total number of transactions matching params.Cond without
+// pagination; it is used to populate the total_size of list responses.
+func (r *TransactionRepository) Count(ctx context.Context, params ListTransactionsParams) (int64, error) {
+	if params.Cond != nil && !params.Cond.IsEmpty() {
+		db := r.db.WithContext(ctx).Table("transactions")
+		db = cond.Apply(db, params.Cond, transactionColumnMapper)
+		if sql, args := assignmentStatusWhere(params.AssignmentStatus); sql != "" {
+			db = db.Where(sql, args...)
+		}
+
+		var total int64
+		if err := db.Count(&total).Error; err != nil {
+			return 0, fmt.Errorf("count transactions: %w", err)
+		}
+		return total, nil
+	}
+
+	t := r.q.Transaction_.WithContext(ctx)
+	if sql, args := assignmentStatusWhere(params.AssignmentStatus); sql != "" {
+		t = t.Clauses(clause.Expr{SQL: sql, Vars: args})
+	}
+	total, err := t.Count()
+	if err != nil {
+		return 0, fmt.Errorf("count transactions: %w", err)
+	}
+	return total, nil
 }
 
 // GetByID returns the transaction with the given ID.

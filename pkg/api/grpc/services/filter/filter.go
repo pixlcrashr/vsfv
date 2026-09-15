@@ -121,6 +121,7 @@ var (
 		filtering.DeclareIdent("credit_ledger_account", filtering.TypeString),
 		filtering.DeclareIdent("debit_ledger_account", filtering.TypeString),
 		filtering.DeclareIdent("booked_at", filtering.TypeString),
+		filtering.DeclareIdent("assignment_status", filtering.TypeString),
 	)
 	ledgerAccountDecls = mustDecls(
 		filtering.DeclareIdent("code", filtering.TypeString),

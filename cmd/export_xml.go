@@ -15,9 +15,11 @@ import (
 var exportXMLCmd = &cobra.Command{
 	Use:   "export-xml <organization_id> <output.xml>",
 	Short: "Export organization data to XML",
-	Long: `Export all accounts, account groups, ledger accounts/years, budgets,
-revisions and transactions for a single organization into the XML import/export
-format. The resulting file contains no organization record.`,
+	Long: `Export a single organization into the XML import/export format: the
+organization record itself plus its accounts, account groups, ledger
+accounts/years, budgets, revisions and transactions, all nested inside one
+<organization> element. The format supports multiple organizations per file in
+theory, but exactly one is exported.`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		orgID, err := uuid.Parse(args[0])
@@ -31,6 +33,7 @@ format. The resulting file contains no organization record.`,
 		}
 
 		deps := &xmlformat.ExportRepositoryDependencies{
+			OrganizationRepo:               repository.NewOrganizationRepository(gormDB),
 			AccountRepo:                    repository.NewAccountRepository(gormDB),
 			AccountGroupRepo:               repository.NewAccountGroupRepository(gormDB),
 			AccountGroupAssignmentRepo:     repository.NewAccountGroupAssignmentRepository(gormDB),

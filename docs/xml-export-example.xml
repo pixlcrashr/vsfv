@@ -1,114 +1,123 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <vsfvExport version="1" exportedAt="2026-09-02T12:00:00Z">
-  <accounts>
-    <account id="11111111-1111-1111-1111-111111111111"
-             customId="root-assets"
-             displayName="Vermögen"
-             displayCode="1"
-             displayDescription="Aktive Konten"
-             isContainer="true"
-             isArchived="false">
-      <children>
-        <account id="22222222-2222-2222-2222-222222222222"
-                 customId="cash"
-                 parentAccountId="11111111-1111-1111-1111-111111111111"
-                 displayName="Kasse"
-                 displayCode="11"
-                 isContainer="false"
-                 isArchived="false"/>
-      </children>
-    </account>
-    <account id="33333333-3333-3333-3333-333333333333"
-             customId="expenses"
-             displayName="Aufwand"
-             displayCode="2"
-             isContainer="true"
-             isArchived="false">
-      <children>
-        <account id="44444444-4444-4444-4444-444444444444"
-                 customId="office-supplies"
-                 parentAccountId="33333333-3333-3333-3333-333333333333"
-                 displayName="Büromaterial"
-                 displayCode="21"
-                 isContainer="false"
-                 isArchived="false"/>
-      </children>
-    </account>
-  </accounts>
+  <organizations>
+    <organization id="99999999-9999-9999-9999-999999999999"
+                  customId="mein-verein"
+                  displayName="Mein Verein e.V."
+                  displayDescription="Export des Haushaltsplans"
+                  startMonth="1">
 
-  <accountGroups>
-    <accountGroup id="55555555-5555-5555-5555-555555555555"
-                  customId="operational"
-                  displayName="Betriebliche Aufwendungen"
-                  displayDescription="Gruppe für operative Kosten">
-      <accountGroupAssignments>
-        <accountGroupAssignment accountId="44444444-4444-4444-4444-444444444444" negate="false"/>
-      </accountGroupAssignments>
-    </accountGroup>
-  </accountGroups>
-
-  <ledgerAccounts>
-    <ledgerAccount id="66666666-6666-6666-6666-666666666666"
-                   customId="bank"
-                   code="1000"
-                   accountType="asset"
-                   displayName="Bankkonto"
-                   displayDescription="Hauptbankkonto"/>
-    <ledgerAccount id="77777777-7777-7777-7777-777777777777"
-                   customId="expense-office"
-                   code="2000"
-                   accountType="expense"
+    <accounts>
+      <account id="11111111-1111-1111-1111-111111111111"
+               customId="root-assets"
+               displayName="Vermögen"
+               displayCode="1"
+               displayDescription="Aktive Konten"
+               isContainer="true"
+               isArchived="false">
+        <children>
+          <account id="22222222-2222-2222-2222-222222222222"
+                   customId="cash"
+                   parentAccountId="11111111-1111-1111-1111-111111111111"
+                   displayName="Kasse"
+                   displayCode="11"
+                   isContainer="false"
+                   isArchived="false"/>
+        </children>
+      </account>
+      <account id="33333333-3333-3333-3333-333333333333"
+               customId="expenses"
+               displayName="Aufwand"
+               displayCode="2"
+               isContainer="true"
+               isArchived="false">
+        <children>
+          <account id="44444444-4444-4444-4444-444444444444"
+                   customId="office-supplies"
+                   parentAccountId="33333333-3333-3333-3333-333333333333"
                    displayName="Büromaterial"
-                   displayDescription="Materialaufwand"/>
-  </ledgerAccounts>
+                   displayCode="21"
+                   isContainer="false"
+                   isArchived="false"/>
+        </children>
+      </account>
+    </accounts>
 
-  <ledgerYears>
-    <ledgerYear id="88888888-8888-8888-8888-888888888888"
-                customId="2026"
-                year="2026"
-                isClosed="false"/>
-  </ledgerYears>
+    <accountGroups>
+      <accountGroup id="55555555-5555-5555-5555-555555555555"
+                    customId="operational"
+                    displayName="Betriebliche Aufwendungen"
+                    displayDescription="Gruppe für operative Kosten">
+        <accountGroupAssignments>
+          <accountGroupAssignment accountId="44444444-4444-4444-4444-444444444444" negate="false"/>
+        </accountGroupAssignments>
+      </accountGroup>
+    </accountGroups>
 
-  <budgets>
-    <budget id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-            customId="budget-2026"
-            displayName="Haushaltsplan 2026"
-            displayDescription="Haushalt für das Jahr 2026"
-            periodStart="2026-01-01"
-            periodEnd="2026-12-31"
-            isClosed="false"
-            isPublished="true"
-            publishActualValues="false">
-      <accountValues>
-        <accountValue accountId="44444444-4444-4444-4444-444444444444" value="1500.00"/>
-      </accountValues>
-      <budgetRevisions>
-        <budgetRevision id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-                        customId="rev-1"
-                        displayName="Nachtrag I"
-                        displayDescription="Erste Nachtragssatzung"
-                        date="2026-03-15">
-          <accountValues>
-            <accountValue accountId="44444444-4444-4444-4444-444444444444" value="200.00"/>
-          </accountValues>
-        </budgetRevision>
-      </budgetRevisions>
-    </budget>
-  </budgets>
+    <ledgerAccounts>
+      <ledgerAccount id="66666666-6666-6666-6666-666666666666"
+                     customId="bank"
+                     code="1000"
+                     accountType="asset"
+                     displayName="Bankkonto"
+                     displayDescription="Hauptbankkonto"/>
+      <ledgerAccount id="77777777-7777-7777-7777-777777777777"
+                     customId="expense-office"
+                     code="2000"
+                     accountType="expense"
+                     displayName="Büromaterial"
+                     displayDescription="Materialaufwand"/>
+    </ledgerAccounts>
 
-  <transactions>
-    <transaction id="cccccccc-cccc-cccc-cccc-cccccccccccc"
-                 customId="tx-1"
-                 creditLedgerAccountId="66666666-6666-6666-6666-666666666666"
-                 debitLedgerAccountId="77777777-7777-7777-7777-777777777777"
-                 amount="120.50"
-                 description="Büromaterial März"
-                 reference="RE-1234"
-                 bookedAt="2026-03-10"
-                 documentDate="2026-03-09">
-      <transactionAssignments>
-        <transactionAssignment accountId="44444444-4444-4444-4444-444444444444" value="120.50"/>
-      </transactionAssignments>
-    </transaction>
-  </transactions>
+    <ledgerYears>
+      <ledgerYear id="88888888-8888-8888-8888-888888888888"
+                  customId="2026"
+                  year="2026"
+                  isClosed="false"/>
+    </ledgerYears>
+
+    <budgets>
+      <budget id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+              customId="budget-2026"
+              displayName="Haushaltsplan 2026"
+              displayDescription="Haushalt für das Jahr 2026"
+              periodStart="2026-01-01"
+              periodEnd="2026-12-31"
+              isClosed="false"
+              isPublished="true"
+              publishActualValues="false">
+        <accountValues>
+          <accountValue accountId="44444444-4444-4444-4444-444444444444" value="1500.00"/>
+        </accountValues>
+        <budgetRevisions>
+          <budgetRevision id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                          customId="rev-1"
+                          displayName="Nachtrag I"
+                          displayDescription="Erste Nachtragssatzung"
+                          date="2026-03-15">
+            <accountValues>
+              <accountValue accountId="44444444-4444-4444-4444-444444444444" value="200.00"/>
+            </accountValues>
+          </budgetRevision>
+        </budgetRevisions>
+      </budget>
+    </budgets>
+
+    <transactions>
+      <transaction id="cccccccc-cccc-cccc-cccc-cccccccccccc"
+                   customId="tx-1"
+                   creditLedgerAccountId="66666666-6666-6666-6666-666666666666"
+                   debitLedgerAccountId="77777777-7777-7777-7777-777777777777"
+                   amount="120.50"
+                   description="Büromaterial März"
+                   reference="RE-1234"
+                   bookedAt="2026-03-10"
+                   documentDate="2026-03-09">
+        <transactionAssignments>
+          <transactionAssignment accountId="44444444-4444-4444-4444-444444444444" value="120.50"/>
+        </transactionAssignments>
+      </transaction>
+    </transactions>
+    </organization>
+  </organizations>
 </vsfvExport>

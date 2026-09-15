@@ -1207,6 +1207,24 @@ Format: organizations/{organization}/accounts/{account} </p></td>
                 </tr>
               
                 <tr>
+                  <td>display_full_code</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The full account code: the account&#39;s display_code concatenated with the
+display_code of each ancestor, separated by &#34;-&#34;, ordered from the root
+ancestor down to the account itself. Example: &#34;A-1-2-3-4&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>display_full_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The full account name: the account&#39;s display_name concatenated with the
+display_name of each ancestor, separated by &#34; / &#34;, ordered from the root
+ancestor down to the account itself. Example: &#34;Root / Child / Grandchild&#34;. </p></td>
+                </tr>
+              
+                <tr>
                   <td>display_description</td>
                   <td><a href="#string">string</a></td>
                   <td></td>

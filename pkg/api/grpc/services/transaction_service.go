@@ -122,6 +122,19 @@ func (s *transactionServiceServer) ListTransactions(ctx context.Context, req *ge
 		return field, la.ID.String(), true
 	})
 
+	// Extract assignment_status from the cond chain; it is a derived field
+	// handled separately by the repository via a subquery.
+	var assignmentStatus string
+	c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+		if field == "assignment_status" {
+			if s, ok := value.(string); ok {
+				assignmentStatus = s
+			}
+			return field, value, false
+		}
+		return field, value, true
+	})
+
 	pageSize := normalizePageSize(req.PageSize)
 
 	offset, err := pagetoken.Decode(req.PageToken)
@@ -130,9 +143,10 @@ func (s *transactionServiceServer) ListTransactions(ctx context.Context, req *ge
 	}
 
 	params := repository.ListTransactionsParams{
-		PageSize: pageSize,
-		Offset:   int(offset),
-		Cond:     c,
+		PageSize:         pageSize,
+		Offset:           int(offset),
+		Cond:             c,
+		AssignmentStatus: assignmentStatus,
 	}
 
 	ms, err := s.repo.List(ctx, params)
@@ -140,7 +154,12 @@ func (s *transactionServiceServer) ListTransactions(ctx context.Context, req *ge
 		return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
 	}
 
-	resp := &gen.ListTransactionsResponse{}
+	total, err := s.repo.Count(ctx, params)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
+	}
+
+	resp := &gen.ListTransactionsResponse{TotalSize: total}
 	for _, m := range ms {
 		creditLA, err := s.ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
 		if err != nil {

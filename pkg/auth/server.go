@@ -119,11 +119,21 @@ func (s *Server) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	sess, err := s.sessionMgr.GetSessionFromRequest(ctx, r)
 	if err != nil {
-		// No session — redirect to GitLab OIDC login, which will redirect back
-		// to this same authorize endpoint after authentication.
-		returnTo := s.publicURL + r.URL.RequestURI()
-		loginURL := fmt.Sprintf("/auth/gitlab?return_to=%s", url.QueryEscape(returnTo))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		// No session — send the browser somewhere it can authenticate.
+		if s.cfg.GitLab.Enabled {
+			// Redirect to the GitLab OIDC login, which will redirect back to
+			// this same authorize endpoint after authentication.
+			returnTo := s.publicURL + r.URL.RequestURI()
+			loginURL := fmt.Sprintf("/auth/gitlab?return_to=%s", url.QueryEscape(returnTo))
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+		// GitLab SSO is disabled and no other login page exists server-side;
+		// the client's own login form collects the credentials. Report
+		// login_required so the browser is redirected back to the client
+		// (e.g. the SPA login route) instead of the unregistered /auth/gitlab
+		// route.
+		s.oauth2.WriteAuthorizeError(ctx, w, ar, fosite.ErrLoginRequired)
 		return
 	}
 

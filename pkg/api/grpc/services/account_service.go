@@ -48,6 +48,26 @@ func newAccountServiceServer(repo *repository.AccountRepository, audits *auditWr
 	return &accountServiceServer{repo: repo, audits: audits, enforcer: enforcer}
 }
 
+// accountAncestors loads the strict ancestor chains of the given account IDs in
+// a single recursive query, independent of tree depth. The returned lookup is
+// suitable both for resolving parent_account and for populating display_full_code
+// and display_full_name.
+func accountAncestors(ctx context.Context, repo *repository.AccountRepository, ids ...uuid.UUID) (map[uuid.UUID]*model.Account, error) {
+	byID := make(map[uuid.UUID]*model.Account, len(ids))
+	if len(ids) == 0 {
+		return byID, nil
+	}
+
+	as, err := repo.GetAncestorsByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range as {
+		byID[a.ID] = a
+	}
+	return byID, nil
+}
+
 func (s *accountServiceServer) GetAccount(ctx context.Context, req *gen.GetAccountRequest) (*gen.Account, error) {
 	var n gen.AccountResourceName
 
@@ -75,13 +95,15 @@ func (s *accountServiceServer) GetAccount(ctx context.Context, req *gen.GetAccou
 	}
 
 	var parentM *model.Account
+	ancestorByID := map[uuid.UUID]*model.Account{}
 	if m.ParentAccountID.Valid {
-		parentM, err = s.repo.GetByID(ctx, m.ParentAccountID.UUID)
+		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
 		}
+		parentM = ancestorByID[m.ParentAccountID.UUID]
 	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM), nil
+	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
 }
 
 func (s *accountServiceServer) ListAccounts(ctx context.Context, req *gen.ListAccountsRequest) (*gen.ListAccountsResponse, error) {
@@ -133,8 +155,11 @@ func (s *accountServiceServer) ListAccounts(ctx context.Context, req *gen.ListAc
 		return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
 	}
 
-	// Batch-fetch any parent accounts referenced by the listed accounts so
-	// that the response can populate parent_account for each child.
+	// Fetch all ancestors of the listed accounts in one recursive query. This
+	// covers the immediate parents (for parent_account) as well as the full
+	// ancestor chains needed to populate display_full_code and display_full_name.
+	// Parents that are themselves part of the page are seeds of the query, so
+	// every chain is complete.
 	parentIDs := make([]uuid.UUID, 0, len(ms))
 	parentIDSet := make(map[uuid.UUID]struct{}, len(ms))
 	for _, m := range ms {
@@ -148,24 +173,18 @@ func (s *accountServiceServer) ListAccounts(ctx context.Context, req *gen.ListAc
 		parentIDs = append(parentIDs, m.ParentAccountID.UUID)
 	}
 
-	parentByID := make(map[uuid.UUID]*model.Account)
-	if len(parentIDs) > 0 {
-		parents, err := s.repo.GetByIDs(ctx, parentIDs)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
-		}
-		for _, p := range parents {
-			parentByID[p.ID] = p
-		}
+	ancestorByID, err := accountAncestors(ctx, s.repo, parentIDs...)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
 	}
 
 	resp := &gen.ListAccountsResponse{TotalSize: total}
 	for _, m := range ms {
 		var parentM *model.Account
 		if m.ParentAccountID.Valid {
-			parentM = parentByID[m.ParentAccountID.UUID]
+			parentM = ancestorByID[m.ParentAccountID.UUID]
 		}
-		resp.Accounts = append(resp.Accounts, AccountToProto(pn, m, parentM))
+		resp.Accounts = append(resp.Accounts, AccountToProto(pn, m, parentM, ancestorByID))
 	}
 
 	nextOffset := offset + int64(len(ms))
@@ -209,8 +228,15 @@ func (s *accountServiceServer) ListNestedAccounts(ctx context.Context, req *gen.
 		return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
 	}
 
+	// The whole chart of accounts is already loaded, so full codes are
+	// assembled from the in-memory set without further queries.
+	ancestorByID := make(map[uuid.UUID]*model.Account, len(ms))
+	for _, m := range ms {
+		ancestorByID[m.ID] = m
+	}
+
 	return &gen.ListNestedAccountsResponse{
-		Accounts: buildNestedTree(pn, ms, uuid.NullUUID{}),
+		Accounts: buildNestedTree(pn, ms, uuid.NullUUID{}, ancestorByID),
 	}, nil
 }
 
@@ -244,8 +270,14 @@ func (s *accountServiceServer) GetNestedAccount(ctx context.Context, req *gen.Ge
 		return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
 	}
 
-	rootNested := NestedAccountToProto(n.OrganizationResourceName(), root, nil)
-	rootNested.Children = buildNestedTree(n.OrganizationResourceName(), ms, uuid.NullUUID{Valid: true, UUID: root.ID})
+	ancestorByID := make(map[uuid.UUID]*model.Account, len(ms)+1)
+	ancestorByID[root.ID] = root
+	for _, m := range ms {
+		ancestorByID[m.ID] = m
+	}
+
+	rootNested := NestedAccountToProto(n.OrganizationResourceName(), root, nil, ancestorByID)
+	rootNested.Children = buildNestedTree(n.OrganizationResourceName(), ms, uuid.NullUUID{Valid: true, UUID: root.ID}, ancestorByID)
 
 	return &gen.GetNestedAccountResponse{Account: rootNested}, nil
 }
@@ -329,7 +361,15 @@ func (s *accountServiceServer) CreateAccount(ctx context.Context, req *gen.Creat
 		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 	}
 
-	return AccountToProto(n, m, parent), nil
+	ancestorByID := map[uuid.UUID]*model.Account{}
+	if parent != nil {
+		ancestorByID, err = accountAncestors(ctx, s.repo, parent.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+		}
+		ancestorByID[parent.ID] = parent
+	}
+	return AccountToProto(n, m, parent, ancestorByID), nil
 }
 
 func (s *accountServiceServer) UpdateAccount(ctx context.Context, req *gen.UpdateAccountRequest) (*gen.Account, error) {
@@ -388,13 +428,15 @@ func (s *accountServiceServer) UpdateAccount(ctx context.Context, req *gen.Updat
 	}
 
 	var parentM *model.Account
+	ancestorByID := map[uuid.UUID]*model.Account{}
 	if m.ParentAccountID.Valid {
-		parentM, err = s.repo.GetByID(ctx, m.ParentAccountID.UUID)
+		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
 		}
+		parentM = ancestorByID[m.ParentAccountID.UUID]
 	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM), nil
+	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
 }
 
 func (s *accountServiceServer) ArchiveAccount(ctx context.Context, req *gen.ArchiveAccountRequest) (*gen.Account, error) {
@@ -446,13 +488,15 @@ func (s *accountServiceServer) ArchiveAccount(ctx context.Context, req *gen.Arch
 	}
 
 	var parentM *model.Account
+	ancestorByID := map[uuid.UUID]*model.Account{}
 	if m.ParentAccountID.Valid {
-		parentM, err = s.repo.GetByID(ctx, m.ParentAccountID.UUID)
+		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
 		}
+		parentM = ancestorByID[m.ParentAccountID.UUID]
 	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM), nil
+	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
 }
 
 func (s *accountServiceServer) RestoreAccount(ctx context.Context, req *gen.RestoreAccountRequest) (*gen.Account, error) {
@@ -515,13 +559,15 @@ func (s *accountServiceServer) RestoreAccount(ctx context.Context, req *gen.Rest
 	}
 
 	var parentM *model.Account
+	ancestorByID := map[uuid.UUID]*model.Account{}
 	if m.ParentAccountID.Valid {
-		parentM, err = s.repo.GetByID(ctx, m.ParentAccountID.UUID)
+		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
 		}
+		parentM = ancestorByID[m.ParentAccountID.UUID]
 	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM), nil
+	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
 }
 
 type accountWithChildren struct {
@@ -531,7 +577,7 @@ type accountWithChildren struct {
 
 // buildNestedTree recursively assembles NestedAccount trees.
 // parentID selects which accounts to treat as roots (empty = top-level roots).
-func buildNestedTree(orgRN gen.OrganizationResourceName, as []*model.Account, parentID uuid.NullUUID) []*gen.NestedAccount {
+func buildNestedTree(orgRN gen.OrganizationResourceName, as []*model.Account, parentID uuid.NullUUID, ancestorByID map[uuid.UUID]*model.Account) []*gen.NestedAccount {
 	rAll := make([]*accountWithChildren, len(as))
 	asToACs := make(map[string]*accountWithChildren, 0)
 	rs := make([]*accountWithChildren, 0)
@@ -577,5 +623,5 @@ func buildNestedTree(orgRN gen.OrganizationResourceName, as []*model.Account, pa
 		p.children = append(p.children, aC)
 	}
 
-	return NestedAccountsToProto(orgRN, rs)
+	return NestedAccountsToProto(orgRN, rs, ancestorByID)
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
+	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 )
 
 // upsert creates or updates a record by its primary key. It makes the import
@@ -90,12 +91,21 @@ func upsertAudited(
 	return audits.Record(ctx, subjectFn(), action, before, after)
 }
 
-// ImportDocument imports a V1 XML document into the given organization within a
-// single database transaction.
+// ImportDocument imports a V1 XML document into the given target organization
+// within a single database transaction. The document must contain exactly one
+// organization (the format supports more in theory, but only one organization
+// per file is currently supported); its record is restored into the target
+// organization (creating it if it does not exist yet), followed by all of its
+// data. Users and groups are never restored. Every created or updated row is
+// recorded in the audit log as a system change.
 func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Document) error {
 	if doc.Version != Version {
 		return fmt.Errorf("unsupported format version %d, expected %d", doc.Version, Version)
 	}
+	if len(doc.Organizations) != 1 {
+		return fmt.Errorf("expected exactly one organization per document, got %d", len(doc.Organizations))
+	}
+	orgDoc := &doc.Organizations[0]
 
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// The audit writer is backed by tx so audit entries are committed
@@ -103,6 +113,59 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		// authenticated user, so actor_id is the zero value (system).
 		audits := audit.NewWriter(tx)
 		orgNullID := uuid.NullUUID{Valid: true, UUID: orgID}
+
+		// Organization record. The document restores the organization itself;
+		// data is always written under the caller-provided target org ID. The
+		// document's organization ID is informational only.
+		var orgBefore *model.Organization
+		if existing, err := findExisting(tx, &model.Organization{}, "id = ?", orgID); err != nil {
+			return err
+		} else if existing != nil {
+			orgBefore = existing.(*model.Organization)
+		}
+
+		orgModel := &model.Organization{
+			ID:         orgID,
+			StartMonth: time.January,
+		}
+		if orgBefore != nil {
+			*orgModel = *orgBefore
+		}
+
+		startMonth := orgDoc.StartMonth
+		if startMonth == 0 {
+			startMonth = int(time.January)
+		}
+		if startMonth < int(time.January) || startMonth > int(time.December) {
+			return fmt.Errorf("organization: invalid startMonth %d", startMonth)
+		}
+		orgModel.DisplayName = orgDoc.DisplayName
+		orgModel.DisplayDescription = orgDoc.DisplayDescription
+		orgModel.StartMonth = time.Month(startMonth)
+		if orgDoc.CustomID != "" {
+			orgModel.CustomID = orgDoc.CustomID
+		}
+		if orgModel.CustomID == "" {
+			// Casbin group-to-organization assignments key on the custom
+			// ID, so an omitted customId keeps the existing one; new
+			// organizations fall back to their UUID.
+			orgModel.CustomID = orgID.String()
+		}
+		if err := upsertAudited(ctx, audits, func() audit.Subject {
+			return audit.Subject{
+				ResourceName: fmt.Sprintf("organizations/%s", orgModel.CustomID),
+				ResourceID:   orgID,
+			}
+		}, func() (any, error) {
+			if orgBefore == nil {
+				return nil, nil
+			}
+			return orgBefore, nil
+		}, func() error {
+			return upsert(tx, orgModel)
+		}, orgModel); err != nil {
+			return fmt.Errorf("restore organization: %w", err)
+		}
 
 		accountIDMap := make(map[string]uuid.UUID)
 
@@ -162,7 +225,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 			return nil
 		}
 
-		if err := insertAccounts(doc.Accounts, uuid.NullUUID{}); err != nil {
+		if err := insertAccounts(orgDoc.Accounts, uuid.NullUUID{}); err != nil {
 			return err
 		}
 
@@ -171,7 +234,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		// ledgerAccountCodeMap maps a ledger account UUID to its Code, used to
 		// compute each transaction's JournalKey.
 		ledgerAccountCodeMap := make(map[uuid.UUID]string)
-		for _, la := range doc.LedgerAccounts {
+		for _, la := range orgDoc.LedgerAccounts {
 			if la.ID == "" {
 				return fmt.Errorf("ledger account missing id")
 			}
@@ -217,7 +280,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		// transactions but were never assigned through other means. Create minimal
 		// placeholders for any transaction-side ledger account IDs not present in
 		// the document's ledgerAccounts list so the import does not fail.
-		for _, t := range doc.Transactions {
+		for _, t := range orgDoc.Transactions {
 			for _, ref := range []string{t.CreditLedgerAccountID, t.DebitLedgerAccountID} {
 				if ref == "" {
 					continue
@@ -257,7 +320,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		}
 
 		// Ledger years
-		for _, ly := range doc.LedgerYears {
+		for _, ly := range orgDoc.LedgerYears {
 			if ly.ID == "" {
 				return fmt.Errorf("ledger year missing id")
 			}
@@ -294,7 +357,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		// Account groups (after accounts so references can be validated)
 		accountGroupIDMap := make(map[string]uuid.UUID)
 		accountGroupCustomIDMap := make(map[string]string)
-		for _, g := range doc.AccountGroups {
+		for _, g := range orgDoc.AccountGroups {
 			if g.ID == "" {
 				return fmt.Errorf("account group missing id")
 			}
@@ -330,7 +393,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 			accountGroupCustomIDMap[g.ID] = customID
 		}
 
-		for _, g := range doc.AccountGroups {
+		for _, g := range orgDoc.AccountGroups {
 			groupID := accountGroupIDMap[g.ID]
 			groupCustomID := accountGroupCustomIDMap[g.ID]
 			for _, a := range g.Assignments {
@@ -363,7 +426,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		}
 
 		// Budgets and revisions
-		for _, b := range doc.Budgets {
+		for _, b := range orgDoc.Budgets {
 			if b.ID == "" {
 				return fmt.Errorf("budget missing id")
 			}
@@ -523,7 +586,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 		}
 
 		// Transactions and assignments
-		for _, t := range doc.Transactions {
+		for _, t := range orgDoc.Transactions {
 			if t.ID == "" {
 				return fmt.Errorf("transaction missing id")
 			}
@@ -630,4 +693,43 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 
 		return nil
 	})
+}
+
+// ErrOrganizationCustomIDTaken is returned by ImportNewOrganization when the
+// document's organization customId is already used by another organization.
+var ErrOrganizationCustomIDTaken = errors.New("organization custom ID already exists")
+
+// ImportNewOrganization imports a V1 XML document as a new organization: a
+// fresh organization UUID is generated and the document (which must contain
+// exactly one organization) is restored into it. The created organization is
+// returned. The document's organization ID is ignored; its customId is applied
+// unless it is already taken, in which case ErrOrganizationCustomIDTaken is
+// returned and nothing is written.
+func ImportNewOrganization(ctx context.Context, db *gorm.DB, doc *Document) (*model.Organization, error) {
+	if len(doc.Organizations) != 1 {
+		return nil, fmt.Errorf("expected exactly one organization per document, got %d", len(doc.Organizations))
+	}
+
+	orgRepo := repository.NewOrganizationRepository(db)
+	orgID := uuid.New()
+
+	if customID := doc.Organizations[0].CustomID; customID != "" {
+		taken, err := orgRepo.ExistsByCustomID(ctx, customID)
+		if err != nil {
+			return nil, fmt.Errorf("check organization custom ID: %w", err)
+		}
+		if taken {
+			return nil, fmt.Errorf("%w: %s", ErrOrganizationCustomIDTaken, customID)
+		}
+	}
+
+	if err := ImportDocument(ctx, db, orgID, doc); err != nil {
+		return nil, err
+	}
+
+	org, err := orgRepo.GetByID(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("get imported organization: %w", err)
+	}
+	return org, nil
 }

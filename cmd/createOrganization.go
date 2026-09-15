@@ -22,8 +22,9 @@ var (
 )
 
 var createOrganizationCmd = &cobra.Command{
-	Use:   "organization",
-	Short: "Create a new organization",
+	Use:     "organization",
+	Aliases: []string{"o"},
+	Short:   "Create a new organization",
 	Long: `Create a new organization with a display name, optional description,
 fiscal-year start month, and optional custom ID.`,
 	Run: func(cmd *cobra.Command, args []string) {
