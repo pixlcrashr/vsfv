@@ -52,6 +52,8 @@ export const environment = {
   production: false,
   apiBaseUrl: '',
   oauthIssuer: 'http://localhost:8080',
+  // All data services are mocks in this configuration, so no login is required.
+  requireLogin: false,
   dataServices: {
     accountGroupList: MockAccountGroupListDataService,
     accountGroupEdit: MockAccountGroupEditDataService,

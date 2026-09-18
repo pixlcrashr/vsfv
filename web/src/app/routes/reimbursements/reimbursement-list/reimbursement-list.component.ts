@@ -38,9 +38,14 @@ import { ReimbursementListDataService } from './reimbursement-list.data-service'
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
-      <a layout-header-actions routerLink="./new">
-        <app-button><ng-container i18n>Neue Kostenerstattung</ng-container></app-button>
-      </a>
+      <div layout-header-actions class="flex items-center gap-3">
+        <a routerLink="./assistant">
+          <app-button variant="secondary"><ng-container i18n>Geführt einreichen</ng-container></app-button>
+        </a>
+        <a routerLink="./new">
+          <app-button><ng-container i18n>Neue Kostenerstattung</ng-container></app-button>
+        </a>
+      </div>
 
       <div layout-content class="flex flex-1 justify-center">
         @if (loading()) {
@@ -50,9 +55,14 @@ import { ReimbursementListDataService } from './reimbursement-list.data-service'
             i18n-title title="Keine Kostenerstattungen vorhanden"
             i18n-description description="Reiche deine erste Kostenerstattung ein."
           >
-            <a routerLink="./new">
-              <app-button><ng-container i18n>Kostenerstattung einreichen</ng-container></app-button>
-            </a>
+            <div class="flex items-center gap-3">
+              <a routerLink="./assistant">
+                <app-button variant="secondary"><ng-container i18n>Geführt einreichen</ng-container></app-button>
+              </a>
+              <a routerLink="./new">
+                <app-button><ng-container i18n>Kostenerstattung einreichen</ng-container></app-button>
+              </a>
+            </div>
           </app-empty-state>
         } @else {
           <div class="w-full max-w-5xl">

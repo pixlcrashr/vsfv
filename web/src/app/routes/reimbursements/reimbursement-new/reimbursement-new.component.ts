@@ -55,6 +55,10 @@ type ReimbursementScope = 'hoheitlich' | 'gewerblich';
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
+      <a layout-header-actions routerLink="../assistant">
+        <app-button variant="secondary"><ng-container i18n>Geführte Einreichung</ng-container></app-button>
+      </a>
+
       <div layout-content class="flex flex-1">
         @if (loading()) {
           <div class="flex flex-1 justify-center">

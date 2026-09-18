@@ -9,6 +9,7 @@ import { filter, take, takeUntil } from 'rxjs/operators';
 import { ButtonComponent } from '../../shared/components';
 import { LoadingSpinnerComponent } from '../../shared/components';
 import { LoginDataService } from './login.data-service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -131,6 +132,11 @@ export class LoginComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
   async ngOnInit() {
+    if (!environment.requireLogin) {
+      await this.router.navigate(['/']);
+      return;
+    }
+
     // If already authenticated, redirect to home
     if (this.oauthService.hasValidAccessToken()) {
       await this.router.navigate(['/']);

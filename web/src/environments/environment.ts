@@ -6,5 +6,6 @@ export const environment = {
   production: true,
   apiBaseUrl: '/',
   oauthIssuer: '',
+  requireLogin: true,
   dataServices: prodEnvironment.dataServices
 };

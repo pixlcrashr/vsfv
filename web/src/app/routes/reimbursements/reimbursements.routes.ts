@@ -52,6 +52,20 @@ export const REIMBURSEMENTS_ROUTES: Routes = [
     ],
   },
   {
+    path: 'assistant',
+    canActivate: [requireAllPermissions(Permissions.REIMBURSEMENTS_CREATE)],
+    loadComponent: () =>
+      import('./reimbursement-assistant/reimbursement-assistant.component').then(
+        (m) => m.ReimbursementAssistantComponent
+      ),
+    providers: [
+      {
+        provide: ReimbursementNewDataService,
+        useClass: environment.dataServices.reimbursementNew,
+      },
+    ],
+  },
+  {
     path: ':id',
     canActivate: [requireAnyPermission(
       Permissions.REIMBURSEMENTS_READ,

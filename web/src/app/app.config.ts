@@ -26,8 +26,11 @@ async function initializeAuthAndUser(): Promise<void> {
   const oauthService = inject(OAuthService);
   const currentUserInitializer = inject(CurrentUserInitializer);
 
-  oauthService.configure(authConfig);
-  await oauthService.loadDiscoveryDocumentAndTryLogin();
+  if (environment.requireLogin) {
+    oauthService.configure(authConfig);
+    await oauthService.loadDiscoveryDocumentAndTryLogin();
+  }
+
   await firstValueFrom(currentUserInitializer.initialize());
 }
 

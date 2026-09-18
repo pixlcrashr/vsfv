@@ -56,6 +56,7 @@ export const environment = {
   // login session cookie is not treated as a third-party cookie.
   apiBaseUrl: 'http://localhost:8080/api',
   oauthIssuer: 'http://localhost:8080',
+  requireLogin: true,
   dataServices: {
     accountGroupList: HttpAccountGroupListDataService,
     accountGroupEdit: HttpAccountGroupEditDataService,
