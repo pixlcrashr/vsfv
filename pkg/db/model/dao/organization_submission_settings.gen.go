@@ -19,21 +19,20 @@ import (
 	"gorm.io/plugin/dbresolver"
 )
 
-func newReport(db *gorm.DB, opts ...gen.DOOption) report {
-	_report := report{}
+func newOrganizationSubmissionSettings(db *gorm.DB, opts ...gen.DOOption) organizationSubmissionSettings {
+	_organizationSubmissionSettings := organizationSubmissionSettings{}
 
-	_report.reportDo.UseDB(db, opts...)
-	_report.reportDo.UseModel(&model.Report{})
+	_organizationSubmissionSettings.organizationSubmissionSettingsDo.UseDB(db, opts...)
+	_organizationSubmissionSettings.organizationSubmissionSettingsDo.UseModel(&model.OrganizationSubmissionSettings{})
 
-	tableName := _report.reportDo.TableName()
-	_report.ALL = field.NewAsterisk(tableName)
-	_report.ID = field.NewField(tableName, "id")
-	_report.CustomID = field.NewString(tableName, "custom_id")
-	_report.OrganizationID = field.NewField(tableName, "organization_id")
-	_report.DisplayName = field.NewString(tableName, "display_name")
-	_report.Data = field.NewBytes(tableName, "data")
-	_report.CreatedAt = field.NewTime(tableName, "created_at")
-	_report.Organization = reportBelongsToOrganization{
+	tableName := _organizationSubmissionSettings.organizationSubmissionSettingsDo.TableName()
+	_organizationSubmissionSettings.ALL = field.NewAsterisk(tableName)
+	_organizationSubmissionSettings.ID = field.NewField(tableName, "id")
+	_organizationSubmissionSettings.OrganizationID = field.NewField(tableName, "organization_id")
+	_organizationSubmissionSettings.EnabledSettlementKinds = field.NewField(tableName, "enabled_settlement_kinds")
+	_organizationSubmissionSettings.SubmissionDeadline = field.NewTime(tableName, "submission_deadline")
+	_organizationSubmissionSettings.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_organizationSubmissionSettings.Organization = organizationSubmissionSettingsBelongsToOrganization{
 		db: db.Session(&gorm.Session{}),
 
 		RelationField: field.NewRelation("Organization", "model.Organization"),
@@ -770,60 +769,66 @@ func newReport(db *gorm.DB, opts ...gen.DOOption) report {
 		},
 	}
 
-	_report.fillFieldMap()
+	_organizationSubmissionSettings.fillFieldMap()
 
-	return _report
+	return _organizationSubmissionSettings
 }
 
-type report struct {
-	reportDo reportDo
+type organizationSubmissionSettings struct {
+	organizationSubmissionSettingsDo organizationSubmissionSettingsDo
 
-	ALL            field.Asterisk
-	ID             field.Field
-	CustomID       field.String
-	OrganizationID field.Field
-	DisplayName    field.String
-	Data           field.Bytes
-	CreatedAt      field.Time
-	Organization   reportBelongsToOrganization
+	ALL                    field.Asterisk
+	ID                     field.Field
+	OrganizationID         field.Field
+	EnabledSettlementKinds field.Field
+	SubmissionDeadline     field.Time
+	UpdatedAt              field.Time
+	Organization           organizationSubmissionSettingsBelongsToOrganization
 
 	fieldMap map[string]field.Expr
 }
 
-func (r report) Table(newTableName string) *report {
-	r.reportDo.UseTable(newTableName)
-	return r.updateTableName(newTableName)
+func (o organizationSubmissionSettings) Table(newTableName string) *organizationSubmissionSettings {
+	o.organizationSubmissionSettingsDo.UseTable(newTableName)
+	return o.updateTableName(newTableName)
 }
 
-func (r report) As(alias string) *report {
-	r.reportDo.DO = *(r.reportDo.As(alias).(*gen.DO))
-	return r.updateTableName(alias)
+func (o organizationSubmissionSettings) As(alias string) *organizationSubmissionSettings {
+	o.organizationSubmissionSettingsDo.DO = *(o.organizationSubmissionSettingsDo.As(alias).(*gen.DO))
+	return o.updateTableName(alias)
 }
 
-func (r *report) updateTableName(table string) *report {
-	r.ALL = field.NewAsterisk(table)
-	r.ID = field.NewField(table, "id")
-	r.CustomID = field.NewString(table, "custom_id")
-	r.OrganizationID = field.NewField(table, "organization_id")
-	r.DisplayName = field.NewString(table, "display_name")
-	r.Data = field.NewBytes(table, "data")
-	r.CreatedAt = field.NewTime(table, "created_at")
+func (o *organizationSubmissionSettings) updateTableName(table string) *organizationSubmissionSettings {
+	o.ALL = field.NewAsterisk(table)
+	o.ID = field.NewField(table, "id")
+	o.OrganizationID = field.NewField(table, "organization_id")
+	o.EnabledSettlementKinds = field.NewField(table, "enabled_settlement_kinds")
+	o.SubmissionDeadline = field.NewTime(table, "submission_deadline")
+	o.UpdatedAt = field.NewTime(table, "updated_at")
 
-	r.fillFieldMap()
+	o.fillFieldMap()
 
-	return r
+	return o
 }
 
-func (r *report) WithContext(ctx context.Context) IReportDo { return r.reportDo.WithContext(ctx) }
+func (o *organizationSubmissionSettings) WithContext(ctx context.Context) IOrganizationSubmissionSettingsDo {
+	return o.organizationSubmissionSettingsDo.WithContext(ctx)
+}
 
-func (r report) TableName() string { return r.reportDo.TableName() }
+func (o organizationSubmissionSettings) TableName() string {
+	return o.organizationSubmissionSettingsDo.TableName()
+}
 
-func (r report) Alias() string { return r.reportDo.Alias() }
+func (o organizationSubmissionSettings) Alias() string {
+	return o.organizationSubmissionSettingsDo.Alias()
+}
 
-func (r report) Columns(cols ...field.Expr) gen.Columns { return r.reportDo.Columns(cols...) }
+func (o organizationSubmissionSettings) Columns(cols ...field.Expr) gen.Columns {
+	return o.organizationSubmissionSettingsDo.Columns(cols...)
+}
 
-func (r *report) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
-	_f, ok := r.fieldMap[fieldName]
+func (o *organizationSubmissionSettings) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
+	_f, ok := o.fieldMap[fieldName]
 	if !ok || _f == nil {
 		return nil, false
 	}
@@ -831,31 +836,30 @@ func (r *report) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 	return _oe, ok
 }
 
-func (r *report) fillFieldMap() {
-	r.fieldMap = make(map[string]field.Expr, 7)
-	r.fieldMap["id"] = r.ID
-	r.fieldMap["custom_id"] = r.CustomID
-	r.fieldMap["organization_id"] = r.OrganizationID
-	r.fieldMap["display_name"] = r.DisplayName
-	r.fieldMap["data"] = r.Data
-	r.fieldMap["created_at"] = r.CreatedAt
+func (o *organizationSubmissionSettings) fillFieldMap() {
+	o.fieldMap = make(map[string]field.Expr, 6)
+	o.fieldMap["id"] = o.ID
+	o.fieldMap["organization_id"] = o.OrganizationID
+	o.fieldMap["enabled_settlement_kinds"] = o.EnabledSettlementKinds
+	o.fieldMap["submission_deadline"] = o.SubmissionDeadline
+	o.fieldMap["updated_at"] = o.UpdatedAt
 
 }
 
-func (r report) clone(db *gorm.DB) report {
-	r.reportDo.ReplaceConnPool(db.Statement.ConnPool)
-	r.Organization.db = db.Session(&gorm.Session{Initialized: true})
-	r.Organization.db.Statement.ConnPool = db.Statement.ConnPool
-	return r
+func (o organizationSubmissionSettings) clone(db *gorm.DB) organizationSubmissionSettings {
+	o.organizationSubmissionSettingsDo.ReplaceConnPool(db.Statement.ConnPool)
+	o.Organization.db = db.Session(&gorm.Session{Initialized: true})
+	o.Organization.db.Statement.ConnPool = db.Statement.ConnPool
+	return o
 }
 
-func (r report) replaceDB(db *gorm.DB) report {
-	r.reportDo.ReplaceDB(db)
-	r.Organization.db = db.Session(&gorm.Session{})
-	return r
+func (o organizationSubmissionSettings) replaceDB(db *gorm.DB) organizationSubmissionSettings {
+	o.organizationSubmissionSettingsDo.ReplaceDB(db)
+	o.Organization.db = db.Session(&gorm.Session{})
+	return o
 }
 
-type reportBelongsToOrganization struct {
+type organizationSubmissionSettingsBelongsToOrganization struct {
 	db *gorm.DB
 
 	field.RelationField
@@ -1054,7 +1058,7 @@ type reportBelongsToOrganization struct {
 	}
 }
 
-func (a reportBelongsToOrganization) Where(conds ...field.Expr) *reportBelongsToOrganization {
+func (a organizationSubmissionSettingsBelongsToOrganization) Where(conds ...field.Expr) *organizationSubmissionSettingsBelongsToOrganization {
 	if len(conds) == 0 {
 		return &a
 	}
@@ -1067,32 +1071,32 @@ func (a reportBelongsToOrganization) Where(conds ...field.Expr) *reportBelongsTo
 	return &a
 }
 
-func (a reportBelongsToOrganization) WithContext(ctx context.Context) *reportBelongsToOrganization {
+func (a organizationSubmissionSettingsBelongsToOrganization) WithContext(ctx context.Context) *organizationSubmissionSettingsBelongsToOrganization {
 	a.db = a.db.WithContext(ctx)
 	return &a
 }
 
-func (a reportBelongsToOrganization) Session(session *gorm.Session) *reportBelongsToOrganization {
+func (a organizationSubmissionSettingsBelongsToOrganization) Session(session *gorm.Session) *organizationSubmissionSettingsBelongsToOrganization {
 	a.db = a.db.Session(session)
 	return &a
 }
 
-func (a reportBelongsToOrganization) Model(m *model.Report) *reportBelongsToOrganizationTx {
-	return &reportBelongsToOrganizationTx{a.db.Model(m).Association(a.Name())}
+func (a organizationSubmissionSettingsBelongsToOrganization) Model(m *model.OrganizationSubmissionSettings) *organizationSubmissionSettingsBelongsToOrganizationTx {
+	return &organizationSubmissionSettingsBelongsToOrganizationTx{a.db.Model(m).Association(a.Name())}
 }
 
-func (a reportBelongsToOrganization) Unscoped() *reportBelongsToOrganization {
+func (a organizationSubmissionSettingsBelongsToOrganization) Unscoped() *organizationSubmissionSettingsBelongsToOrganization {
 	a.db = a.db.Unscoped()
 	return &a
 }
 
-type reportBelongsToOrganizationTx struct{ tx *gorm.Association }
+type organizationSubmissionSettingsBelongsToOrganizationTx struct{ tx *gorm.Association }
 
-func (a reportBelongsToOrganizationTx) Find() (result *model.Organization, err error) {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Find() (result *model.Organization, err error) {
 	return result, a.tx.Find(&result)
 }
 
-func (a reportBelongsToOrganizationTx) Append(values ...*model.Organization) (err error) {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Append(values ...*model.Organization) (err error) {
 	targetValues := make([]interface{}, len(values))
 	for i, v := range values {
 		targetValues[i] = v
@@ -1100,7 +1104,7 @@ func (a reportBelongsToOrganizationTx) Append(values ...*model.Organization) (er
 	return a.tx.Append(targetValues...)
 }
 
-func (a reportBelongsToOrganizationTx) Replace(values ...*model.Organization) (err error) {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Replace(values ...*model.Organization) (err error) {
 	targetValues := make([]interface{}, len(values))
 	for i, v := range values {
 		targetValues[i] = v
@@ -1108,7 +1112,7 @@ func (a reportBelongsToOrganizationTx) Replace(values ...*model.Organization) (e
 	return a.tx.Replace(targetValues...)
 }
 
-func (a reportBelongsToOrganizationTx) Delete(values ...*model.Organization) (err error) {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Delete(values ...*model.Organization) (err error) {
 	targetValues := make([]interface{}, len(values))
 	for i, v := range values {
 		targetValues[i] = v
@@ -1116,61 +1120,61 @@ func (a reportBelongsToOrganizationTx) Delete(values ...*model.Organization) (er
 	return a.tx.Delete(targetValues...)
 }
 
-func (a reportBelongsToOrganizationTx) Clear() error {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Clear() error {
 	return a.tx.Clear()
 }
 
-func (a reportBelongsToOrganizationTx) Count() int64 {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Count() int64 {
 	return a.tx.Count()
 }
 
-func (a reportBelongsToOrganizationTx) Unscoped() *reportBelongsToOrganizationTx {
+func (a organizationSubmissionSettingsBelongsToOrganizationTx) Unscoped() *organizationSubmissionSettingsBelongsToOrganizationTx {
 	a.tx = a.tx.Unscoped()
 	return &a
 }
 
-type reportDo struct{ gen.DO }
+type organizationSubmissionSettingsDo struct{ gen.DO }
 
-type IReportDo interface {
+type IOrganizationSubmissionSettingsDo interface {
 	gen.SubQuery
-	Debug() IReportDo
-	WithContext(ctx context.Context) IReportDo
+	Debug() IOrganizationSubmissionSettingsDo
+	WithContext(ctx context.Context) IOrganizationSubmissionSettingsDo
 	WithResult(fc func(tx gen.Dao)) gen.ResultInfo
 	ReplaceDB(db *gorm.DB)
-	ReadDB() IReportDo
-	WriteDB() IReportDo
+	ReadDB() IOrganizationSubmissionSettingsDo
+	WriteDB() IOrganizationSubmissionSettingsDo
 	As(alias string) gen.Dao
-	Session(config *gorm.Session) IReportDo
+	Session(config *gorm.Session) IOrganizationSubmissionSettingsDo
 	Columns(cols ...field.Expr) gen.Columns
-	Clauses(conds ...clause.Expression) IReportDo
-	Not(conds ...gen.Condition) IReportDo
-	Or(conds ...gen.Condition) IReportDo
-	Select(conds ...field.Expr) IReportDo
-	Where(conds ...gen.Condition) IReportDo
-	Order(conds ...field.Expr) IReportDo
-	Distinct(cols ...field.Expr) IReportDo
-	Omit(cols ...field.Expr) IReportDo
-	Join(table schema.Tabler, on ...field.Expr) IReportDo
-	LeftJoin(table schema.Tabler, on ...field.Expr) IReportDo
-	RightJoin(table schema.Tabler, on ...field.Expr) IReportDo
-	Group(cols ...field.Expr) IReportDo
-	Having(conds ...gen.Condition) IReportDo
-	Limit(limit int) IReportDo
-	Offset(offset int) IReportDo
+	Clauses(conds ...clause.Expression) IOrganizationSubmissionSettingsDo
+	Not(conds ...gen.Condition) IOrganizationSubmissionSettingsDo
+	Or(conds ...gen.Condition) IOrganizationSubmissionSettingsDo
+	Select(conds ...field.Expr) IOrganizationSubmissionSettingsDo
+	Where(conds ...gen.Condition) IOrganizationSubmissionSettingsDo
+	Order(conds ...field.Expr) IOrganizationSubmissionSettingsDo
+	Distinct(cols ...field.Expr) IOrganizationSubmissionSettingsDo
+	Omit(cols ...field.Expr) IOrganizationSubmissionSettingsDo
+	Join(table schema.Tabler, on ...field.Expr) IOrganizationSubmissionSettingsDo
+	LeftJoin(table schema.Tabler, on ...field.Expr) IOrganizationSubmissionSettingsDo
+	RightJoin(table schema.Tabler, on ...field.Expr) IOrganizationSubmissionSettingsDo
+	Group(cols ...field.Expr) IOrganizationSubmissionSettingsDo
+	Having(conds ...gen.Condition) IOrganizationSubmissionSettingsDo
+	Limit(limit int) IOrganizationSubmissionSettingsDo
+	Offset(offset int) IOrganizationSubmissionSettingsDo
 	Count() (count int64, err error)
-	Scopes(funcs ...func(gen.Dao) gen.Dao) IReportDo
-	Unscoped() IReportDo
-	Create(values ...*model.Report) error
-	CreateInBatches(values []*model.Report, batchSize int) error
-	Save(values ...*model.Report) error
-	First() (*model.Report, error)
-	Take() (*model.Report, error)
-	Last() (*model.Report, error)
-	Find() ([]*model.Report, error)
-	FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.Report, err error)
-	FindInBatches(result *[]*model.Report, batchSize int, fc func(tx gen.Dao, batch int) error) error
+	Scopes(funcs ...func(gen.Dao) gen.Dao) IOrganizationSubmissionSettingsDo
+	Unscoped() IOrganizationSubmissionSettingsDo
+	Create(values ...*model.OrganizationSubmissionSettings) error
+	CreateInBatches(values []*model.OrganizationSubmissionSettings, batchSize int) error
+	Save(values ...*model.OrganizationSubmissionSettings) error
+	First() (*model.OrganizationSubmissionSettings, error)
+	Take() (*model.OrganizationSubmissionSettings, error)
+	Last() (*model.OrganizationSubmissionSettings, error)
+	Find() ([]*model.OrganizationSubmissionSettings, error)
+	FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.OrganizationSubmissionSettings, err error)
+	FindInBatches(result *[]*model.OrganizationSubmissionSettings, batchSize int, fc func(tx gen.Dao, batch int) error) error
 	Pluck(column field.Expr, dest interface{}) error
-	Delete(...*model.Report) (info gen.ResultInfo, err error)
+	Delete(...*model.OrganizationSubmissionSettings) (info gen.ResultInfo, err error)
 	Update(column field.Expr, value interface{}) (info gen.ResultInfo, err error)
 	UpdateSimple(columns ...field.AssignExpr) (info gen.ResultInfo, err error)
 	Updates(value interface{}) (info gen.ResultInfo, err error)
@@ -1178,216 +1182,216 @@ type IReportDo interface {
 	UpdateColumnSimple(columns ...field.AssignExpr) (info gen.ResultInfo, err error)
 	UpdateColumns(value interface{}) (info gen.ResultInfo, err error)
 	UpdateFrom(q gen.SubQuery) gen.Dao
-	Attrs(attrs ...field.AssignExpr) IReportDo
-	Assign(attrs ...field.AssignExpr) IReportDo
-	Joins(fields ...field.RelationField) IReportDo
-	Preload(fields ...field.RelationField) IReportDo
-	FirstOrInit() (*model.Report, error)
-	FirstOrCreate() (*model.Report, error)
-	FindByPage(offset int, limit int) (result []*model.Report, count int64, err error)
+	Attrs(attrs ...field.AssignExpr) IOrganizationSubmissionSettingsDo
+	Assign(attrs ...field.AssignExpr) IOrganizationSubmissionSettingsDo
+	Joins(fields ...field.RelationField) IOrganizationSubmissionSettingsDo
+	Preload(fields ...field.RelationField) IOrganizationSubmissionSettingsDo
+	FirstOrInit() (*model.OrganizationSubmissionSettings, error)
+	FirstOrCreate() (*model.OrganizationSubmissionSettings, error)
+	FindByPage(offset int, limit int) (result []*model.OrganizationSubmissionSettings, count int64, err error)
 	ScanByPage(result interface{}, offset int, limit int) (count int64, err error)
 	Rows() (*sql.Rows, error)
 	Row() *sql.Row
 	Scan(result interface{}) (err error)
-	Returning(value interface{}, columns ...string) IReportDo
+	Returning(value interface{}, columns ...string) IOrganizationSubmissionSettingsDo
 	UnderlyingDB() *gorm.DB
 	schema.Tabler
 }
 
-func (r reportDo) Debug() IReportDo {
-	return r.withDO(r.DO.Debug())
+func (o organizationSubmissionSettingsDo) Debug() IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Debug())
 }
 
-func (r reportDo) WithContext(ctx context.Context) IReportDo {
-	return r.withDO(r.DO.WithContext(ctx))
+func (o organizationSubmissionSettingsDo) WithContext(ctx context.Context) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.WithContext(ctx))
 }
 
-func (r reportDo) ReadDB() IReportDo {
-	return r.Clauses(dbresolver.Read)
+func (o organizationSubmissionSettingsDo) ReadDB() IOrganizationSubmissionSettingsDo {
+	return o.Clauses(dbresolver.Read)
 }
 
-func (r reportDo) WriteDB() IReportDo {
-	return r.Clauses(dbresolver.Write)
+func (o organizationSubmissionSettingsDo) WriteDB() IOrganizationSubmissionSettingsDo {
+	return o.Clauses(dbresolver.Write)
 }
 
-func (r reportDo) Session(config *gorm.Session) IReportDo {
-	return r.withDO(r.DO.Session(config))
+func (o organizationSubmissionSettingsDo) Session(config *gorm.Session) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Session(config))
 }
 
-func (r reportDo) Clauses(conds ...clause.Expression) IReportDo {
-	return r.withDO(r.DO.Clauses(conds...))
+func (o organizationSubmissionSettingsDo) Clauses(conds ...clause.Expression) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Clauses(conds...))
 }
 
-func (r reportDo) Returning(value interface{}, columns ...string) IReportDo {
-	return r.withDO(r.DO.Returning(value, columns...))
+func (o organizationSubmissionSettingsDo) Returning(value interface{}, columns ...string) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Returning(value, columns...))
 }
 
-func (r reportDo) Not(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Not(conds...))
+func (o organizationSubmissionSettingsDo) Not(conds ...gen.Condition) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Not(conds...))
 }
 
-func (r reportDo) Or(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Or(conds...))
+func (o organizationSubmissionSettingsDo) Or(conds ...gen.Condition) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Or(conds...))
 }
 
-func (r reportDo) Select(conds ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Select(conds...))
+func (o organizationSubmissionSettingsDo) Select(conds ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Select(conds...))
 }
 
-func (r reportDo) Where(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Where(conds...))
+func (o organizationSubmissionSettingsDo) Where(conds ...gen.Condition) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Where(conds...))
 }
 
-func (r reportDo) Order(conds ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Order(conds...))
+func (o organizationSubmissionSettingsDo) Order(conds ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Order(conds...))
 }
 
-func (r reportDo) Distinct(cols ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Distinct(cols...))
+func (o organizationSubmissionSettingsDo) Distinct(cols ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Distinct(cols...))
 }
 
-func (r reportDo) Omit(cols ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Omit(cols...))
+func (o organizationSubmissionSettingsDo) Omit(cols ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Omit(cols...))
 }
 
-func (r reportDo) Join(table schema.Tabler, on ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Join(table, on...))
+func (o organizationSubmissionSettingsDo) Join(table schema.Tabler, on ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Join(table, on...))
 }
 
-func (r reportDo) LeftJoin(table schema.Tabler, on ...field.Expr) IReportDo {
-	return r.withDO(r.DO.LeftJoin(table, on...))
+func (o organizationSubmissionSettingsDo) LeftJoin(table schema.Tabler, on ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.LeftJoin(table, on...))
 }
 
-func (r reportDo) RightJoin(table schema.Tabler, on ...field.Expr) IReportDo {
-	return r.withDO(r.DO.RightJoin(table, on...))
+func (o organizationSubmissionSettingsDo) RightJoin(table schema.Tabler, on ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.RightJoin(table, on...))
 }
 
-func (r reportDo) Group(cols ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Group(cols...))
+func (o organizationSubmissionSettingsDo) Group(cols ...field.Expr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Group(cols...))
 }
 
-func (r reportDo) Having(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Having(conds...))
+func (o organizationSubmissionSettingsDo) Having(conds ...gen.Condition) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Having(conds...))
 }
 
-func (r reportDo) Limit(limit int) IReportDo {
-	return r.withDO(r.DO.Limit(limit))
+func (o organizationSubmissionSettingsDo) Limit(limit int) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Limit(limit))
 }
 
-func (r reportDo) Offset(offset int) IReportDo {
-	return r.withDO(r.DO.Offset(offset))
+func (o organizationSubmissionSettingsDo) Offset(offset int) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Offset(offset))
 }
 
-func (r reportDo) Scopes(funcs ...func(gen.Dao) gen.Dao) IReportDo {
-	return r.withDO(r.DO.Scopes(funcs...))
+func (o organizationSubmissionSettingsDo) Scopes(funcs ...func(gen.Dao) gen.Dao) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Scopes(funcs...))
 }
 
-func (r reportDo) Unscoped() IReportDo {
-	return r.withDO(r.DO.Unscoped())
+func (o organizationSubmissionSettingsDo) Unscoped() IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Unscoped())
 }
 
-func (r reportDo) Create(values ...*model.Report) error {
+func (o organizationSubmissionSettingsDo) Create(values ...*model.OrganizationSubmissionSettings) error {
 	if len(values) == 0 {
 		return nil
 	}
-	return r.DO.Create(values)
+	return o.DO.Create(values)
 }
 
-func (r reportDo) CreateInBatches(values []*model.Report, batchSize int) error {
-	return r.DO.CreateInBatches(values, batchSize)
+func (o organizationSubmissionSettingsDo) CreateInBatches(values []*model.OrganizationSubmissionSettings, batchSize int) error {
+	return o.DO.CreateInBatches(values, batchSize)
 }
 
 // Save : !!! underlying implementation is different with GORM
 // The method is equivalent to executing the statement: db.Clauses(clause.OnConflict{UpdateAll: true}).Create(values)
-func (r reportDo) Save(values ...*model.Report) error {
+func (o organizationSubmissionSettingsDo) Save(values ...*model.OrganizationSubmissionSettings) error {
 	if len(values) == 0 {
 		return nil
 	}
-	return r.DO.Save(values)
+	return o.DO.Save(values)
 }
 
-func (r reportDo) First() (*model.Report, error) {
-	if result, err := r.DO.First(); err != nil {
+func (o organizationSubmissionSettingsDo) First() (*model.OrganizationSubmissionSettings, error) {
+	if result, err := o.DO.First(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.OrganizationSubmissionSettings), nil
 	}
 }
 
-func (r reportDo) Take() (*model.Report, error) {
-	if result, err := r.DO.Take(); err != nil {
+func (o organizationSubmissionSettingsDo) Take() (*model.OrganizationSubmissionSettings, error) {
+	if result, err := o.DO.Take(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.OrganizationSubmissionSettings), nil
 	}
 }
 
-func (r reportDo) Last() (*model.Report, error) {
-	if result, err := r.DO.Last(); err != nil {
+func (o organizationSubmissionSettingsDo) Last() (*model.OrganizationSubmissionSettings, error) {
+	if result, err := o.DO.Last(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.OrganizationSubmissionSettings), nil
 	}
 }
 
-func (r reportDo) Find() ([]*model.Report, error) {
-	result, err := r.DO.Find()
-	return result.([]*model.Report), err
+func (o organizationSubmissionSettingsDo) Find() ([]*model.OrganizationSubmissionSettings, error) {
+	result, err := o.DO.Find()
+	return result.([]*model.OrganizationSubmissionSettings), err
 }
 
-func (r reportDo) FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.Report, err error) {
-	buf := make([]*model.Report, 0, batchSize)
-	err = r.DO.FindInBatches(&buf, batchSize, func(tx gen.Dao, batch int) error {
+func (o organizationSubmissionSettingsDo) FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.OrganizationSubmissionSettings, err error) {
+	buf := make([]*model.OrganizationSubmissionSettings, 0, batchSize)
+	err = o.DO.FindInBatches(&buf, batchSize, func(tx gen.Dao, batch int) error {
 		defer func() { results = append(results, buf...) }()
 		return fc(tx, batch)
 	})
 	return results, err
 }
 
-func (r reportDo) FindInBatches(result *[]*model.Report, batchSize int, fc func(tx gen.Dao, batch int) error) error {
-	return r.DO.FindInBatches(result, batchSize, fc)
+func (o organizationSubmissionSettingsDo) FindInBatches(result *[]*model.OrganizationSubmissionSettings, batchSize int, fc func(tx gen.Dao, batch int) error) error {
+	return o.DO.FindInBatches(result, batchSize, fc)
 }
 
-func (r reportDo) Attrs(attrs ...field.AssignExpr) IReportDo {
-	return r.withDO(r.DO.Attrs(attrs...))
+func (o organizationSubmissionSettingsDo) Attrs(attrs ...field.AssignExpr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Attrs(attrs...))
 }
 
-func (r reportDo) Assign(attrs ...field.AssignExpr) IReportDo {
-	return r.withDO(r.DO.Assign(attrs...))
+func (o organizationSubmissionSettingsDo) Assign(attrs ...field.AssignExpr) IOrganizationSubmissionSettingsDo {
+	return o.withDO(o.DO.Assign(attrs...))
 }
 
-func (r reportDo) Joins(fields ...field.RelationField) IReportDo {
+func (o organizationSubmissionSettingsDo) Joins(fields ...field.RelationField) IOrganizationSubmissionSettingsDo {
 	for _, _f := range fields {
-		r = *r.withDO(r.DO.Joins(_f))
+		o = *o.withDO(o.DO.Joins(_f))
 	}
-	return &r
+	return &o
 }
 
-func (r reportDo) Preload(fields ...field.RelationField) IReportDo {
+func (o organizationSubmissionSettingsDo) Preload(fields ...field.RelationField) IOrganizationSubmissionSettingsDo {
 	for _, _f := range fields {
-		r = *r.withDO(r.DO.Preload(_f))
+		o = *o.withDO(o.DO.Preload(_f))
 	}
-	return &r
+	return &o
 }
 
-func (r reportDo) FirstOrInit() (*model.Report, error) {
-	if result, err := r.DO.FirstOrInit(); err != nil {
+func (o organizationSubmissionSettingsDo) FirstOrInit() (*model.OrganizationSubmissionSettings, error) {
+	if result, err := o.DO.FirstOrInit(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.OrganizationSubmissionSettings), nil
 	}
 }
 
-func (r reportDo) FirstOrCreate() (*model.Report, error) {
-	if result, err := r.DO.FirstOrCreate(); err != nil {
+func (o organizationSubmissionSettingsDo) FirstOrCreate() (*model.OrganizationSubmissionSettings, error) {
+	if result, err := o.DO.FirstOrCreate(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.OrganizationSubmissionSettings), nil
 	}
 }
 
-func (r reportDo) FindByPage(offset int, limit int) (result []*model.Report, count int64, err error) {
-	result, err = r.Offset(offset).Limit(limit).Find()
+func (o organizationSubmissionSettingsDo) FindByPage(offset int, limit int) (result []*model.OrganizationSubmissionSettings, count int64, err error) {
+	result, err = o.Offset(offset).Limit(limit).Find()
 	if err != nil {
 		return
 	}
@@ -1397,29 +1401,29 @@ func (r reportDo) FindByPage(offset int, limit int) (result []*model.Report, cou
 		return
 	}
 
-	count, err = r.Offset(-1).Limit(-1).Count()
+	count, err = o.Offset(-1).Limit(-1).Count()
 	return
 }
 
-func (r reportDo) ScanByPage(result interface{}, offset int, limit int) (count int64, err error) {
-	count, err = r.Count()
+func (o organizationSubmissionSettingsDo) ScanByPage(result interface{}, offset int, limit int) (count int64, err error) {
+	count, err = o.Count()
 	if err != nil {
 		return
 	}
 
-	err = r.Offset(offset).Limit(limit).Scan(result)
+	err = o.Offset(offset).Limit(limit).Scan(result)
 	return
 }
 
-func (r reportDo) Scan(result interface{}) (err error) {
-	return r.DO.Scan(result)
+func (o organizationSubmissionSettingsDo) Scan(result interface{}) (err error) {
+	return o.DO.Scan(result)
 }
 
-func (r reportDo) Delete(models ...*model.Report) (result gen.ResultInfo, err error) {
-	return r.DO.Delete(models)
+func (o organizationSubmissionSettingsDo) Delete(models ...*model.OrganizationSubmissionSettings) (result gen.ResultInfo, err error) {
+	return o.DO.Delete(models)
 }
 
-func (r *reportDo) withDO(do gen.Dao) *reportDo {
-	r.DO = *do.(*gen.DO)
-	return r
+func (o *organizationSubmissionSettingsDo) withDO(do gen.Dao) *organizationSubmissionSettingsDo {
+	o.DO = *do.(*gen.DO)
+	return o
 }

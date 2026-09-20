@@ -19,21 +19,46 @@ import (
 	"gorm.io/plugin/dbresolver"
 )
 
-func newReport(db *gorm.DB, opts ...gen.DOOption) report {
-	_report := report{}
+func newSubmission(db *gorm.DB, opts ...gen.DOOption) submission {
+	_submission := submission{}
 
-	_report.reportDo.UseDB(db, opts...)
-	_report.reportDo.UseModel(&model.Report{})
+	_submission.submissionDo.UseDB(db, opts...)
+	_submission.submissionDo.UseModel(&model.Submission{})
 
-	tableName := _report.reportDo.TableName()
-	_report.ALL = field.NewAsterisk(tableName)
-	_report.ID = field.NewField(tableName, "id")
-	_report.CustomID = field.NewString(tableName, "custom_id")
-	_report.OrganizationID = field.NewField(tableName, "organization_id")
-	_report.DisplayName = field.NewString(tableName, "display_name")
-	_report.Data = field.NewBytes(tableName, "data")
-	_report.CreatedAt = field.NewTime(tableName, "created_at")
-	_report.Organization = reportBelongsToOrganization{
+	tableName := _submission.submissionDo.TableName()
+	_submission.ALL = field.NewAsterisk(tableName)
+	_submission.ID = field.NewField(tableName, "id")
+	_submission.CustomID = field.NewString(tableName, "custom_id")
+	_submission.PublicID = field.NewString(tableName, "public_id")
+	_submission.OrganizationID = field.NewField(tableName, "organization_id")
+	_submission.CreatedByUserID = field.NewField(tableName, "created_by_user_id")
+	_submission.CommitteeID = field.NewField(tableName, "committee_id")
+	_submission.Direction = field.NewInt(tableName, "direction")
+	_submission.Settlement = field.NewInt(tableName, "settlement")
+	_submission.Scope = field.NewInt(tableName, "scope")
+	_submission.Status = field.NewInt(tableName, "status")
+	_submission.Notice = field.NewString(tableName, "notice")
+	_submission.TotalAmount = field.NewField(tableName, "total_amount")
+	_submission.Etag = field.NewString(tableName, "etag")
+	_submission.PayoutMethod = field.NewInt(tableName, "payout_method")
+	_submission.BankAccountHolder = field.NewString(tableName, "bank_account_holder")
+	_submission.BankIban = field.NewString(tableName, "bank_iban")
+	_submission.BankBic = field.NewString(tableName, "bank_bic")
+	_submission.PaymentAccountUID = field.NewField(tableName, "payment_account_uid")
+	_submission.PaymentAccountLabel = field.NewString(tableName, "payment_account_label")
+	_submission.AccountPaidDate = field.NewTime(tableName, "account_paid_date")
+	_submission.AccountPaymentReference = field.NewString(tableName, "account_payment_reference")
+	_submission.VendorName = field.NewString(tableName, "vendor_name")
+	_submission.VendorIban = field.NewString(tableName, "vendor_iban")
+	_submission.VendorBic = field.NewString(tableName, "vendor_bic")
+	_submission.VendorTiming = field.NewInt(tableName, "vendor_timing")
+	_submission.CompletionPaidDate = field.NewTime(tableName, "completion_paid_date")
+	_submission.CompletionPaymentReference = field.NewString(tableName, "completion_payment_reference")
+	_submission.DeletedAt = field.NewField(tableName, "deleted_at")
+	_submission.PurgeTime = field.NewTime(tableName, "purge_time")
+	_submission.CreatedAt = field.NewTime(tableName, "created_at")
+	_submission.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_submission.Organization = submissionBelongsToOrganization{
 		db: db.Session(&gorm.Session{}),
 
 		RelationField: field.NewRelation("Organization", "model.Organization"),
@@ -770,60 +795,128 @@ func newReport(db *gorm.DB, opts ...gen.DOOption) report {
 		},
 	}
 
-	_report.fillFieldMap()
+	_submission.Committee = submissionBelongsToCommittee{
+		db: db.Session(&gorm.Session{}),
 
-	return _report
+		RelationField: field.NewRelation("Committee", "model.Committee"),
+	}
+
+	_submission.CreatedBy = submissionBelongsToCreatedBy{
+		db: db.Session(&gorm.Session{}),
+
+		RelationField: field.NewRelation("CreatedBy", "model.User"),
+	}
+
+	_submission.fillFieldMap()
+
+	return _submission
 }
 
-type report struct {
-	reportDo reportDo
+type submission struct {
+	submissionDo submissionDo
 
-	ALL            field.Asterisk
-	ID             field.Field
-	CustomID       field.String
-	OrganizationID field.Field
-	DisplayName    field.String
-	Data           field.Bytes
-	CreatedAt      field.Time
-	Organization   reportBelongsToOrganization
+	ALL                        field.Asterisk
+	ID                         field.Field
+	CustomID                   field.String
+	PublicID                   field.String
+	OrganizationID             field.Field
+	CreatedByUserID            field.Field
+	CommitteeID                field.Field
+	Direction                  field.Int
+	Settlement                 field.Int
+	Scope                      field.Int
+	Status                     field.Int
+	Notice                     field.String
+	TotalAmount                field.Field
+	Etag                       field.String
+	PayoutMethod               field.Int
+	BankAccountHolder          field.String
+	BankIban                   field.String
+	BankBic                    field.String
+	PaymentAccountUID          field.Field
+	PaymentAccountLabel        field.String
+	AccountPaidDate            field.Time
+	AccountPaymentReference    field.String
+	VendorName                 field.String
+	VendorIban                 field.String
+	VendorBic                  field.String
+	VendorTiming               field.Int
+	CompletionPaidDate         field.Time
+	CompletionPaymentReference field.String
+	DeletedAt                  field.Field
+	PurgeTime                  field.Time
+	CreatedAt                  field.Time
+	UpdatedAt                  field.Time
+	Organization               submissionBelongsToOrganization
+
+	Committee submissionBelongsToCommittee
+
+	CreatedBy submissionBelongsToCreatedBy
 
 	fieldMap map[string]field.Expr
 }
 
-func (r report) Table(newTableName string) *report {
-	r.reportDo.UseTable(newTableName)
-	return r.updateTableName(newTableName)
+func (s submission) Table(newTableName string) *submission {
+	s.submissionDo.UseTable(newTableName)
+	return s.updateTableName(newTableName)
 }
 
-func (r report) As(alias string) *report {
-	r.reportDo.DO = *(r.reportDo.As(alias).(*gen.DO))
-	return r.updateTableName(alias)
+func (s submission) As(alias string) *submission {
+	s.submissionDo.DO = *(s.submissionDo.As(alias).(*gen.DO))
+	return s.updateTableName(alias)
 }
 
-func (r *report) updateTableName(table string) *report {
-	r.ALL = field.NewAsterisk(table)
-	r.ID = field.NewField(table, "id")
-	r.CustomID = field.NewString(table, "custom_id")
-	r.OrganizationID = field.NewField(table, "organization_id")
-	r.DisplayName = field.NewString(table, "display_name")
-	r.Data = field.NewBytes(table, "data")
-	r.CreatedAt = field.NewTime(table, "created_at")
+func (s *submission) updateTableName(table string) *submission {
+	s.ALL = field.NewAsterisk(table)
+	s.ID = field.NewField(table, "id")
+	s.CustomID = field.NewString(table, "custom_id")
+	s.PublicID = field.NewString(table, "public_id")
+	s.OrganizationID = field.NewField(table, "organization_id")
+	s.CreatedByUserID = field.NewField(table, "created_by_user_id")
+	s.CommitteeID = field.NewField(table, "committee_id")
+	s.Direction = field.NewInt(table, "direction")
+	s.Settlement = field.NewInt(table, "settlement")
+	s.Scope = field.NewInt(table, "scope")
+	s.Status = field.NewInt(table, "status")
+	s.Notice = field.NewString(table, "notice")
+	s.TotalAmount = field.NewField(table, "total_amount")
+	s.Etag = field.NewString(table, "etag")
+	s.PayoutMethod = field.NewInt(table, "payout_method")
+	s.BankAccountHolder = field.NewString(table, "bank_account_holder")
+	s.BankIban = field.NewString(table, "bank_iban")
+	s.BankBic = field.NewString(table, "bank_bic")
+	s.PaymentAccountUID = field.NewField(table, "payment_account_uid")
+	s.PaymentAccountLabel = field.NewString(table, "payment_account_label")
+	s.AccountPaidDate = field.NewTime(table, "account_paid_date")
+	s.AccountPaymentReference = field.NewString(table, "account_payment_reference")
+	s.VendorName = field.NewString(table, "vendor_name")
+	s.VendorIban = field.NewString(table, "vendor_iban")
+	s.VendorBic = field.NewString(table, "vendor_bic")
+	s.VendorTiming = field.NewInt(table, "vendor_timing")
+	s.CompletionPaidDate = field.NewTime(table, "completion_paid_date")
+	s.CompletionPaymentReference = field.NewString(table, "completion_payment_reference")
+	s.DeletedAt = field.NewField(table, "deleted_at")
+	s.PurgeTime = field.NewTime(table, "purge_time")
+	s.CreatedAt = field.NewTime(table, "created_at")
+	s.UpdatedAt = field.NewTime(table, "updated_at")
 
-	r.fillFieldMap()
+	s.fillFieldMap()
 
-	return r
+	return s
 }
 
-func (r *report) WithContext(ctx context.Context) IReportDo { return r.reportDo.WithContext(ctx) }
+func (s *submission) WithContext(ctx context.Context) ISubmissionDo {
+	return s.submissionDo.WithContext(ctx)
+}
 
-func (r report) TableName() string { return r.reportDo.TableName() }
+func (s submission) TableName() string { return s.submissionDo.TableName() }
 
-func (r report) Alias() string { return r.reportDo.Alias() }
+func (s submission) Alias() string { return s.submissionDo.Alias() }
 
-func (r report) Columns(cols ...field.Expr) gen.Columns { return r.reportDo.Columns(cols...) }
+func (s submission) Columns(cols ...field.Expr) gen.Columns { return s.submissionDo.Columns(cols...) }
 
-func (r *report) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
-	_f, ok := r.fieldMap[fieldName]
+func (s *submission) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
+	_f, ok := s.fieldMap[fieldName]
 	if !ok || _f == nil {
 		return nil, false
 	}
@@ -831,31 +924,62 @@ func (r *report) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 	return _oe, ok
 }
 
-func (r *report) fillFieldMap() {
-	r.fieldMap = make(map[string]field.Expr, 7)
-	r.fieldMap["id"] = r.ID
-	r.fieldMap["custom_id"] = r.CustomID
-	r.fieldMap["organization_id"] = r.OrganizationID
-	r.fieldMap["display_name"] = r.DisplayName
-	r.fieldMap["data"] = r.Data
-	r.fieldMap["created_at"] = r.CreatedAt
+func (s *submission) fillFieldMap() {
+	s.fieldMap = make(map[string]field.Expr, 34)
+	s.fieldMap["id"] = s.ID
+	s.fieldMap["custom_id"] = s.CustomID
+	s.fieldMap["public_id"] = s.PublicID
+	s.fieldMap["organization_id"] = s.OrganizationID
+	s.fieldMap["created_by_user_id"] = s.CreatedByUserID
+	s.fieldMap["committee_id"] = s.CommitteeID
+	s.fieldMap["direction"] = s.Direction
+	s.fieldMap["settlement"] = s.Settlement
+	s.fieldMap["scope"] = s.Scope
+	s.fieldMap["status"] = s.Status
+	s.fieldMap["notice"] = s.Notice
+	s.fieldMap["total_amount"] = s.TotalAmount
+	s.fieldMap["etag"] = s.Etag
+	s.fieldMap["payout_method"] = s.PayoutMethod
+	s.fieldMap["bank_account_holder"] = s.BankAccountHolder
+	s.fieldMap["bank_iban"] = s.BankIban
+	s.fieldMap["bank_bic"] = s.BankBic
+	s.fieldMap["payment_account_uid"] = s.PaymentAccountUID
+	s.fieldMap["payment_account_label"] = s.PaymentAccountLabel
+	s.fieldMap["account_paid_date"] = s.AccountPaidDate
+	s.fieldMap["account_payment_reference"] = s.AccountPaymentReference
+	s.fieldMap["vendor_name"] = s.VendorName
+	s.fieldMap["vendor_iban"] = s.VendorIban
+	s.fieldMap["vendor_bic"] = s.VendorBic
+	s.fieldMap["vendor_timing"] = s.VendorTiming
+	s.fieldMap["completion_paid_date"] = s.CompletionPaidDate
+	s.fieldMap["completion_payment_reference"] = s.CompletionPaymentReference
+	s.fieldMap["deleted_at"] = s.DeletedAt
+	s.fieldMap["purge_time"] = s.PurgeTime
+	s.fieldMap["created_at"] = s.CreatedAt
+	s.fieldMap["updated_at"] = s.UpdatedAt
 
 }
 
-func (r report) clone(db *gorm.DB) report {
-	r.reportDo.ReplaceConnPool(db.Statement.ConnPool)
-	r.Organization.db = db.Session(&gorm.Session{Initialized: true})
-	r.Organization.db.Statement.ConnPool = db.Statement.ConnPool
-	return r
+func (s submission) clone(db *gorm.DB) submission {
+	s.submissionDo.ReplaceConnPool(db.Statement.ConnPool)
+	s.Organization.db = db.Session(&gorm.Session{Initialized: true})
+	s.Organization.db.Statement.ConnPool = db.Statement.ConnPool
+	s.Committee.db = db.Session(&gorm.Session{Initialized: true})
+	s.Committee.db.Statement.ConnPool = db.Statement.ConnPool
+	s.CreatedBy.db = db.Session(&gorm.Session{Initialized: true})
+	s.CreatedBy.db.Statement.ConnPool = db.Statement.ConnPool
+	return s
 }
 
-func (r report) replaceDB(db *gorm.DB) report {
-	r.reportDo.ReplaceDB(db)
-	r.Organization.db = db.Session(&gorm.Session{})
-	return r
+func (s submission) replaceDB(db *gorm.DB) submission {
+	s.submissionDo.ReplaceDB(db)
+	s.Organization.db = db.Session(&gorm.Session{})
+	s.Committee.db = db.Session(&gorm.Session{})
+	s.CreatedBy.db = db.Session(&gorm.Session{})
+	return s
 }
 
-type reportBelongsToOrganization struct {
+type submissionBelongsToOrganization struct {
 	db *gorm.DB
 
 	field.RelationField
@@ -1054,7 +1178,7 @@ type reportBelongsToOrganization struct {
 	}
 }
 
-func (a reportBelongsToOrganization) Where(conds ...field.Expr) *reportBelongsToOrganization {
+func (a submissionBelongsToOrganization) Where(conds ...field.Expr) *submissionBelongsToOrganization {
 	if len(conds) == 0 {
 		return &a
 	}
@@ -1067,32 +1191,32 @@ func (a reportBelongsToOrganization) Where(conds ...field.Expr) *reportBelongsTo
 	return &a
 }
 
-func (a reportBelongsToOrganization) WithContext(ctx context.Context) *reportBelongsToOrganization {
+func (a submissionBelongsToOrganization) WithContext(ctx context.Context) *submissionBelongsToOrganization {
 	a.db = a.db.WithContext(ctx)
 	return &a
 }
 
-func (a reportBelongsToOrganization) Session(session *gorm.Session) *reportBelongsToOrganization {
+func (a submissionBelongsToOrganization) Session(session *gorm.Session) *submissionBelongsToOrganization {
 	a.db = a.db.Session(session)
 	return &a
 }
 
-func (a reportBelongsToOrganization) Model(m *model.Report) *reportBelongsToOrganizationTx {
-	return &reportBelongsToOrganizationTx{a.db.Model(m).Association(a.Name())}
+func (a submissionBelongsToOrganization) Model(m *model.Submission) *submissionBelongsToOrganizationTx {
+	return &submissionBelongsToOrganizationTx{a.db.Model(m).Association(a.Name())}
 }
 
-func (a reportBelongsToOrganization) Unscoped() *reportBelongsToOrganization {
+func (a submissionBelongsToOrganization) Unscoped() *submissionBelongsToOrganization {
 	a.db = a.db.Unscoped()
 	return &a
 }
 
-type reportBelongsToOrganizationTx struct{ tx *gorm.Association }
+type submissionBelongsToOrganizationTx struct{ tx *gorm.Association }
 
-func (a reportBelongsToOrganizationTx) Find() (result *model.Organization, err error) {
+func (a submissionBelongsToOrganizationTx) Find() (result *model.Organization, err error) {
 	return result, a.tx.Find(&result)
 }
 
-func (a reportBelongsToOrganizationTx) Append(values ...*model.Organization) (err error) {
+func (a submissionBelongsToOrganizationTx) Append(values ...*model.Organization) (err error) {
 	targetValues := make([]interface{}, len(values))
 	for i, v := range values {
 		targetValues[i] = v
@@ -1100,7 +1224,7 @@ func (a reportBelongsToOrganizationTx) Append(values ...*model.Organization) (er
 	return a.tx.Append(targetValues...)
 }
 
-func (a reportBelongsToOrganizationTx) Replace(values ...*model.Organization) (err error) {
+func (a submissionBelongsToOrganizationTx) Replace(values ...*model.Organization) (err error) {
 	targetValues := make([]interface{}, len(values))
 	for i, v := range values {
 		targetValues[i] = v
@@ -1108,7 +1232,7 @@ func (a reportBelongsToOrganizationTx) Replace(values ...*model.Organization) (e
 	return a.tx.Replace(targetValues...)
 }
 
-func (a reportBelongsToOrganizationTx) Delete(values ...*model.Organization) (err error) {
+func (a submissionBelongsToOrganizationTx) Delete(values ...*model.Organization) (err error) {
 	targetValues := make([]interface{}, len(values))
 	for i, v := range values {
 		targetValues[i] = v
@@ -1116,61 +1240,223 @@ func (a reportBelongsToOrganizationTx) Delete(values ...*model.Organization) (er
 	return a.tx.Delete(targetValues...)
 }
 
-func (a reportBelongsToOrganizationTx) Clear() error {
+func (a submissionBelongsToOrganizationTx) Clear() error {
 	return a.tx.Clear()
 }
 
-func (a reportBelongsToOrganizationTx) Count() int64 {
+func (a submissionBelongsToOrganizationTx) Count() int64 {
 	return a.tx.Count()
 }
 
-func (a reportBelongsToOrganizationTx) Unscoped() *reportBelongsToOrganizationTx {
+func (a submissionBelongsToOrganizationTx) Unscoped() *submissionBelongsToOrganizationTx {
 	a.tx = a.tx.Unscoped()
 	return &a
 }
 
-type reportDo struct{ gen.DO }
+type submissionBelongsToCommittee struct {
+	db *gorm.DB
 
-type IReportDo interface {
+	field.RelationField
+}
+
+func (a submissionBelongsToCommittee) Where(conds ...field.Expr) *submissionBelongsToCommittee {
+	if len(conds) == 0 {
+		return &a
+	}
+
+	exprs := make([]clause.Expression, 0, len(conds))
+	for _, cond := range conds {
+		exprs = append(exprs, cond.BeCond().(clause.Expression))
+	}
+	a.db = a.db.Clauses(clause.Where{Exprs: exprs})
+	return &a
+}
+
+func (a submissionBelongsToCommittee) WithContext(ctx context.Context) *submissionBelongsToCommittee {
+	a.db = a.db.WithContext(ctx)
+	return &a
+}
+
+func (a submissionBelongsToCommittee) Session(session *gorm.Session) *submissionBelongsToCommittee {
+	a.db = a.db.Session(session)
+	return &a
+}
+
+func (a submissionBelongsToCommittee) Model(m *model.Submission) *submissionBelongsToCommitteeTx {
+	return &submissionBelongsToCommitteeTx{a.db.Model(m).Association(a.Name())}
+}
+
+func (a submissionBelongsToCommittee) Unscoped() *submissionBelongsToCommittee {
+	a.db = a.db.Unscoped()
+	return &a
+}
+
+type submissionBelongsToCommitteeTx struct{ tx *gorm.Association }
+
+func (a submissionBelongsToCommitteeTx) Find() (result *model.Committee, err error) {
+	return result, a.tx.Find(&result)
+}
+
+func (a submissionBelongsToCommitteeTx) Append(values ...*model.Committee) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Append(targetValues...)
+}
+
+func (a submissionBelongsToCommitteeTx) Replace(values ...*model.Committee) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Replace(targetValues...)
+}
+
+func (a submissionBelongsToCommitteeTx) Delete(values ...*model.Committee) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Delete(targetValues...)
+}
+
+func (a submissionBelongsToCommitteeTx) Clear() error {
+	return a.tx.Clear()
+}
+
+func (a submissionBelongsToCommitteeTx) Count() int64 {
+	return a.tx.Count()
+}
+
+func (a submissionBelongsToCommitteeTx) Unscoped() *submissionBelongsToCommitteeTx {
+	a.tx = a.tx.Unscoped()
+	return &a
+}
+
+type submissionBelongsToCreatedBy struct {
+	db *gorm.DB
+
+	field.RelationField
+}
+
+func (a submissionBelongsToCreatedBy) Where(conds ...field.Expr) *submissionBelongsToCreatedBy {
+	if len(conds) == 0 {
+		return &a
+	}
+
+	exprs := make([]clause.Expression, 0, len(conds))
+	for _, cond := range conds {
+		exprs = append(exprs, cond.BeCond().(clause.Expression))
+	}
+	a.db = a.db.Clauses(clause.Where{Exprs: exprs})
+	return &a
+}
+
+func (a submissionBelongsToCreatedBy) WithContext(ctx context.Context) *submissionBelongsToCreatedBy {
+	a.db = a.db.WithContext(ctx)
+	return &a
+}
+
+func (a submissionBelongsToCreatedBy) Session(session *gorm.Session) *submissionBelongsToCreatedBy {
+	a.db = a.db.Session(session)
+	return &a
+}
+
+func (a submissionBelongsToCreatedBy) Model(m *model.Submission) *submissionBelongsToCreatedByTx {
+	return &submissionBelongsToCreatedByTx{a.db.Model(m).Association(a.Name())}
+}
+
+func (a submissionBelongsToCreatedBy) Unscoped() *submissionBelongsToCreatedBy {
+	a.db = a.db.Unscoped()
+	return &a
+}
+
+type submissionBelongsToCreatedByTx struct{ tx *gorm.Association }
+
+func (a submissionBelongsToCreatedByTx) Find() (result *model.User, err error) {
+	return result, a.tx.Find(&result)
+}
+
+func (a submissionBelongsToCreatedByTx) Append(values ...*model.User) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Append(targetValues...)
+}
+
+func (a submissionBelongsToCreatedByTx) Replace(values ...*model.User) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Replace(targetValues...)
+}
+
+func (a submissionBelongsToCreatedByTx) Delete(values ...*model.User) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Delete(targetValues...)
+}
+
+func (a submissionBelongsToCreatedByTx) Clear() error {
+	return a.tx.Clear()
+}
+
+func (a submissionBelongsToCreatedByTx) Count() int64 {
+	return a.tx.Count()
+}
+
+func (a submissionBelongsToCreatedByTx) Unscoped() *submissionBelongsToCreatedByTx {
+	a.tx = a.tx.Unscoped()
+	return &a
+}
+
+type submissionDo struct{ gen.DO }
+
+type ISubmissionDo interface {
 	gen.SubQuery
-	Debug() IReportDo
-	WithContext(ctx context.Context) IReportDo
+	Debug() ISubmissionDo
+	WithContext(ctx context.Context) ISubmissionDo
 	WithResult(fc func(tx gen.Dao)) gen.ResultInfo
 	ReplaceDB(db *gorm.DB)
-	ReadDB() IReportDo
-	WriteDB() IReportDo
+	ReadDB() ISubmissionDo
+	WriteDB() ISubmissionDo
 	As(alias string) gen.Dao
-	Session(config *gorm.Session) IReportDo
+	Session(config *gorm.Session) ISubmissionDo
 	Columns(cols ...field.Expr) gen.Columns
-	Clauses(conds ...clause.Expression) IReportDo
-	Not(conds ...gen.Condition) IReportDo
-	Or(conds ...gen.Condition) IReportDo
-	Select(conds ...field.Expr) IReportDo
-	Where(conds ...gen.Condition) IReportDo
-	Order(conds ...field.Expr) IReportDo
-	Distinct(cols ...field.Expr) IReportDo
-	Omit(cols ...field.Expr) IReportDo
-	Join(table schema.Tabler, on ...field.Expr) IReportDo
-	LeftJoin(table schema.Tabler, on ...field.Expr) IReportDo
-	RightJoin(table schema.Tabler, on ...field.Expr) IReportDo
-	Group(cols ...field.Expr) IReportDo
-	Having(conds ...gen.Condition) IReportDo
-	Limit(limit int) IReportDo
-	Offset(offset int) IReportDo
+	Clauses(conds ...clause.Expression) ISubmissionDo
+	Not(conds ...gen.Condition) ISubmissionDo
+	Or(conds ...gen.Condition) ISubmissionDo
+	Select(conds ...field.Expr) ISubmissionDo
+	Where(conds ...gen.Condition) ISubmissionDo
+	Order(conds ...field.Expr) ISubmissionDo
+	Distinct(cols ...field.Expr) ISubmissionDo
+	Omit(cols ...field.Expr) ISubmissionDo
+	Join(table schema.Tabler, on ...field.Expr) ISubmissionDo
+	LeftJoin(table schema.Tabler, on ...field.Expr) ISubmissionDo
+	RightJoin(table schema.Tabler, on ...field.Expr) ISubmissionDo
+	Group(cols ...field.Expr) ISubmissionDo
+	Having(conds ...gen.Condition) ISubmissionDo
+	Limit(limit int) ISubmissionDo
+	Offset(offset int) ISubmissionDo
 	Count() (count int64, err error)
-	Scopes(funcs ...func(gen.Dao) gen.Dao) IReportDo
-	Unscoped() IReportDo
-	Create(values ...*model.Report) error
-	CreateInBatches(values []*model.Report, batchSize int) error
-	Save(values ...*model.Report) error
-	First() (*model.Report, error)
-	Take() (*model.Report, error)
-	Last() (*model.Report, error)
-	Find() ([]*model.Report, error)
-	FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.Report, err error)
-	FindInBatches(result *[]*model.Report, batchSize int, fc func(tx gen.Dao, batch int) error) error
+	Scopes(funcs ...func(gen.Dao) gen.Dao) ISubmissionDo
+	Unscoped() ISubmissionDo
+	Create(values ...*model.Submission) error
+	CreateInBatches(values []*model.Submission, batchSize int) error
+	Save(values ...*model.Submission) error
+	First() (*model.Submission, error)
+	Take() (*model.Submission, error)
+	Last() (*model.Submission, error)
+	Find() ([]*model.Submission, error)
+	FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.Submission, err error)
+	FindInBatches(result *[]*model.Submission, batchSize int, fc func(tx gen.Dao, batch int) error) error
 	Pluck(column field.Expr, dest interface{}) error
-	Delete(...*model.Report) (info gen.ResultInfo, err error)
+	Delete(...*model.Submission) (info gen.ResultInfo, err error)
 	Update(column field.Expr, value interface{}) (info gen.ResultInfo, err error)
 	UpdateSimple(columns ...field.AssignExpr) (info gen.ResultInfo, err error)
 	Updates(value interface{}) (info gen.ResultInfo, err error)
@@ -1178,216 +1464,216 @@ type IReportDo interface {
 	UpdateColumnSimple(columns ...field.AssignExpr) (info gen.ResultInfo, err error)
 	UpdateColumns(value interface{}) (info gen.ResultInfo, err error)
 	UpdateFrom(q gen.SubQuery) gen.Dao
-	Attrs(attrs ...field.AssignExpr) IReportDo
-	Assign(attrs ...field.AssignExpr) IReportDo
-	Joins(fields ...field.RelationField) IReportDo
-	Preload(fields ...field.RelationField) IReportDo
-	FirstOrInit() (*model.Report, error)
-	FirstOrCreate() (*model.Report, error)
-	FindByPage(offset int, limit int) (result []*model.Report, count int64, err error)
+	Attrs(attrs ...field.AssignExpr) ISubmissionDo
+	Assign(attrs ...field.AssignExpr) ISubmissionDo
+	Joins(fields ...field.RelationField) ISubmissionDo
+	Preload(fields ...field.RelationField) ISubmissionDo
+	FirstOrInit() (*model.Submission, error)
+	FirstOrCreate() (*model.Submission, error)
+	FindByPage(offset int, limit int) (result []*model.Submission, count int64, err error)
 	ScanByPage(result interface{}, offset int, limit int) (count int64, err error)
 	Rows() (*sql.Rows, error)
 	Row() *sql.Row
 	Scan(result interface{}) (err error)
-	Returning(value interface{}, columns ...string) IReportDo
+	Returning(value interface{}, columns ...string) ISubmissionDo
 	UnderlyingDB() *gorm.DB
 	schema.Tabler
 }
 
-func (r reportDo) Debug() IReportDo {
-	return r.withDO(r.DO.Debug())
+func (s submissionDo) Debug() ISubmissionDo {
+	return s.withDO(s.DO.Debug())
 }
 
-func (r reportDo) WithContext(ctx context.Context) IReportDo {
-	return r.withDO(r.DO.WithContext(ctx))
+func (s submissionDo) WithContext(ctx context.Context) ISubmissionDo {
+	return s.withDO(s.DO.WithContext(ctx))
 }
 
-func (r reportDo) ReadDB() IReportDo {
-	return r.Clauses(dbresolver.Read)
+func (s submissionDo) ReadDB() ISubmissionDo {
+	return s.Clauses(dbresolver.Read)
 }
 
-func (r reportDo) WriteDB() IReportDo {
-	return r.Clauses(dbresolver.Write)
+func (s submissionDo) WriteDB() ISubmissionDo {
+	return s.Clauses(dbresolver.Write)
 }
 
-func (r reportDo) Session(config *gorm.Session) IReportDo {
-	return r.withDO(r.DO.Session(config))
+func (s submissionDo) Session(config *gorm.Session) ISubmissionDo {
+	return s.withDO(s.DO.Session(config))
 }
 
-func (r reportDo) Clauses(conds ...clause.Expression) IReportDo {
-	return r.withDO(r.DO.Clauses(conds...))
+func (s submissionDo) Clauses(conds ...clause.Expression) ISubmissionDo {
+	return s.withDO(s.DO.Clauses(conds...))
 }
 
-func (r reportDo) Returning(value interface{}, columns ...string) IReportDo {
-	return r.withDO(r.DO.Returning(value, columns...))
+func (s submissionDo) Returning(value interface{}, columns ...string) ISubmissionDo {
+	return s.withDO(s.DO.Returning(value, columns...))
 }
 
-func (r reportDo) Not(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Not(conds...))
+func (s submissionDo) Not(conds ...gen.Condition) ISubmissionDo {
+	return s.withDO(s.DO.Not(conds...))
 }
 
-func (r reportDo) Or(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Or(conds...))
+func (s submissionDo) Or(conds ...gen.Condition) ISubmissionDo {
+	return s.withDO(s.DO.Or(conds...))
 }
 
-func (r reportDo) Select(conds ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Select(conds...))
+func (s submissionDo) Select(conds ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.Select(conds...))
 }
 
-func (r reportDo) Where(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Where(conds...))
+func (s submissionDo) Where(conds ...gen.Condition) ISubmissionDo {
+	return s.withDO(s.DO.Where(conds...))
 }
 
-func (r reportDo) Order(conds ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Order(conds...))
+func (s submissionDo) Order(conds ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.Order(conds...))
 }
 
-func (r reportDo) Distinct(cols ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Distinct(cols...))
+func (s submissionDo) Distinct(cols ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.Distinct(cols...))
 }
 
-func (r reportDo) Omit(cols ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Omit(cols...))
+func (s submissionDo) Omit(cols ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.Omit(cols...))
 }
 
-func (r reportDo) Join(table schema.Tabler, on ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Join(table, on...))
+func (s submissionDo) Join(table schema.Tabler, on ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.Join(table, on...))
 }
 
-func (r reportDo) LeftJoin(table schema.Tabler, on ...field.Expr) IReportDo {
-	return r.withDO(r.DO.LeftJoin(table, on...))
+func (s submissionDo) LeftJoin(table schema.Tabler, on ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.LeftJoin(table, on...))
 }
 
-func (r reportDo) RightJoin(table schema.Tabler, on ...field.Expr) IReportDo {
-	return r.withDO(r.DO.RightJoin(table, on...))
+func (s submissionDo) RightJoin(table schema.Tabler, on ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.RightJoin(table, on...))
 }
 
-func (r reportDo) Group(cols ...field.Expr) IReportDo {
-	return r.withDO(r.DO.Group(cols...))
+func (s submissionDo) Group(cols ...field.Expr) ISubmissionDo {
+	return s.withDO(s.DO.Group(cols...))
 }
 
-func (r reportDo) Having(conds ...gen.Condition) IReportDo {
-	return r.withDO(r.DO.Having(conds...))
+func (s submissionDo) Having(conds ...gen.Condition) ISubmissionDo {
+	return s.withDO(s.DO.Having(conds...))
 }
 
-func (r reportDo) Limit(limit int) IReportDo {
-	return r.withDO(r.DO.Limit(limit))
+func (s submissionDo) Limit(limit int) ISubmissionDo {
+	return s.withDO(s.DO.Limit(limit))
 }
 
-func (r reportDo) Offset(offset int) IReportDo {
-	return r.withDO(r.DO.Offset(offset))
+func (s submissionDo) Offset(offset int) ISubmissionDo {
+	return s.withDO(s.DO.Offset(offset))
 }
 
-func (r reportDo) Scopes(funcs ...func(gen.Dao) gen.Dao) IReportDo {
-	return r.withDO(r.DO.Scopes(funcs...))
+func (s submissionDo) Scopes(funcs ...func(gen.Dao) gen.Dao) ISubmissionDo {
+	return s.withDO(s.DO.Scopes(funcs...))
 }
 
-func (r reportDo) Unscoped() IReportDo {
-	return r.withDO(r.DO.Unscoped())
+func (s submissionDo) Unscoped() ISubmissionDo {
+	return s.withDO(s.DO.Unscoped())
 }
 
-func (r reportDo) Create(values ...*model.Report) error {
+func (s submissionDo) Create(values ...*model.Submission) error {
 	if len(values) == 0 {
 		return nil
 	}
-	return r.DO.Create(values)
+	return s.DO.Create(values)
 }
 
-func (r reportDo) CreateInBatches(values []*model.Report, batchSize int) error {
-	return r.DO.CreateInBatches(values, batchSize)
+func (s submissionDo) CreateInBatches(values []*model.Submission, batchSize int) error {
+	return s.DO.CreateInBatches(values, batchSize)
 }
 
 // Save : !!! underlying implementation is different with GORM
 // The method is equivalent to executing the statement: db.Clauses(clause.OnConflict{UpdateAll: true}).Create(values)
-func (r reportDo) Save(values ...*model.Report) error {
+func (s submissionDo) Save(values ...*model.Submission) error {
 	if len(values) == 0 {
 		return nil
 	}
-	return r.DO.Save(values)
+	return s.DO.Save(values)
 }
 
-func (r reportDo) First() (*model.Report, error) {
-	if result, err := r.DO.First(); err != nil {
+func (s submissionDo) First() (*model.Submission, error) {
+	if result, err := s.DO.First(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.Submission), nil
 	}
 }
 
-func (r reportDo) Take() (*model.Report, error) {
-	if result, err := r.DO.Take(); err != nil {
+func (s submissionDo) Take() (*model.Submission, error) {
+	if result, err := s.DO.Take(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.Submission), nil
 	}
 }
 
-func (r reportDo) Last() (*model.Report, error) {
-	if result, err := r.DO.Last(); err != nil {
+func (s submissionDo) Last() (*model.Submission, error) {
+	if result, err := s.DO.Last(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.Submission), nil
 	}
 }
 
-func (r reportDo) Find() ([]*model.Report, error) {
-	result, err := r.DO.Find()
-	return result.([]*model.Report), err
+func (s submissionDo) Find() ([]*model.Submission, error) {
+	result, err := s.DO.Find()
+	return result.([]*model.Submission), err
 }
 
-func (r reportDo) FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.Report, err error) {
-	buf := make([]*model.Report, 0, batchSize)
-	err = r.DO.FindInBatches(&buf, batchSize, func(tx gen.Dao, batch int) error {
+func (s submissionDo) FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.Submission, err error) {
+	buf := make([]*model.Submission, 0, batchSize)
+	err = s.DO.FindInBatches(&buf, batchSize, func(tx gen.Dao, batch int) error {
 		defer func() { results = append(results, buf...) }()
 		return fc(tx, batch)
 	})
 	return results, err
 }
 
-func (r reportDo) FindInBatches(result *[]*model.Report, batchSize int, fc func(tx gen.Dao, batch int) error) error {
-	return r.DO.FindInBatches(result, batchSize, fc)
+func (s submissionDo) FindInBatches(result *[]*model.Submission, batchSize int, fc func(tx gen.Dao, batch int) error) error {
+	return s.DO.FindInBatches(result, batchSize, fc)
 }
 
-func (r reportDo) Attrs(attrs ...field.AssignExpr) IReportDo {
-	return r.withDO(r.DO.Attrs(attrs...))
+func (s submissionDo) Attrs(attrs ...field.AssignExpr) ISubmissionDo {
+	return s.withDO(s.DO.Attrs(attrs...))
 }
 
-func (r reportDo) Assign(attrs ...field.AssignExpr) IReportDo {
-	return r.withDO(r.DO.Assign(attrs...))
+func (s submissionDo) Assign(attrs ...field.AssignExpr) ISubmissionDo {
+	return s.withDO(s.DO.Assign(attrs...))
 }
 
-func (r reportDo) Joins(fields ...field.RelationField) IReportDo {
+func (s submissionDo) Joins(fields ...field.RelationField) ISubmissionDo {
 	for _, _f := range fields {
-		r = *r.withDO(r.DO.Joins(_f))
+		s = *s.withDO(s.DO.Joins(_f))
 	}
-	return &r
+	return &s
 }
 
-func (r reportDo) Preload(fields ...field.RelationField) IReportDo {
+func (s submissionDo) Preload(fields ...field.RelationField) ISubmissionDo {
 	for _, _f := range fields {
-		r = *r.withDO(r.DO.Preload(_f))
+		s = *s.withDO(s.DO.Preload(_f))
 	}
-	return &r
+	return &s
 }
 
-func (r reportDo) FirstOrInit() (*model.Report, error) {
-	if result, err := r.DO.FirstOrInit(); err != nil {
+func (s submissionDo) FirstOrInit() (*model.Submission, error) {
+	if result, err := s.DO.FirstOrInit(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.Submission), nil
 	}
 }
 
-func (r reportDo) FirstOrCreate() (*model.Report, error) {
-	if result, err := r.DO.FirstOrCreate(); err != nil {
+func (s submissionDo) FirstOrCreate() (*model.Submission, error) {
+	if result, err := s.DO.FirstOrCreate(); err != nil {
 		return nil, err
 	} else {
-		return result.(*model.Report), nil
+		return result.(*model.Submission), nil
 	}
 }
 
-func (r reportDo) FindByPage(offset int, limit int) (result []*model.Report, count int64, err error) {
-	result, err = r.Offset(offset).Limit(limit).Find()
+func (s submissionDo) FindByPage(offset int, limit int) (result []*model.Submission, count int64, err error) {
+	result, err = s.Offset(offset).Limit(limit).Find()
 	if err != nil {
 		return
 	}
@@ -1397,29 +1683,29 @@ func (r reportDo) FindByPage(offset int, limit int) (result []*model.Report, cou
 		return
 	}
 
-	count, err = r.Offset(-1).Limit(-1).Count()
+	count, err = s.Offset(-1).Limit(-1).Count()
 	return
 }
 
-func (r reportDo) ScanByPage(result interface{}, offset int, limit int) (count int64, err error) {
-	count, err = r.Count()
+func (s submissionDo) ScanByPage(result interface{}, offset int, limit int) (count int64, err error) {
+	count, err = s.Count()
 	if err != nil {
 		return
 	}
 
-	err = r.Offset(offset).Limit(limit).Scan(result)
+	err = s.Offset(offset).Limit(limit).Scan(result)
 	return
 }
 
-func (r reportDo) Scan(result interface{}) (err error) {
-	return r.DO.Scan(result)
+func (s submissionDo) Scan(result interface{}) (err error) {
+	return s.DO.Scan(result)
 }
 
-func (r reportDo) Delete(models ...*model.Report) (result gen.ResultInfo, err error) {
-	return r.DO.Delete(models)
+func (s submissionDo) Delete(models ...*model.Submission) (result gen.ResultInfo, err error) {
+	return s.DO.Delete(models)
 }
 
-func (r *reportDo) withDO(do gen.Dao) *reportDo {
-	r.DO = *do.(*gen.DO)
-	return r
+func (s *submissionDo) withDO(do gen.Dao) *submissionDo {
+	s.DO = *do.(*gen.DO)
+	return s
 }

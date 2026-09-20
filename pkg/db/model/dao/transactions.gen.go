@@ -46,6 +46,12 @@ func newTransaction_(db *gorm.DB, opts ...gen.DOOption) transaction_ {
 		RelationField: field.NewRelation("TransactionAssignments", "model.TransactionAssignment"),
 		Organization: struct {
 			field.RelationField
+			SubmissionSettings struct {
+				field.RelationField
+				Organization struct {
+					field.RelationField
+				}
+			}
 			AccountGroupAssignments struct {
 				field.RelationField
 				Organization struct {
@@ -190,8 +196,54 @@ func newTransaction_(db *gorm.DB, opts ...gen.DOOption) transaction_ {
 			TransactionAssignments struct {
 				field.RelationField
 			}
+			Committees struct {
+				field.RelationField
+				Organization struct {
+					field.RelationField
+				}
+				PaymentAccounts struct {
+					field.RelationField
+					Committee struct {
+						field.RelationField
+					}
+				}
+				Submissions struct {
+					field.RelationField
+					Organization struct {
+						field.RelationField
+					}
+					Committee struct {
+						field.RelationField
+					}
+					CreatedBy struct {
+						field.RelationField
+						UserIdentities struct {
+							field.RelationField
+							User struct {
+								field.RelationField
+							}
+						}
+					}
+				}
+			}
+			Submissions struct {
+				field.RelationField
+			}
 		}{
 			RelationField: field.NewRelation("TransactionAssignments.Organization", "model.Organization"),
+			SubmissionSettings: struct {
+				field.RelationField
+				Organization struct {
+					field.RelationField
+				}
+			}{
+				RelationField: field.NewRelation("TransactionAssignments.Organization.SubmissionSettings", "model.OrganizationSubmissionSettings"),
+				Organization: struct {
+					field.RelationField
+				}{
+					RelationField: field.NewRelation("TransactionAssignments.Organization.SubmissionSettings.Organization", "model.Organization"),
+				},
+			},
 			AccountGroupAssignments: struct {
 				field.RelationField
 				Organization struct {
@@ -699,6 +751,115 @@ func newTransaction_(db *gorm.DB, opts ...gen.DOOption) transaction_ {
 			}{
 				RelationField: field.NewRelation("TransactionAssignments.Organization.TransactionAssignments", "model.TransactionAssignment"),
 			},
+			Committees: struct {
+				field.RelationField
+				Organization struct {
+					field.RelationField
+				}
+				PaymentAccounts struct {
+					field.RelationField
+					Committee struct {
+						field.RelationField
+					}
+				}
+				Submissions struct {
+					field.RelationField
+					Organization struct {
+						field.RelationField
+					}
+					Committee struct {
+						field.RelationField
+					}
+					CreatedBy struct {
+						field.RelationField
+						UserIdentities struct {
+							field.RelationField
+							User struct {
+								field.RelationField
+							}
+						}
+					}
+				}
+			}{
+				RelationField: field.NewRelation("TransactionAssignments.Organization.Committees", "model.Committee"),
+				Organization: struct {
+					field.RelationField
+				}{
+					RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Organization", "model.Organization"),
+				},
+				PaymentAccounts: struct {
+					field.RelationField
+					Committee struct {
+						field.RelationField
+					}
+				}{
+					RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.PaymentAccounts", "model.CommitteePaymentAccount"),
+					Committee: struct {
+						field.RelationField
+					}{
+						RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.PaymentAccounts.Committee", "model.Committee"),
+					},
+				},
+				Submissions: struct {
+					field.RelationField
+					Organization struct {
+						field.RelationField
+					}
+					Committee struct {
+						field.RelationField
+					}
+					CreatedBy struct {
+						field.RelationField
+						UserIdentities struct {
+							field.RelationField
+							User struct {
+								field.RelationField
+							}
+						}
+					}
+				}{
+					RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Submissions", "model.Submission"),
+					Organization: struct {
+						field.RelationField
+					}{
+						RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Submissions.Organization", "model.Organization"),
+					},
+					Committee: struct {
+						field.RelationField
+					}{
+						RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Submissions.Committee", "model.Committee"),
+					},
+					CreatedBy: struct {
+						field.RelationField
+						UserIdentities struct {
+							field.RelationField
+							User struct {
+								field.RelationField
+							}
+						}
+					}{
+						RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Submissions.CreatedBy", "model.User"),
+						UserIdentities: struct {
+							field.RelationField
+							User struct {
+								field.RelationField
+							}
+						}{
+							RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Submissions.CreatedBy.UserIdentities", "model.UserIdentity"),
+							User: struct {
+								field.RelationField
+							}{
+								RelationField: field.NewRelation("TransactionAssignments.Organization.Committees.Submissions.CreatedBy.UserIdentities.User", "model.User"),
+							},
+						},
+					},
+				},
+			},
+			Submissions: struct {
+				field.RelationField
+			}{
+				RelationField: field.NewRelation("TransactionAssignments.Organization.Submissions", "model.Submission"),
+			},
 		},
 		Transaction: struct {
 			field.RelationField
@@ -862,6 +1023,12 @@ type transaction_HasManyTransactionAssignments struct {
 
 	Organization struct {
 		field.RelationField
+		SubmissionSettings struct {
+			field.RelationField
+			Organization struct {
+				field.RelationField
+			}
+		}
 		AccountGroupAssignments struct {
 			field.RelationField
 			Organization struct {
@@ -1004,6 +1171,39 @@ type transaction_HasManyTransactionAssignments struct {
 			field.RelationField
 		}
 		TransactionAssignments struct {
+			field.RelationField
+		}
+		Committees struct {
+			field.RelationField
+			Organization struct {
+				field.RelationField
+			}
+			PaymentAccounts struct {
+				field.RelationField
+				Committee struct {
+					field.RelationField
+				}
+			}
+			Submissions struct {
+				field.RelationField
+				Organization struct {
+					field.RelationField
+				}
+				Committee struct {
+					field.RelationField
+				}
+				CreatedBy struct {
+					field.RelationField
+					UserIdentities struct {
+						field.RelationField
+						User struct {
+							field.RelationField
+						}
+					}
+				}
+			}
+		}
+		Submissions struct {
 			field.RelationField
 		}
 	}
