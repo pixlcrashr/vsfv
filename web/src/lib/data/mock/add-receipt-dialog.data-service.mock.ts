@@ -5,30 +5,29 @@ import {
   AddReceiptDialogDataService,
   AddReceiptParams,
 } from '../../../app/shared/dialogs/add-receipt-dialog/add-receipt-dialog.data-service';
-import { InvoiceItem } from '../../../app/shared/models';
+import { SubmissionItem } from '../../../app/shared/models';
 
 @Injectable()
 export class MockAddReceiptDialogDataService extends AddReceiptDialogDataService {
   private receiptCounter = 1;
   private invoiceCounter = 1;
 
-  uploadReceipt(organizationId: string, params: AddReceiptParams): Observable<InvoiceItem> {
+  uploadReceipt(organizationId: string, params: AddReceiptParams): Observable<SubmissionItem> {
     const year = new Date().getFullYear();
-    const isReceipt = params.type === 'receipt';
-    const counter = isReceipt ? this.receiptCounter++ : this.invoiceCounter++;
-    const prefix = isReceipt ? 'R' : 'I';
-
-    const invoiceItem: InvoiceItem = {
+        
+    const invoiceItem: SubmissionItem = {
       id: faker.string.uuid(),
-      publicId: `${prefix}-${year}/${counter.toString().padStart(2, '0')}`,
-      reimbursementId: faker.string.uuid(),
-      type: params.type,
+      publicId: `${year}/99/1`,
+      submissionId: faker.string.uuid(),
+      category: params.category,
+      documentForm: 'digital_original' as const,
+      source: null,
       description: params.description,
       amount: params.amount,
       attachments: [
         {
           id: faker.string.uuid(),
-          invoiceItemId: faker.string.uuid(),
+          submissionItemId: faker.string.uuid(),
           fileName: params.file.name,
           mimeType: params.file.type,
           fileSize: params.file.size,

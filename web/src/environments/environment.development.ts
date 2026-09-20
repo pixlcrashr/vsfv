@@ -6,9 +6,9 @@ import { MockAccountEditDataService } from '../lib/data/mock/account-edit.data-s
 import { MockAccountCompareDataService } from '../lib/data/mock/account-compare.data-service.mock';
 import { MockBudgetListDataService } from '../lib/data/mock/budget-list.data-service.mock';
 import { MockBudgetEditDataService } from '../lib/data/mock/budget-edit.data-service.mock';
-import { MockReimbursementListDataService } from '../lib/data/mock/reimbursement-list.data-service.mock';
-import { MockReimbursementEditDataService } from '../lib/data/mock/reimbursement-edit.data-service.mock';
-import { MockReimbursementNewDataService } from '../lib/data/mock/reimbursement-new.data-service.mock';
+import { MockSubmissionListDataService } from '../lib/data/mock/submission-list.data-service.mock';
+import { MockSubmissionEditDataService } from '../lib/data/mock/submission-edit.data-service.mock';
+import { MockSubmissionNewDataService } from '../lib/data/mock/submission-new.data-service.mock';
 import { MockReportTemplateListDataService } from '../lib/data/mock/report-template-list.data-service.mock';
 import { MockReportTemplateEditDataService } from '../lib/data/mock/report-template-edit.data-service.mock';
 import { MockReportTemplateNewDataService } from '../lib/data/mock/report-template-new.data-service.mock';
@@ -63,9 +63,9 @@ export const environment = {
     accountCompare: MockAccountCompareDataService,
     budgetList: MockBudgetListDataService,
     budgetEdit: MockBudgetEditDataService,
-    reimbursementList: MockReimbursementListDataService,
-    reimbursementEdit: MockReimbursementEditDataService,
-    reimbursementNew: MockReimbursementNewDataService,
+    submissionList: MockSubmissionListDataService,
+    submissionEdit: MockSubmissionEditDataService,
+    submissionNew: MockSubmissionNewDataService,
     reportTemplateList: MockReportTemplateListDataService,
     reportTemplateEdit: MockReportTemplateEditDataService,
     reportTemplateNew: MockReportTemplateNewDataService,

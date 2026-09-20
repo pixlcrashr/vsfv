@@ -89,11 +89,11 @@ export const routes: Routes = [
           import('./routes/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
       },
       {
-        path: 'organizations/:orgId/reimbursements',
+        path: 'organizations/:orgId/submissions',
         runGuardsAndResolvers: 'paramsOrQueryParamsChange',
         loadChildren: () =>
-          import('./routes/reimbursements/reimbursements.routes').then(
-            (m) => m.REIMBURSEMENTS_ROUTES,
+          import('./routes/submissions/submissions.routes').then(
+            (m) => m.SUBMISSIONS_ROUTES,
           ),
       },
       {

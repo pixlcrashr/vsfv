@@ -6,10 +6,12 @@ import { HttpAccountEditDataService } from '../lib/data/http/account-edit.data-s
 import { HttpAccountCompareDataService } from '../lib/data/http/account-compare.data-service.http';
 import { HttpBudgetListDataService } from '../lib/data/http/budget-list.data-service.http';
 import { HttpBudgetEditDataService } from '../lib/data/http/budget-edit.data-service.http';
-// Applications and Reimbursements - using mock services until HTTP implementations exist
-import { MockReimbursementListDataService } from '../lib/data/mock/reimbursement-list.data-service.mock';
-import { MockReimbursementEditDataService } from '../lib/data/mock/reimbursement-edit.data-service.mock';
-import { MockReimbursementNewDataService } from '../lib/data/mock/reimbursement-new.data-service.mock';
+import { MockSubmissionListDataService } from '../lib/data/mock/submission-list.data-service.mock';
+import { MockSubmissionEditDataService } from '../lib/data/mock/submission-edit.data-service.mock';
+import { MockSubmissionNewDataService } from '../lib/data/mock/submission-new.data-service.mock';
+import { HttpSubmissionListDataService } from '../lib/data/http/submission-list.data-service.http';
+import { HttpSubmissionEditDataService } from '../lib/data/http/submission-edit.data-service.http';
+import { HttpSubmissionNewDataService } from '../lib/data/http/submission-new.data-service.http';
 import { HttpReportTemplateListDataService } from '../lib/data/http/report-template-list.data-service.http';
 import { HttpReportTemplateEditDataService } from '../lib/data/http/report-template-edit.data-service.http';
 import { HttpReportTemplateNewDataService } from '../lib/data/http/report-template-new.data-service.http';
@@ -66,9 +68,9 @@ export const environment = {
     accountCompare: HttpAccountCompareDataService,
     budgetList: HttpBudgetListDataService,
     budgetEdit: HttpBudgetEditDataService,
-    reimbursementList: MockReimbursementListDataService,
-    reimbursementEdit: MockReimbursementEditDataService,
-    reimbursementNew: MockReimbursementNewDataService,
+    submissionList: HttpSubmissionListDataService,
+    submissionEdit: HttpSubmissionEditDataService,
+    submissionNew: HttpSubmissionNewDataService,
     reportTemplateList: HttpReportTemplateListDataService,
     reportTemplateEdit: HttpReportTemplateEditDataService,
     reportTemplateNew: HttpReportTemplateNewDataService,

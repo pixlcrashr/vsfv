@@ -69,14 +69,14 @@ export const Permissions = {
   ORGANIZATIONS_CREATE: 'organizations:create',
   ORGANIZATIONS_DELETE: 'organizations:delete',
 
-  REIMBURSEMENTS_READ: 'reimbursements:read',
-  REIMBURSEMENTS_CREATE: 'reimbursements:create',
-  REIMBURSEMENTS_COMMENT: 'reimbursements:comment',
-  REIMBURSEMENTS_UPDATE: 'reimbursements:update',
-  REIMBURSEMENTS_ARCHIVE: 'reimbursements:archive',
-  REIMBURSEMENTS_READ_OWN: 'reimbursements:read_own',
-  REIMBURSEMENTS_COMMENT_OWN: 'reimbursements:comment_own',
-  REIMBURSEMENTS_UPDATE_OWN: 'reimbursements:update_own',
+  SUBMISSIONS_READ: 'submissions:read',
+  SUBMISSIONS_CREATE: 'submissions:create',
+  SUBMISSIONS_COMMENT: 'submissions:comment',
+  SUBMISSIONS_UPDATE: 'submissions:update',
+  SUBMISSIONS_ARCHIVE: 'submissions:archive',
+  SUBMISSIONS_READ_OWN: 'submissions:read_own',
+  SUBMISSIONS_COMMENT_OWN: 'submissions:comment_own',
+  SUBMISSIONS_UPDATE_OWN: 'submissions:update_own',
 
   AUDIT_LOGS_READ: 'auditLogs:read',
 } as const;

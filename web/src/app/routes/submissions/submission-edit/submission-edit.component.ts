@@ -17,24 +17,24 @@ import {
   NotificationService,
 } from '../../../shared/components';
 import {
-  Reimbursement,
-  ReimbursementComment,
-  ReimbursementAuditEntry,
-  ReimbursementStatus,
-  getReimbursementStatusLabel,
-  getReimbursementStatusVariant,
-  getPaymentMethodLabel,
-  getInvoiceItemTypeLabel,
+  Submission,
+  SubmissionComment,
+  SubmissionAuditEntry,
+  SubmissionStatus,
+  getSubmissionStatusLabel,
+  getSubmissionStatusVariant,
+  getSettlementLabel,
+  getPaymentRequestTimingLabel,
   formatCurrency,
 } from '../../../shared/models';
-import { ReimbursementEditDataService } from './reimbursement-edit.data-service';
+import { SubmissionEditDataService } from './submission-edit.data-service';
 
 type ActivityItem =
-  | { type: 'comment'; data: ReimbursementComment; timestamp: Date }
-  | { type: 'audit'; data: ReimbursementAuditEntry; timestamp: Date };
+  | { type: 'comment'; data: SubmissionComment; timestamp: Date }
+  | { type: 'audit'; data: SubmissionAuditEntry; timestamp: Date };
 
 @Component({
-  selector: 'app-reimbursement-edit',
+  selector: 'app-submission-edit',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
@@ -58,7 +58,7 @@ type ActivityItem =
           <div class="flex flex-1 justify-center">
             <app-loading-spinner [fullPage]="true" i18n-text text="Kostenerstattung wird geladen..." />
           </div>
-        } @else if (reimbursement()) {
+        } @else if (submission()) {
           <div class="w-full max-w-4xl mx-auto space-y-4">
             <!-- Main Content -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -67,7 +67,7 @@ type ActivityItem =
                 <!-- Notice -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
                   <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2" i18n>Anmerkung</h2>
-                  <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ reimbursement()?.notice ?? "-" }}</p>
+                  <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ submission()?.notice ?? "-" }}</p>
                 </div>
 
                 <!-- Invoice Items -->
@@ -76,23 +76,23 @@ type ActivityItem =
                     <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100" i18n>Belege</h2>
                   </div>
 
-                  @if (reimbursement()!.invoiceItems.length === 0) {
+                  @if (submission()!.items.length === 0) {
                     <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4" i18n>Keine Belege vorhanden.</p>
                   } @else {
                     <div class="space-y-4">
-                      @for (item of reimbursement()!.invoiceItems; track item.id) {
+                      @for (item of submission()!.items; track item.id) {
                         <div class="rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-700/40">
                           <div class="flex items-start justify-between mb-3">
                             <div>
                               <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ item.publicId }}</span>
                                 <span
-                                  [class]="item.type === 'receipt' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'"
+                                  [class]="'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'"
                                   class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
                                 >
-                                  {{ getItemTypeLabel(item.type) }}
+                                  {{ item.category }}
                                 </span>
-                                @if (item.type === 'receipt') {
+                                @if (item.documentForm === 'paper_original') {
                                   @if (item.originalReceived) {
                                     <span class="text-xs text-green-600 dark:text-green-400" i18n>Original erhalten</span>
                                   } @else {
@@ -112,7 +112,7 @@ type ActivityItem =
                           </div>
 
                           <!-- Receipt Warning -->
-                          @if (item.type === 'receipt' && !item.originalReceived) {
+                          @if (!item.originalReceived) {
                             <div class="bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-md p-3 mb-3">
                               <p class="text-xs text-orange-800 dark:text-orange-300" i18n>
                                 Kassenbons müssen im Original eingereicht werden. Ein Screenshot oder Foto ist nicht ausreichend.
@@ -152,7 +152,7 @@ type ActivityItem =
                       <div class="text-right">
                         <span class="text-sm text-gray-500 dark:text-gray-400" i18n>Gesamtbetrag</span>
                         <span class="text-lg font-semibold text-gray-900 dark:text-gray-100 block">
-                          {{ formatCurrency(reimbursement()!.totalAmount) }}
+                          {{ formatCurrency(submission()!.totalAmount) }}
                         </span>
                       </div>
                     </div>
@@ -365,49 +365,53 @@ type ActivityItem =
                     <div>
                       <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Status</dt>
                       <dd class="mt-1">
-                        <app-status-badge [variant]="getStatusVariant(reimbursement()!.status)" size="md">
-                          {{ getStatusLabel(reimbursement()!.status) }}
+                        <app-status-badge [variant]="getStatusVariant(submission()!.status)" size="md">
+                          {{ getStatusLabel(submission()!.status) }}
                         </app-status-badge>
                       </dd>
                     </div>
                     <div>
                       <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Eingereicht von</dt>
-                      <dd class="text-sm text-gray-900 dark:text-gray-100 font-medium">{{ reimbursement()!.createdByUserFullName }}</dd>
+                      <dd class="text-sm text-gray-900 dark:text-gray-100 font-medium">{{ submission()!.createdByUserFullName }}</dd>
                     </div>
                     <div>
                       <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Eingereicht am</dt>
-                      <dd class="text-sm text-gray-900 dark:text-gray-100">{{ formatDate(reimbursement()!.createdAt) }}</dd>
+                      <dd class="text-sm text-gray-900 dark:text-gray-100">{{ formatDate(submission()!.createdAt) }}</dd>
                     </div>
                     <div>
                       <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Gremium</dt>
-                      <dd class="text-sm text-gray-900 dark:text-gray-100 font-medium">{{ reimbursement()!.committeeName }}</dd>
+                      <dd class="text-sm text-gray-900 dark:text-gray-100 font-medium">{{ submission()!.committeeName }}</dd>
                     </div>
                     <div>
-                      <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Zahlungsart</dt>
+                      <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Abrechnungsweg</dt>
                       <dd class="text-sm text-gray-900 dark:text-gray-100">
-                        {{ getPaymentMethodLabel(reimbursement()!.paymentMethod) }}
+                        @if (submission()!.settlement) {
+                          {{ getSettlementLabel(submission()!.settlement!) }}
+                        } @else {
+                          <span i18n>Keine (Einnahme)</span>
+                        }
                       </dd>
                     </div>
                   </dl>
                 </div>
 
-                <!-- Bank Details -->
-                @if (reimbursement()!.bankDetails) {
+                <!-- Person settlement payout details -->
+                @if (submission()!.personSettlement?.bankDetails) {
                   <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
                     <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3" i18n>Bankverbindung</h3>
                     <dl class="space-y-3">
                       <div>
                         <dt class="text-xs text-gray-500 dark:text-gray-400" i18n>Kontoinhaber</dt>
-                        <dd class="text-sm text-gray-900 dark:text-gray-100">{{ reimbursement()!.bankDetails!.accountHolder }}</dd>
+                        <dd class="text-sm text-gray-900 dark:text-gray-100">{{ submission()!.personSettlement!.bankDetails!.accountHolder }}</dd>
                       </div>
                       <div>
                         <dt class="text-xs text-gray-500 dark:text-gray-400">IBAN</dt>
-                        <dd class="text-sm text-gray-900 dark:text-gray-100 font-mono">{{ reimbursement()!.bankDetails!.iban }}</dd>
+                        <dd class="text-sm text-gray-900 dark:text-gray-100 font-mono">{{ submission()!.personSettlement!.bankDetails!.iban }}</dd>
                       </div>
-                      @if (reimbursement()!.bankDetails!.bic) {
+                      @if (submission()!.personSettlement!.bankDetails!.bic) {
                         <div>
                           <dt class="text-xs text-gray-500 dark:text-gray-400">BIC</dt>
-                          <dd class="text-sm text-gray-900 dark:text-gray-100 font-mono">{{ reimbursement()!.bankDetails!.bic }}</dd>
+                          <dd class="text-sm text-gray-900 dark:text-gray-100 font-mono">{{ submission()!.personSettlement!.bankDetails!.bic }}</dd>
                         </div>
                       }
                     </dl>
@@ -421,34 +425,43 @@ type ActivityItem =
     </app-page-content-layout>
   `,
 })
-export class ReimbursementEditComponent implements OnInit {
+export class SubmissionEditComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly dataService = inject(ReimbursementEditDataService);
+  private readonly dataService = inject(SubmissionEditDataService);
   private readonly fb = inject(FormBuilder);
   private readonly notifications = inject(NotificationService);
 
   readonly loading = signal(true);
   readonly saving = signal(false);
-  readonly reimbursement = signal<Reimbursement | null>(null);
-  readonly comments = signal<ReimbursementComment[]>([]);
-  readonly auditLog = signal<ReimbursementAuditEntry[]>([]);
+  readonly submission = signal<Submission | null>(null);
+  readonly comments = signal<SubmissionComment[]>([]);
+  readonly auditLog = signal<SubmissionAuditEntry[]>([]);
   readonly showAllActivity = signal(false);
 
   readonly newCommentControl = this.fb.control('');
   readonly isAdminOnlyComment = signal(false);
-  readonly selectedStatusChange = signal<ReimbursementStatus | ''>('');
+  readonly selectedStatusChange = signal<SubmissionStatus | ''>('');
+  // exposed for the template
+  readonly getSettlementLabel = getSettlementLabel;
+  readonly getPaymentRequestTimingLabel = getPaymentRequestTimingLabel;
 
   readonly canEdit = computed(() => {
-    const r = this.reimbursement();
+    const r = this.submission();
     return r ? r.status === 'pending' || r.status === 'further_info_required' : false;
   });
 
-  readonly availableStatusTransitions = computed<{ status: ReimbursementStatus; label: string }[]>(() => {
-    const reimbursement = this.reimbursement();
-    if (!reimbursement) return [];
+  readonly availableStatusTransitions = computed<{ status: SubmissionStatus; label: string }[]>(() => {
+    const submission = this.submission();
+    if (!submission) return [];
 
-    const transitions: Record<ReimbursementStatus, { status: ReimbursementStatus; label: string }[]> = {
+    const transitions: Record<SubmissionStatus, { status: SubmissionStatus; label: string }[]> = {
+      draft: [
+        { status: 'pending', label: $localize`→ Einreichen` },
+      ],
+      approved: [
+        { status: 'completed', label: $localize`→ Abgeschlossen (Zahlung veranlasst)` },
+      ],
       pending: [
         { status: 'further_info_required', label: $localize`→ Weitere Informationen erforderlich` },
         { status: 'completed', label: $localize`→ Abgeschlossen` },
@@ -463,7 +476,7 @@ export class ReimbursementEditComponent implements OnInit {
       completed: [],
     };
 
-    return transitions[reimbursement.status] || [];
+    return transitions[submission.status] || [];
   });
 
   readonly activityFeed = computed<ActivityItem[]>(() => {
@@ -504,9 +517,9 @@ export class ReimbursementEditComponent implements OnInit {
   }
 
   readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
-    const r = this.reimbursement();
+    const r = this.submission();
     return [
-      { label: $localize`Kostenerstattungen`, path: `/organizations/${this.orgId}/reimbursements` },
+      { label: $localize`Belegeinreichungen`, path: `/organizations/${this.orgId}/submissions` },
       { label: r ? r.publicId : '...' },
     ];
   });
@@ -515,14 +528,14 @@ export class ReimbursementEditComponent implements OnInit {
     this.orgId = this.getOrgId();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.loadReimbursement(id);
+      this.loadSubmission(id);
     }
   }
 
-  private loadReimbursement(id: string): void {
-    this.dataService.getReimbursement(id).subscribe({
-      next: (reimbursement) => {
-        this.reimbursement.set(reimbursement);
+  private loadSubmission(id: string): void {
+    this.dataService.getSubmission(id).subscribe({
+      next: (submission) => {
+        this.submission.set(submission);
         this.loading.set(false);
         this.loadComments(id);
         this.loadAuditLog(id);
@@ -551,7 +564,7 @@ export class ReimbursementEditComponent implements OnInit {
   }
 
   addComment(): void {
-    const r = this.reimbursement();
+    const r = this.submission();
     const content = this.newCommentControl.value?.trim();
     if (!r || !content) return;
 
@@ -561,8 +574,8 @@ export class ReimbursementEditComponent implements OnInit {
       this.dataService
         .changeStatus(r.id, newStatus, content)
         .subscribe({
-          next: (updatedReimbursement) => {
-            this.reimbursement.set(updatedReimbursement);
+          next: (updatedSubmission) => {
+            this.submission.set(updatedSubmission);
             this.newCommentControl.reset();
             this.isAdminOnlyComment.set(false);
             this.selectedStatusChange.set('');
@@ -584,20 +597,16 @@ export class ReimbursementEditComponent implements OnInit {
       });
   }
 
-  getStatusLabel(status: ReimbursementStatus): string {
-    return getReimbursementStatusLabel(status);
+  getStatusLabel(status: SubmissionStatus): string {
+    return getSubmissionStatusLabel(status);
   }
 
-  getStatusVariant(status: ReimbursementStatus): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
-    return getReimbursementStatusVariant(status);
-  }
-
-  getPaymentMethodLabel(method: string): string {
-    return getPaymentMethodLabel(method as any);
+  getStatusVariant(status: SubmissionStatus): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
+    return getSubmissionStatusVariant(status);
   }
 
   getItemTypeLabel(type: string): string {
-    return getInvoiceItemTypeLabel(type as any);
+    return type;
   }
 
   formatCurrency(cents: number): string {

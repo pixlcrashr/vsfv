@@ -265,7 +265,7 @@ export class MainLayoutComponent implements OnInit {
   readonly applicationMenuItems = computed<MenuItem[]>(() => {
     const orgId = this.orgIdFromRoute();
     if (!orgId) return [];
-    return [{ name: $localize`Kostenerstattungen`, path: `/organizations/${orgId}/reimbursements` }];
+    return [{ name: $localize`Belegeinreichungen`, path: `/organizations/${orgId}/submissions` }];
   });
 
   readonly householdMenuItems = computed<MenuItem[]>(() => {

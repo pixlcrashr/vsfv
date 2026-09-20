@@ -7,6 +7,7 @@ import {
   computed,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs';
 import {
   FormBuilder,
   FormGroup,
@@ -23,11 +24,10 @@ import {
 } from '../../../shared/components';
 import {
   Committee,
-  PaymentMethod,
-  InvoiceItemType,
-  getPaymentMethodLabel,
+  PayoutMethod,
+  SettlementPayload,
 } from '../../../shared/models';
-import { ReimbursementNewDataService } from '../reimbursement-new/reimbursement-new.data-service';
+import { SubmissionNewDataService } from '../submission-new/submission-new.data-service';
 import { AssistantInfoBoxComponent } from './assistant-info-box.component';
 import {
   AssistantReceiptStepComponent,
@@ -39,7 +39,7 @@ import {
   InvoiceItemForm,
   ReceiptCategory,
   ReceiptSnapshot,
-  ReimbursementScope,
+  SubmissionScope,
   StepId,
   WizardStep,
   getDocumentFormLabel,
@@ -47,7 +47,7 @@ import {
 } from './assistant.types';
 
 @Component({
-  selector: 'app-reimbursement-assistant',
+  selector: 'app-submission-assistant',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
@@ -81,7 +81,7 @@ import {
                       Schritt {{ stepNumber() }} von {{ totalSteps() }}
                     </span>
                     <a
-                      [routerLink]="['/organizations', orgId(), 'reimbursements']"
+                      [routerLink]="['/organizations', orgId(), 'submissions']"
                       class="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                       i18n
                     >
@@ -131,6 +131,168 @@ import {
                       </div>
                     }
 
+                    <!-- ================================ DIRECTION ================================ -->
+                    @case ('direction') {
+                      <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
+                        Was moechtest du einreichen?
+                      </h2>
+
+                      <app-assistant-info-box>
+                        <li i18n>
+                          <strong>Ausgabe</strong>: Belege fuer etwas, das gekauft oder bezahlt wurde. Je nach
+                          Zahlungsweise erfolgt eine Auszahlung oder nur die Dokumentation.
+                        </li>
+                        <li i18n>
+                          <strong>Einnahme</strong>: Nachweise, wie der Studierendenschaft Geld zugeflossen ist, z. B.
+                          Spenden oder Sponsoring. Es findet keine Auszahlung statt.
+                        </li>
+                      </app-assistant-info-box>
+
+                      <div class="mt-5 grid grid-cols-1 gap-3">
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="direction" value="expense" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Ausgabe</span>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>Erstattung, Dokumentation einer Gremiumsausgabe oder Zahlungsauftrag.</p>
+                          </div>
+                        </label>
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="direction" value="income" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Einnahme</span>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>Dokumentation einer Einnahme – ohne Auszahlung.</p>
+                          </div>
+                        </label>
+                      </div>
+                      @if (showError('direction')) {
+                        <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte waehle eine Art aus.</p>
+                      }
+                    }
+
+                    <!-- ================================ SETTLEMENT ================================ -->
+                    @case ('settlement') {
+                      <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
+                        Wie wurde die Ausgabe bezahlt?
+                      </h2>
+
+                      <app-assistant-info-box>
+                        <li i18n>
+                          <strong>Privat vorgestreckt</strong>: Du hast selbst bezahlt und bekommst das Geld zurueck.
+                        </li>
+                        <li i18n>
+                          <strong>Gremiumskonto/-kasse</strong>: Das Gremium hat ein eigenes Konto oder eine eigene Kasse
+                          und hat die Ausgabe selbst bezahlt. Es gibt keine Auszahlung – nur Dokumentation.
+                        </li>
+                        <li i18n>
+                          <strong>Zahlungsauftrag</strong>: Noch hat niemand bezahlt – die Kassenfuehrung ueberweist direkt
+                          an den Empfaenger.
+                        </li>
+                      </app-assistant-info-box>
+
+                      <div class="mt-5 space-y-3">
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="settlement" value="person" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Ich habe privat vorgestreckt (Auslagenerstattung)</span>
+                          </div>
+                        </label>
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input
+                            type="radio"
+                            formControlName="settlement"
+                            value="committee_account"
+                            [disabled]="(selectedCommittee()?.paymentAccounts?.length ?? 0) === 0"
+                            class="mt-0.5 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Vom Gremiumskonto / aus der Gremiumskasse bezahlt</span>
+                            @if ((selectedCommittee()?.paymentAccounts?.length ?? 0) === 0) {
+                              <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>
+                                Dieses Gremium hat kein eigenes Konto oder eine eigene Kasse hinterlegt.
+                              </p>
+                            }
+                          </div>
+                        </label>
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="settlement" value="payment_request" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Zahlungsauftrag: die Kassenfuehrung soll zahlen</span>
+                          </div>
+                        </label>
+                      </div>
+                      @if (showError('settlement')) {
+                        <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte waehle einen Abrechnungsweg aus.</p>
+                      }
+                    }
+
+                    <!-- ================================ ACCOUNT PAID ================================ -->
+                    @case ('accountPaid') {
+                      <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
+                        Womit und wann wurde bezahlt?
+                      </h2>
+
+                      <div class="mt-5 space-y-4" formGroupName="committeeAccountDetails">
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Konto / Kasse *</label>
+                          <select formControlName="paymentAccountUid" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+                            <option value="" i18n>Bitte auswaehlen...</option>
+                            @for (account of selectedCommittee()?.paymentAccounts ?? []; track account.uid) {
+                              <option [value]="account.uid">{{ account.label }}</option>
+                            }
+                          </select>
+                          @if (showError('committeeAccountDetails.paymentAccountUid')) {
+                            <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte waehle das Konto aus.</p>
+                          }
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Datum der Zahlung *</label>
+                          <input type="date" formControlName="paidDate" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                          @if (showError('committeeAccountDetails.paidDate')) {
+                            <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte gib das Zahlungsdatum an.</p>
+                          }
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Zahlungsreferenz (optional)</label>
+                          <input type="text" formControlName="paymentReference" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                        </div>
+                      </div>
+                    }
+
+                    <!-- ================================ VENDOR DETAILS ================================ -->
+                    @case ('vendorDetails') {
+                      <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
+                        Wer soll bezahlt werden?
+                      </h2>
+
+                      <div class="mt-5 space-y-4" formGroupName="paymentRequestDetails">
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Empfaenger (Name) *</label>
+                          <input type="text" formControlName="vendorName" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                          @if (showError('paymentRequestDetails.vendorName')) {
+                            <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte gib den Empfaenger an.</p>
+                          }
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>IBAN *</label>
+                          <input type="text" formControlName="vendorIban" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                          @if (showError('paymentRequestDetails.vendorIban')) {
+                            <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte gib die IBAN an.</p>
+                          }
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>BIC (optional)</label>
+                          <input type="text" formControlName="vendorBic" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Zahlungsart *</label>
+                          <select formControlName="timing" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+                            <option value="on_invoice" i18n>Zahlung auf Rechnung</option>
+                            <option value="advance" i18n>Vorkasse</option>
+                          </select>
+                        </div>
+                      </div>
+                    }
+
                     <!-- ================================ SCOPE ================================ -->
                     @case ('scope') {
                       <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
@@ -155,7 +317,7 @@ import {
                         <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
                           <input
                             type="radio"
-                            formControlName="reimbursementScope"
+                            formControlName="submissionScope"
                             value="hoheitlich"
                             class="mt-0.5 text-blue-600 focus:ring-blue-500"
                           />
@@ -170,7 +332,7 @@ import {
                         <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
                           <input
                             type="radio"
-                            formControlName="reimbursementScope"
+                            formControlName="submissionScope"
                             value="gewerblich"
                             class="mt-0.5 text-blue-600 focus:ring-blue-500"
                           />
@@ -296,36 +458,7 @@ import {
                           </div>
                         </label>
 
-                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                          <input
-                            type="radio"
-                            formControlName="paymentMethod"
-                            value="direct_invoice"
-                            class="mt-0.5 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div>
-                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Direktüberweisung an Rechnungssteller</span>
-                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>
-                              Die Zahlung geht direkt an den Rechnungssteller.
-                            </p>
-                          </div>
-                        </label>
-
-                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                          <input
-                            type="radio"
-                            formControlName="paymentMethod"
-                            value="prepayment"
-                            class="mt-0.5 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div>
-                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Vorkasse</span>
-                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>
-                              Wir überweisen den beantragten Betrag vorab per Vorkasse.
-                            </p>
-                          </div>
-                        </label>
-                      </div>
+                        </div>
                     }
 
                     <!-- ================================ BANK DETAILS ================================ -->
@@ -501,7 +634,7 @@ import {
                       <app-assistant-review
                         [scopeLabel]="scopeLabel()"
                         [committeeName]="committeeName()"
-                        [paymentMethodLabel]="paymentMethodLabel()"
+                        [paymentMethodLabel]="settlementLabel()"
                         [requiresBankDetails]="requiresBankDetails()"
                         [bank]="bankSnapshot()"
                         [notice]="noticeText()"
@@ -574,10 +707,10 @@ import {
     </app-page-content-layout>
   `,
 })
-export class ReimbursementAssistantComponent implements OnInit {
+export class SubmissionAssistantComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly dataService = inject(ReimbursementNewDataService);
+  private readonly dataService = inject(SubmissionNewDataService);
   private readonly fb = inject(FormBuilder);
   private readonly notifications = inject(NotificationService);
 
@@ -597,8 +730,8 @@ export class ReimbursementAssistantComponent implements OnInit {
   readonly orgId = signal('');
   readonly cursor = signal(0);
   readonly receiptCount = signal(0);
-  readonly selectedPaymentMethod = signal<PaymentMethod>('bank_transfer');
-  readonly selectedReimbursementScope = signal<ReimbursementScope>('hoheitlich');
+  readonly selectedPaymentMethod = signal<PayoutMethod>('bank_transfer');
+  readonly selectedSubmissionScope = signal<SubmissionScope>('hoheitlich');
   readonly selectedCommitteeId = signal('');
   readonly noticeText = signal('');
   readonly bankSnapshot = signal({ accountHolder: '', iban: '', bic: '' });
@@ -613,9 +746,22 @@ export class ReimbursementAssistantComponent implements OnInit {
   readonly validationAttempt = signal(0);
 
   readonly form = this.fb.group({
-    reimbursementScope: ['hoheitlich' as ReimbursementScope, Validators.required],
+    submissionScope: ['hoheitlich' as SubmissionScope],
     committeeId: ['', Validators.required],
-    paymentMethod: ['bank_transfer' as PaymentMethod, Validators.required],
+    direction: ['expense' as 'expense' | 'income', Validators.required],
+    settlement: ['person' as 'person' | 'committee_account' | 'payment_request'],
+    committeeAccountDetails: this.fb.group({
+      paymentAccountUid: [''],
+      paidDate: [''],
+      paymentReference: [''],
+    }),
+    paymentRequestDetails: this.fb.group({
+      vendorName: [''],
+      vendorIban: [''],
+      vendorBic: [''],
+      timing: ['on_invoice' as 'on_invoice' | 'advance'],
+    }),
+    paymentMethod: ['bank_transfer' as PayoutMethod],
     bankDetails: this.fb.group({
       accountHolder: [''],
       iban: [''],
@@ -632,7 +778,7 @@ export class ReimbursementAssistantComponent implements OnInit {
   });
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: $localize`Kostenerstattungen`, path: '' },
+    { label: $localize`Belegeinreichungen`, path: '' },
     { label: $localize`Belege einreichen (Assistent)` },
   ];
 
@@ -645,12 +791,27 @@ export class ReimbursementAssistantComponent implements OnInit {
   readonly steps = computed<WizardStep[]>(() => {
     const steps: WizardStep[] = [
       { id: 'intro' },
-      { id: 'scope' },
       { id: 'committee' },
-      { id: 'payment' },
+      { id: 'direction' },
     ];
-    if (this.selectedPaymentMethod() === 'bank_transfer') {
-      steps.push({ id: 'bankDetails' });
+    if (this.scopeSelectable()) {
+      steps.push({ id: 'scope' });
+    }
+    if (this.selectedDirection() === 'expense') {
+      steps.push({ id: 'settlement' });
+      switch (this.selectedSettlement()) {
+        case 'committee_account':
+          steps.push({ id: 'accountPaid' });
+          break;
+        case 'payment_request':
+          steps.push({ id: 'vendorDetails' });
+          break;
+        default:
+          steps.push({ id: 'payment' });
+          if (this.selectedPaymentMethod() === 'bank_transfer') {
+            steps.push({ id: 'bankDetails' });
+          }
+      }
     }
     for (let i = 0; i < this.receiptCount(); i++) {
       steps.push(
@@ -712,11 +873,30 @@ export class ReimbursementAssistantComponent implements OnInit {
   readonly requiresBankDetails = computed(
     () => this.selectedPaymentMethod() === 'bank_transfer'
   );
-  readonly isCommercial = computed(() => this.selectedReimbursementScope() === 'gewerblich');
+  readonly isCommercial = computed(() => this.selectedSubmissionScope() === 'gewerblich');
   readonly scopeLabel = computed(() =>
-    this.selectedReimbursementScope() === 'gewerblich' ? $localize`Gewerblich` : $localize`Hoheitlich`
+    this.selectedSubmissionScope() === 'gewerblich' ? $localize`Gewerblich` : $localize`Hoheitlich`
   );
-  readonly paymentMethodLabel = computed(() => getPaymentMethodLabel(this.selectedPaymentMethod()));
+  readonly selectedDirection = signal<'expense' | 'income'>('expense');
+  readonly selectedSettlement = signal<'person' | 'committee_account' | 'payment_request'>('person');
+  readonly selectedCommittee = computed(
+    () => this.committees().find((c) => c.id === this.selectedCommitteeId()) ?? null
+  );
+  readonly scopeSelectable = computed(() => this.selectedCommittee()?.allowScopeSelection === true);
+  readonly isExpense = computed(() => this.selectedDirection() === 'expense');
+  readonly settlementLabel = computed(() => {
+    if (this.selectedDirection() === 'income') return $localize`Einnahme (keine Auszahlung)`;
+    switch (this.selectedSettlement()) {
+      case 'committee_account':
+        return $localize`Bereits vom Gremiumskonto bezahlt`;
+      case 'payment_request':
+        return $localize`Zahlungsauftrag an die Kassenfuehrung`;
+      default:
+        return this.selectedPaymentMethod() === 'cash'
+          ? $localize`Barauszahlung`
+          : $localize`Ueberweisung auf dein Konto`;
+    }
+  });
   readonly committeeName = computed(
     () => this.committees().find((c) => c.id === this.selectedCommitteeId())?.name ?? ''
   );
@@ -731,7 +911,7 @@ export class ReimbursementAssistantComponent implements OnInit {
   );
 
   readonly showCommercialReceiptLimitWarning = computed(() => {
-    if (this.selectedReimbursementScope() !== 'gewerblich') return false;
+    if (this.selectedSubmissionScope() !== 'gewerblich') return false;
     const snapshot = this.receiptSnapshots()[this.currentReceiptIndex()];
     return (
       snapshot?.receiptCategory === 'quittung_kassenbon' && (snapshot?.amountCents || 0) > 25000
@@ -741,7 +921,7 @@ export class ReimbursementAssistantComponent implements OnInit {
   ngOnInit(): void {
     const orgId = this.getOrgId();
     this.orgId.set(orgId);
-    this.breadcrumbs[0].path = `/organizations/${orgId}/reimbursements`;
+    this.breadcrumbs[0].path = `/organizations/${orgId}/submissions`;
     this.loadData();
     this.setupBankValidation();
     this.setupFormWatchers();
@@ -763,8 +943,8 @@ export class ReimbursementAssistantComponent implements OnInit {
     const bankDetails = this.form.get('bankDetails');
     const bankDetailsConfirmed = this.form.get('bankDetailsConfirmed');
 
-    const applyValidation = (method: PaymentMethod | null | undefined) => {
-      const currentMethod = (method ?? 'bank_transfer') as PaymentMethod;
+    const applyValidation = (method: PayoutMethod | null | undefined) => {
+      const currentMethod = (method ?? 'bank_transfer') as PayoutMethod;
       this.selectedPaymentMethod.set(currentMethod);
 
       if (currentMethod === 'bank_transfer') {
@@ -783,18 +963,28 @@ export class ReimbursementAssistantComponent implements OnInit {
       bankDetailsConfirmed?.updateValueAndValidity();
     };
 
-    applyValidation(paymentControl?.value as PaymentMethod);
-    paymentControl?.valueChanges.subscribe((method) => applyValidation(method as PaymentMethod));
+    applyValidation(paymentControl?.value as PayoutMethod);
+    paymentControl?.valueChanges.subscribe((method) => applyValidation(method as PayoutMethod));
   }
 
   private setupFormWatchers(): void {
-    this.form.get('reimbursementScope')?.valueChanges.subscribe((scope) => {
-      this.selectedReimbursementScope.set((scope as ReimbursementScope) ?? 'hoheitlich');
+    this.form.get('submissionScope')?.valueChanges.subscribe((scope) => {
+      this.selectedSubmissionScope.set((scope as SubmissionScope) ?? 'hoheitlich');
       this.updateSubmissionWarnings();
     });
 
     this.form.get('committeeId')?.valueChanges.subscribe((id) => {
       this.selectedCommitteeId.set(id ?? '');
+    });
+
+    this.form.get('direction')?.valueChanges.subscribe((direction) => {
+      this.selectedDirection.set((direction as 'expense' | 'income') ?? 'expense');
+    });
+
+    this.form.get('settlement')?.valueChanges.subscribe((settlement) => {
+      this.selectedSettlement.set(
+        (settlement as 'person' | 'committee_account' | 'payment_request') ?? 'person'
+      );
     });
 
     this.form.get('notice')?.valueChanges.subscribe((notice) => {
@@ -848,7 +1038,7 @@ export class ReimbursementAssistantComponent implements OnInit {
     );
 
     this.hasCommercialReceiptSubmissionWarning.set(
-      this.selectedReimbursementScope() === 'gewerblich'
+      this.selectedSubmissionScope() === 'gewerblich'
         && items.some((item) => item.receiptCategory === 'quittung_kassenbon'),
     );
   }
@@ -899,6 +1089,22 @@ export class ReimbursementAssistantComponent implements OnInit {
     switch (step.id) {
       case 'committee':
         paths.push('committeeId');
+        break;
+      case 'direction':
+        paths.push('direction');
+        break;
+      case 'settlement':
+        if (this.selectedDirection() === 'expense') paths.push('settlement');
+        break;
+      case 'accountPaid':
+        paths.push('committeeAccountDetails.paymentAccountUid', 'committeeAccountDetails.paidDate');
+        break;
+      case 'vendorDetails':
+        paths.push(
+          'paymentRequestDetails.vendorName',
+          'paymentRequestDetails.vendorIban',
+          'paymentRequestDetails.timing'
+        );
         break;
       case 'bankDetails':
         paths.push('bankDetails.accountHolder', 'bankDetails.iban', 'bankDetailsConfirmed');
@@ -965,10 +1171,6 @@ export class ReimbursementAssistantComponent implements OnInit {
 
   // --- Submission ---------------------------------------------------------
 
-  private mapReceiptCategoryToInvoiceItemType(category: ReceiptCategory | ''): InvoiceItemType {
-    return category === 'quittung_kassenbon' ? 'receipt' : 'invoice';
-  }
-
   onFormSubmit(): void {
     if (this.currentStep().id === 'review') {
       this.submit();
@@ -983,51 +1185,70 @@ export class ReimbursementAssistantComponent implements OnInit {
     this.saving.set(true);
     const formValue = this.form.value;
 
-    const noticeParts = [
-      `${$localize`Kostenerstattungsart`}: ${this.scopeLabel()}`,
-      (formValue.notice || '').trim(),
-    ].filter((part): part is string => part.length > 0);
+    const direction = (formValue.direction ?? 'expense') as 'expense' | 'income';
+    const scope: SubmissionScope = this.scopeSelectable()
+      ? ((formValue.submissionScope ?? 'hoheitlich') as SubmissionScope)
+      : 'hoheitlich';
 
-    const invoiceItems = (formValue.invoiceItems as InvoiceItemForm[] || []).map((item) => {
-      const receiptCategoryLabel = getReceiptCategoryLabel(item.receiptCategory);
-      const documentFormLabel = getDocumentFormLabel(item.documentForm);
+    const settlement: SettlementPayload | null =
+      direction === 'income'
+        ? null
+        : this.selectedSettlement() === 'committee_account'
+          ? {
+              kind: 'committee_account',
+              paymentAccountUid: formValue.committeeAccountDetails?.paymentAccountUid || '',
+              paidDate: formValue.committeeAccountDetails?.paidDate
+                ? new Date(formValue.committeeAccountDetails.paidDate)
+                : null,
+              paymentReference: formValue.committeeAccountDetails?.paymentReference || null,
+            }
+          : this.selectedSettlement() === 'payment_request'
+            ? {
+                kind: 'payment_request',
+                vendorName: formValue.paymentRequestDetails?.vendorName || '',
+                vendorIban: formValue.paymentRequestDetails?.vendorIban || '',
+                vendorBic: formValue.paymentRequestDetails?.vendorBic || null,
+                timing: (formValue.paymentRequestDetails?.timing || 'on_invoice') as 'on_invoice' | 'advance',
+              }
+            : {
+                kind: 'person',
+                payoutMethod: (formValue.paymentMethod as 'bank_transfer' | 'cash') ?? 'bank_transfer',
+                bankDetails:
+                  formValue.paymentMethod === 'bank_transfer'
+                    ? {
+                        accountHolder: formValue.bankDetails?.accountHolder || '',
+                        iban: formValue.bankDetails?.iban || '',
+                        bic: formValue.bankDetails?.bic || null,
+                      }
+                    : null,
+              };
 
-      return {
-        type: this.mapReceiptCategoryToInvoiceItemType(item.receiptCategory),
-        description: [
-          `${$localize`Belegform`}: ${documentFormLabel}`,
-          receiptCategoryLabel ? `${$localize`Belegart`}: ${receiptCategoryLabel}` : null,
-          item.description?.trim() ? item.description.trim() : null,
-        ]
-          .filter((part): part is string => !!part)
-          .join(' | ') || null,
-        amount: Math.round((Number(item.amount) || 0) * 100),
-      };
-    });
+    const items = (formValue.invoiceItems as InvoiceItemForm[] || []).map((item) => ({
+      category: item.receiptCategory,
+      documentForm: item.documentForm,
+      source: null,
+      description: item.description?.trim() || null,
+      amount: Math.round((Number(item.amount) || 0) * 100),
+    }));
 
     this.dataService
-      .createReimbursement({
+      .createSubmissionDraft({
         committeeId: formValue.committeeId!,
-        notice: noticeParts.join('\n') || null,
-        paymentMethod: formValue.paymentMethod as PaymentMethod,
-        bankDetails:
-          formValue.paymentMethod === 'bank_transfer'
-            ? {
-                accountHolder: formValue.bankDetails?.accountHolder || '',
-                iban: formValue.bankDetails?.iban || '',
-                bic: formValue.bankDetails?.bic || null,
-              }
-            : null,
-        invoiceItems,
+        direction,
+        settlement,
+        scope,
+        notice: (formValue.notice || '').trim() || null,
+        items,
       })
+      .pipe(switchMap((draft) => this.dataService.submitSubmission(draft.id)))
       .subscribe({
-        next: (reimbursement) => {
+        next: (submission) => {
           this.saving.set(false);
-          this.router.navigate(['/organizations', this.orgId(), 'reimbursements', reimbursement.id]);
+          this.router.navigate(['/organizations', this.orgId(), 'submissions', submission.id]);
         },
         error: () => {
           this.saving.set(false);
-          this.notifications.error($localize`Fehler beim Erstellen der Erstattung`);
+          this.notifications.error($localize`Fehler beim Erstellen der Einreichung`);
         },
       });
   }

@@ -146,14 +146,14 @@ export class PermissionCatalogService {
     {
       name: 'Erstattungen',
       permissions: [
-        { id: Permissions.REIMBURSEMENTS_READ, name: 'Erstattungen anzeigen', description: 'Alle Erstattungen einsehen' },
-        { id: Permissions.REIMBURSEMENTS_CREATE, name: 'Erstattungen erstellen', description: 'Erstattungen beantragen' },
-        { id: Permissions.REIMBURSEMENTS_COMMENT, name: 'Erstattungen kommentieren', description: 'Erstattungen kommentieren' },
-        { id: Permissions.REIMBURSEMENTS_UPDATE, name: 'Erstattungen bearbeiten', description: 'Erstattungen ändern' },
-        { id: Permissions.REIMBURSEMENTS_ARCHIVE, name: 'Erstattungen archivieren', description: 'Erstattungen archivieren' },
-        { id: Permissions.REIMBURSEMENTS_READ_OWN, name: 'Eigene Erstattungen anzeigen', description: 'Eigene Erstattungen einsehen' },
-        { id: Permissions.REIMBURSEMENTS_COMMENT_OWN, name: 'Eigene Erstattungen kommentieren', description: 'Eigene Erstattungen kommentieren' },
-        { id: Permissions.REIMBURSEMENTS_UPDATE_OWN, name: 'Eigene Erstattungen bearbeiten', description: 'Eigene Erstattungen ändern' },
+        { id: Permissions.SUBMISSIONS_READ, name: 'Erstattungen anzeigen', description: 'Alle Erstattungen einsehen' },
+        { id: Permissions.SUBMISSIONS_CREATE, name: 'Erstattungen erstellen', description: 'Erstattungen beantragen' },
+        { id: Permissions.SUBMISSIONS_COMMENT, name: 'Erstattungen kommentieren', description: 'Erstattungen kommentieren' },
+        { id: Permissions.SUBMISSIONS_UPDATE, name: 'Erstattungen bearbeiten', description: 'Erstattungen ändern' },
+        { id: Permissions.SUBMISSIONS_ARCHIVE, name: 'Erstattungen archivieren', description: 'Erstattungen archivieren' },
+        { id: Permissions.SUBMISSIONS_READ_OWN, name: 'Eigene Erstattungen anzeigen', description: 'Eigene Erstattungen einsehen' },
+        { id: Permissions.SUBMISSIONS_COMMENT_OWN, name: 'Eigene Erstattungen kommentieren', description: 'Eigene Erstattungen kommentieren' },
+        { id: Permissions.SUBMISSIONS_UPDATE_OWN, name: 'Eigene Erstattungen bearbeiten', description: 'Eigene Erstattungen ändern' },
       ],
     },
     {

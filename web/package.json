@@ -9,7 +9,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "generate:apiV2": "ng-swagger-gen --input ../openapi.swagger.yaml --output .\\src\\lib\\api\\"
+    "generate:apiV2": "ng-swagger-gen --input ../openapi.swagger.yaml --output ./src/lib/api/"
   },
   "private": true,
   "packageManager": "npm@11.6.4",

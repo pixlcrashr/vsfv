@@ -16,17 +16,18 @@ import {
   NotificationService,
 } from '../../../shared/components';
 import {
-  Reimbursement,
-  ReimbursementStatus,
-  getReimbursementStatusLabel,
-  getReimbursementStatusVariant,
-  getPaymentMethodLabel,
+  Submission,
+  SubmissionStatus,
+  getSubmissionStatusLabel,
+  getSubmissionStatusVariant,
+  getDirectionLabel,
+  getSettlementLabel,
   formatCurrency,
 } from '../../../shared/models';
-import { ReimbursementListDataService } from './reimbursement-list.data-service';
+import { SubmissionListDataService } from './submission-list.data-service';
 
 @Component({
-  selector: 'app-reimbursement-list',
+  selector: 'app-submission-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
@@ -49,10 +50,10 @@ import { ReimbursementListDataService } from './reimbursement-list.data-service'
 
       <div layout-content class="flex flex-1 justify-center">
         @if (loading()) {
-          <app-loading-spinner [fullPage]="true" i18n-text text="Kostenerstattungen werden geladen..." />
-        } @else if (reimbursements().length === 0) {
+          <app-loading-spinner [fullPage]="true" i18n-text text="Belegeinreichungen werden geladen..." />
+        } @else if (submissions().length === 0) {
           <app-empty-state
-            i18n-title title="Keine Kostenerstattungen vorhanden"
+            i18n-title title="Keine Belegeinreichungen vorhanden"
             i18n-description description="Reiche deine erste Kostenerstattung ein."
           >
             <div class="flex items-center gap-3">
@@ -119,34 +120,34 @@ import { ReimbursementListDataService } from './reimbursement-list.data-service'
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200 bg-white">
-                    @for (reimbursement of reimbursements(); track trackById(reimbursement)) {
+                    @for (submission of submissions(); track trackById(submission)) {
                       <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-3 py-2 text-xs text-gray-900 font-medium">
-                          {{ reimbursement.publicId }}
+                          {{ submission.publicId }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-900">
-                          {{ reimbursement.createdByUserFullName }}
+                          {{ submission.createdByUserFullName }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-900">
-                          {{ reimbursement.committeeName }}
+                          {{ submission.committeeName }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-500">
-                          {{ reimbursement.financialApplicationPublicId || '-' }}
+                          {{ getDirectionLabel(submission.direction) }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
-                          {{ formatCurrency(reimbursement.totalAmount) }}
+                          {{ formatCurrency(submission.totalAmount) }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-500">
-                          {{ getPaymentMethodLabel(reimbursement.paymentMethod) }}
+                          {{ submission.settlement ? getSettlementLabel(submission.settlement) : '-' }}
                         </td>
                         <td class="px-3 py-2 text-xs">
-                          <app-status-badge [variant]="getStatusVariant(reimbursement.status)" size="sm">
-                            {{ getStatusLabel(reimbursement.status) }}
+                          <app-status-badge [variant]="getStatusVariant(submission.status)" size="sm">
+                            {{ getStatusLabel(submission.status) }}
                           </app-status-badge>
                         </td>
                         <td class="px-3 py-2 text-right text-xs">
                           <a
-                            [routerLink]="[reimbursement.id]"
+                            [routerLink]="[submission.id]"
                             class="text-xs text-blue-600 hover:underline"
                           >
                             <ng-container i18n>Anzeigen</ng-container>
@@ -164,23 +165,27 @@ import { ReimbursementListDataService } from './reimbursement-list.data-service'
     </app-page-content-layout>
   `,
 })
-export class ReimbursementListComponent implements OnInit {
-  private readonly dataService = inject(ReimbursementListDataService);
+export class SubmissionListComponent implements OnInit {
+  // exposed for the template
+  readonly getDirectionLabel = getDirectionLabel;
+  readonly getSettlementLabel = getSettlementLabel;
+
+  private readonly dataService = inject(SubmissionListDataService);
   private readonly notifications = inject(NotificationService);
 
   readonly loading = signal(true);
-  readonly reimbursements = signal<Reimbursement[]>([]);
+  readonly submissions = signal<Submission[]>([]);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [{ label: $localize`Kostenerstattungen` }];
+  readonly breadcrumbs: BreadcrumbItem[] = [{ label: $localize`Belegeinreichungen` }];
 
   ngOnInit(): void {
-    this.loadReimbursements();
+    this.loadSubmissions();
   }
 
-  private loadReimbursements(): void {
-    this.dataService.getReimbursements().subscribe({
-      next: (reimbursements) => {
-        this.reimbursements.set(reimbursements);
+  private loadSubmissions(): void {
+    this.dataService.getSubmissions().subscribe({
+      next: (submissions) => {
+        this.submissions.set(submissions);
         this.loading.set(false);
       },
       error: () => {
@@ -190,18 +195,14 @@ export class ReimbursementListComponent implements OnInit {
     });
   }
 
-  trackById = (reimbursement: Reimbursement) => reimbursement.id;
+  trackById = (submission: Submission) => submission.id;
 
-  getStatusLabel(status: ReimbursementStatus): string {
-    return getReimbursementStatusLabel(status);
+  getStatusLabel(status: SubmissionStatus): string {
+    return getSubmissionStatusLabel(status);
   }
 
-  getStatusVariant(status: ReimbursementStatus): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
-    return getReimbursementStatusVariant(status);
-  }
-
-  getPaymentMethodLabel(method: string): string {
-    return getPaymentMethodLabel(method as any);
+  getStatusVariant(status: SubmissionStatus): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
+    return getSubmissionStatusVariant(status);
   }
 
   formatCurrency(cents: number): string {

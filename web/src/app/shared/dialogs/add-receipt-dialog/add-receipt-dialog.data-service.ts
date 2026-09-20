@@ -1,13 +1,13 @@
 import { Observable } from 'rxjs';
-import { InvoiceItem, InvoiceItemType } from '../../models';
+import { SubmissionItem } from '../../models';
 
 export interface AddReceiptParams {
-  type: InvoiceItemType;
+  category: string;
   amount: number; // in cents
   description: string | null;
   file: File;
 }
 
 export abstract class AddReceiptDialogDataService {
-  abstract uploadReceipt(organizationId: string, params: AddReceiptParams): Observable<InvoiceItem>;
+  abstract uploadReceipt(organizationId: string, params: AddReceiptParams): Observable<SubmissionItem>;
 }

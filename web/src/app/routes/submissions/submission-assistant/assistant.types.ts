@@ -9,14 +9,18 @@ export type ReceiptCategory =
   | 'lieferschein'
   | 'bestellbestaetigung';
 
-export type ReimbursementScope = 'hoheitlich' | 'gewerblich';
+export type SubmissionScope = 'hoheitlich' | 'gewerblich';
 
 export type StepId =
   | 'intro'
-  | 'scope'
   | 'committee'
+  | 'direction'
+  | 'scope'
+  | 'settlement'
   | 'payment'
   | 'bankDetails'
+  | 'accountPaid'
+  | 'vendorDetails'
   | 'receiptCategory'
   | 'receiptForm'
   | 'receiptAmount'

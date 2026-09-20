@@ -9,7 +9,7 @@ import { DialogRef, DIALOG_DATA } from '@angular/cdk/dialog';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonComponent } from '../../components';
 import { AddReceiptDialogDataService } from './add-receipt-dialog.data-service';
-import { InvoiceItem, InvoiceItemType } from '../../models';
+import { SubmissionItem } from '../../models';
 
 export interface AddReceiptDialogInput {
   organizationId: string;
@@ -17,7 +17,7 @@ export interface AddReceiptDialogInput {
 
 export interface AddReceiptDialogOutput {
   added: boolean;
-  invoiceItem?: InvoiceItem;
+  submissionItem?: SubmissionItem;
 }
 
 @Component({
@@ -157,7 +157,7 @@ export interface AddReceiptDialogOutput {
           </div>
 
           <!-- Warning for receipts -->
-          @if (isReceipt()) {
+          @if (hasPaperOriginal()) {
             <div class="rounded-md bg-amber-50 dark:bg-amber-900/20 p-3 border border-amber-200 dark:border-amber-800">
               <div class="flex">
                 <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
@@ -165,7 +165,7 @@ export interface AddReceiptDialogOutput {
                 </svg>
                 <div class="ml-3">
                   <p class="text-sm text-amber-700 dark:text-amber-300" i18n>
-                    Du musst das Original einreichen, damit die Kostenerstattung abgeschlossen werden kann.
+                    Du musst das Original einreichen, damit die Einreichung abgeschlossen werden kann.
                   </p>
                 </div>
               </div>
@@ -201,12 +201,12 @@ export class AddReceiptDialogComponent {
   readonly dragOver = signal(false);
 
   readonly form: FormGroup = this.fb.group({
-    type: ['receipt' as InvoiceItemType, Validators.required],
+    category: ['', Validators.required],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
     description: [''],
   });
 
-  readonly isReceipt = computed(() => this.form.get('type')?.value === 'receipt');
+  readonly hasPaperOriginal = computed(() => this.form.get('category')?.value !== '');
 
   private readonly maxFileSize = 10 * 1024 * 1024; // 10MB
   private readonly allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf'];
@@ -278,21 +278,21 @@ export class AddReceiptDialogComponent {
     if (this.form.invalid || !this.selectedFile()) return;
 
     this.uploading.set(true);
-    const { type, amount, description } = this.form.value;
+    const { category, amount, description } = this.form.value;
 
     this.dataService
       .uploadReceipt(this.data.organizationId, {
-        type,
-        amount: Math.round(amount * 100), // Convert to cents
+        category,
+        amount: Math.round((amount ?? 0) * 100), // Convert to cents
         description: description || null,
         file: this.selectedFile()!,
       })
       .subscribe({
-        next: (invoiceItem) => {
+        next: (submissionItem) => {
           this.uploading.set(false);
           this.dialogRef.close({
             added: true,
-            invoiceItem,
+            submissionItem,
           });
         },
         error: () => {
