@@ -15,15 +15,19 @@ import { BudgetAccountValueServiceService } from './services/budget-account-valu
 import { TransactionAssignmentServiceService } from './services/transaction-assignment-service.service';
 import { AccountGroupAssignmentServiceService } from './services/account-group-assignment-service.service';
 import { BudgetServiceService } from './services/budget-service.service';
+import { CommitteeServiceService } from './services/committee-service.service';
+import { SubmissionItemServiceService } from './services/submission-item-service.service';
 import { LedgerAccountServiceService } from './services/ledger-account-service.service';
-import { LedgerYearServiceService } from './services/ledger-year-service.service';
 import { ReportServiceService } from './services/report-service.service';
+import { LedgerYearServiceService } from './services/ledger-year-service.service';
 import { TransactionServiceService } from './services/transaction-service.service';
+import { SubmissionServiceService } from './services/submission-service.service';
 import { UserIdentityServiceService } from './services/user-identity-service.service';
 import { UserSettingsServiceService } from './services/user-settings-service.service';
 import { BudgetActualAccountValueServiceService } from './services/budget-actual-account-value-service.service';
 import { BudgetRevisionServiceService } from './services/budget-revision-service.service';
 import { BudgetRevisionAccountValueServiceService } from './services/budget-revision-account-value-service.service';
+import { SubmissionCommentServiceService } from './services/submission-comment-service.service';
 
 /**
  * Provider for all Api services, plus ApiConfiguration
@@ -50,15 +54,19 @@ import { BudgetRevisionAccountValueServiceService } from './services/budget-revi
     TransactionAssignmentServiceService,
     AccountGroupAssignmentServiceService,
     BudgetServiceService,
+    CommitteeServiceService,
+    SubmissionItemServiceService,
     LedgerAccountServiceService,
-    LedgerYearServiceService,
     ReportServiceService,
+    LedgerYearServiceService,
     TransactionServiceService,
+    SubmissionServiceService,
     UserIdentityServiceService,
     UserSettingsServiceService,
     BudgetActualAccountValueServiceService,
     BudgetRevisionServiceService,
-    BudgetRevisionAccountValueServiceService
+    BudgetRevisionAccountValueServiceService,
+    SubmissionCommentServiceService
   ],
 })
 export class ApiModule {

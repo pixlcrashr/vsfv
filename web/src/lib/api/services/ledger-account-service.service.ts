@@ -21,8 +21,8 @@ import { V1BatchGetLedgerAccountsResponse } from '../models/v1batch-get-ledger-a
 })
 class LedgerAccountServiceService extends __BaseService {
   static readonly LedgerAccountServiceUpdateLedgerAccountPath = '/v1/{ledger_account.name}';
-  static readonly LedgerAccountServiceGetLedgerAccountPath = '/v1/{name_10}';
-  static readonly LedgerAccountServiceDeleteLedgerAccountPath = '/v1/{name_5}';
+  static readonly LedgerAccountServiceGetLedgerAccountPath = '/v1/{name_11}';
+  static readonly LedgerAccountServiceDeleteLedgerAccountPath = '/v1/{name_6}';
   static readonly LedgerAccountServiceListLedgerAccountsPath = '/v1/{parent}/ledgerAccounts';
   static readonly LedgerAccountServiceBatchGetLedgerAccountsPath = '/v1/{parent}/ledgerAccounts:batchGet';
 
@@ -98,18 +98,18 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:read
    *   Permission: ledgerAccount:read
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the ledger account.
+   * @param name_11 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceGetLedgerAccountResponse(name10: string): __Observable<__StrictHttpResponse<V1LedgerAccount>> {
+  LedgerAccountServiceGetLedgerAccountResponse(name11: string): __Observable<__StrictHttpResponse<V1LedgerAccount>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name11))}`,
       __body,
       {
         headers: __headers,
@@ -130,12 +130,12 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:read
    *   Permission: ledgerAccount:read
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the ledger account.
+   * @param name_11 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceGetLedgerAccount(name10: string): __Observable<V1LedgerAccount> {
-    return this.LedgerAccountServiceGetLedgerAccountResponse(name10).pipe(
+  LedgerAccountServiceGetLedgerAccount(name11: string): __Observable<V1LedgerAccount> {
+    return this.LedgerAccountServiceGetLedgerAccountResponse(name11).pipe(
       __map(_r => _r.body as V1LedgerAccount)
     );
   }
@@ -146,18 +146,18 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:write
    *   Permission: ledgerAccount:delete
    *   Domain: organization-scoped
-   * @param name_5 The resource name of the ledger account.
+   * @param name_6 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceDeleteLedgerAccountResponse(name5: string): __Observable<__StrictHttpResponse<{}>> {
+  LedgerAccountServiceDeleteLedgerAccountResponse(name6: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name5))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name6))}`,
       __body,
       {
         headers: __headers,
@@ -178,12 +178,12 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:write
    *   Permission: ledgerAccount:delete
    *   Domain: organization-scoped
-   * @param name_5 The resource name of the ledger account.
+   * @param name_6 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceDeleteLedgerAccount(name5: string): __Observable<{}> {
-    return this.LedgerAccountServiceDeleteLedgerAccountResponse(name5).pipe(
+  LedgerAccountServiceDeleteLedgerAccount(name6: string): __Observable<{}> {
+    return this.LedgerAccountServiceDeleteLedgerAccountResponse(name6).pipe(
       __map(_r => _r.body as {})
     );
   }

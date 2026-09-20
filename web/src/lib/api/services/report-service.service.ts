@@ -18,8 +18,8 @@ import { V1ListReportsResponse } from '../models/v1list-reports-response';
   providedIn: 'root',
 })
 class ReportServiceService extends __BaseService {
-  static readonly ReportServiceGetReportPath = '/v1/{name_13}';
-  static readonly ReportServiceDeleteReportPath = '/v1/{name_7}';
+  static readonly ReportServiceDeleteReportPath = '/v1/{name_10}';
+  static readonly ReportServiceGetReportPath = '/v1/{name_16}';
   static readonly ReportServiceListReportsPath = '/v1/{parent}/reports';
   static readonly ReportServiceCreateReportPath = '/v1/{parent}/reports';
 
@@ -31,71 +31,23 @@ class ReportServiceService extends __BaseService {
   }
 
   /**
-   * Gets report metadata by resource name.
-   * Authorization:
-   *   Scope: reports:read
-   *   Permission: reports:read
-   *   Domain: organization-scoped
-   * @param name_13 The resource name of the report.
-   * Format: organizations/{organization}/reports/{report}
-   * @return A successful response.
-   */
-  ReportServiceGetReportResponse(name13: string): __Observable<__StrictHttpResponse<V1Report>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<V1Report>;
-      })
-    );
-  }
-  /**
-   * Gets report metadata by resource name.
-   * Authorization:
-   *   Scope: reports:read
-   *   Permission: reports:read
-   *   Domain: organization-scoped
-   * @param name_13 The resource name of the report.
-   * Format: organizations/{organization}/reports/{report}
-   * @return A successful response.
-   */
-  ReportServiceGetReport(name13: string): __Observable<V1Report> {
-    return this.ReportServiceGetReportResponse(name13).pipe(
-      __map(_r => _r.body as V1Report)
-    );
-  }
-
-  /**
    * Permanently deletes a report.
    * Authorization:
    *   Scope: reports:write
    *   Permission: reports:delete
    *   Domain: organization-scoped
-   * @param name_7 The resource name of the report.
+   * @param name_10 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceDeleteReportResponse(name7: string): __Observable<__StrictHttpResponse<{}>> {
+  ReportServiceDeleteReportResponse(name10: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name7))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
       __body,
       {
         headers: __headers,
@@ -116,13 +68,61 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:write
    *   Permission: reports:delete
    *   Domain: organization-scoped
-   * @param name_7 The resource name of the report.
+   * @param name_10 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceDeleteReport(name7: string): __Observable<{}> {
-    return this.ReportServiceDeleteReportResponse(name7).pipe(
+  ReportServiceDeleteReport(name10: string): __Observable<{}> {
+    return this.ReportServiceDeleteReportResponse(name10).pipe(
       __map(_r => _r.body as {})
+    );
+  }
+
+  /**
+   * Gets report metadata by resource name.
+   * Authorization:
+   *   Scope: reports:read
+   *   Permission: reports:read
+   *   Domain: organization-scoped
+   * @param name_16 The resource name of the report.
+   * Format: organizations/{organization}/reports/{report}
+   * @return A successful response.
+   */
+  ReportServiceGetReportResponse(name16: string): __Observable<__StrictHttpResponse<V1Report>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name16))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1Report>;
+      })
+    );
+  }
+  /**
+   * Gets report metadata by resource name.
+   * Authorization:
+   *   Scope: reports:read
+   *   Permission: reports:read
+   *   Domain: organization-scoped
+   * @param name_16 The resource name of the report.
+   * Format: organizations/{organization}/reports/{report}
+   * @return A successful response.
+   */
+  ReportServiceGetReport(name16: string): __Observable<V1Report> {
+    return this.ReportServiceGetReportResponse(name16).pipe(
+      __map(_r => _r.body as V1Report)
     );
   }
 

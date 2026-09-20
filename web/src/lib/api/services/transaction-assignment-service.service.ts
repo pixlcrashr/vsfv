@@ -19,8 +19,8 @@ import { V1ListTransactionAssignmentsResponse } from '../models/v1list-transacti
 })
 class TransactionAssignmentServiceService extends __BaseService {
   static readonly TransactionAssignmentServiceUpdateTransactionAssignmentPath = '/v1/{assignment.name_1}';
-  static readonly TransactionAssignmentServiceDeleteTransactionAssignmentPath = '/v1/{name_10}';
-  static readonly TransactionAssignmentServiceGetTransactionAssignmentPath = '/v1/{name_16}';
+  static readonly TransactionAssignmentServiceDeleteTransactionAssignmentPath = '/v1/{name_13}';
+  static readonly TransactionAssignmentServiceGetTransactionAssignmentPath = '/v1/{name_19}';
   static readonly TransactionAssignmentServiceListTransactionAssignmentsPath = '/v1/{parent_1}/assignments';
   static readonly TransactionAssignmentServiceCreateTransactionAssignmentPath = '/v1/{parent_1}/assignments';
 
@@ -96,18 +96,18 @@ class TransactionAssignmentServiceService extends __BaseService {
    *   Scope: transactions:delete
    *   Permission: transactions:delete
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the transaction assignment.
+   * @param name_13 The resource name of the transaction assignment.
    * Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
    * @return A successful response.
    */
-  TransactionAssignmentServiceDeleteTransactionAssignmentResponse(name10: string): __Observable<__StrictHttpResponse<{}>> {
+  TransactionAssignmentServiceDeleteTransactionAssignmentResponse(name13: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
       __body,
       {
         headers: __headers,
@@ -128,12 +128,12 @@ class TransactionAssignmentServiceService extends __BaseService {
    *   Scope: transactions:delete
    *   Permission: transactions:delete
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the transaction assignment.
+   * @param name_13 The resource name of the transaction assignment.
    * Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
    * @return A successful response.
    */
-  TransactionAssignmentServiceDeleteTransactionAssignment(name10: string): __Observable<{}> {
-    return this.TransactionAssignmentServiceDeleteTransactionAssignmentResponse(name10).pipe(
+  TransactionAssignmentServiceDeleteTransactionAssignment(name13: string): __Observable<{}> {
+    return this.TransactionAssignmentServiceDeleteTransactionAssignmentResponse(name13).pipe(
       __map(_r => _r.body as {})
     );
   }
@@ -144,18 +144,18 @@ class TransactionAssignmentServiceService extends __BaseService {
    *   Scope: transactions:read
    *   Permission: transactions:read
    *   Domain: organization-scoped
-   * @param name_16 The resource name of the transaction assignment.
+   * @param name_19 The resource name of the transaction assignment.
    * Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
    * @return A successful response.
    */
-  TransactionAssignmentServiceGetTransactionAssignmentResponse(name16: string): __Observable<__StrictHttpResponse<V1TransactionAssignment>> {
+  TransactionAssignmentServiceGetTransactionAssignmentResponse(name19: string): __Observable<__StrictHttpResponse<V1TransactionAssignment>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name16))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name19))}`,
       __body,
       {
         headers: __headers,
@@ -176,12 +176,12 @@ class TransactionAssignmentServiceService extends __BaseService {
    *   Scope: transactions:read
    *   Permission: transactions:read
    *   Domain: organization-scoped
-   * @param name_16 The resource name of the transaction assignment.
+   * @param name_19 The resource name of the transaction assignment.
    * Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
    * @return A successful response.
    */
-  TransactionAssignmentServiceGetTransactionAssignment(name16: string): __Observable<V1TransactionAssignment> {
-    return this.TransactionAssignmentServiceGetTransactionAssignmentResponse(name16).pipe(
+  TransactionAssignmentServiceGetTransactionAssignment(name19: string): __Observable<V1TransactionAssignment> {
+    return this.TransactionAssignmentServiceGetTransactionAssignmentResponse(name19).pipe(
       __map(_r => _r.body as V1TransactionAssignment)
     );
   }

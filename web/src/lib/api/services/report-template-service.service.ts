@@ -20,8 +20,8 @@ import { V1ListReportTemplatesResponse } from '../models/v1list-report-templates
 })
 class ReportTemplateServiceService extends __BaseService {
   static readonly ReportTemplateServiceGenerateHtmlPreviewPath = '/v1/reportTemplates:generateHtmlPreview';
-  static readonly ReportTemplateServiceGetReportTemplatePath = '/v1/{name_14}';
-  static readonly ReportTemplateServiceDeleteReportTemplatePath = '/v1/{name_8}';
+  static readonly ReportTemplateServiceDeleteReportTemplatePath = '/v1/{name_11}';
+  static readonly ReportTemplateServiceGetReportTemplatePath = '/v1/{name_17}';
   static readonly ReportTemplateServiceListReportTemplatesPath = '/v1/{parent}/reportTemplates';
   static readonly ReportTemplateServiceCreateReportTemplatePath = '/v1/{parent}/reportTemplates';
   static readonly ReportTemplateServiceUpdateReportTemplatePath = '/v1/{report_template.name}';
@@ -86,71 +86,23 @@ class ReportTemplateServiceService extends __BaseService {
   }
 
   /**
-   * Gets a single report template by resource name.
-   * Authorization:
-   *   Scope: reportTemplates:read
-   *   Permission: reportTemplates:read
-   *   Domain: organization-scoped
-   * @param name_14 The resource name of the report template.
-   * Format: organizations/{organization}/reportTemplates/{report_template}
-   * @return A successful response.
-   */
-  ReportTemplateServiceGetReportTemplateResponse(name14: string): __Observable<__StrictHttpResponse<V1ReportTemplate>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name14))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<V1ReportTemplate>;
-      })
-    );
-  }
-  /**
-   * Gets a single report template by resource name.
-   * Authorization:
-   *   Scope: reportTemplates:read
-   *   Permission: reportTemplates:read
-   *   Domain: organization-scoped
-   * @param name_14 The resource name of the report template.
-   * Format: organizations/{organization}/reportTemplates/{report_template}
-   * @return A successful response.
-   */
-  ReportTemplateServiceGetReportTemplate(name14: string): __Observable<V1ReportTemplate> {
-    return this.ReportTemplateServiceGetReportTemplateResponse(name14).pipe(
-      __map(_r => _r.body as V1ReportTemplate)
-    );
-  }
-
-  /**
    * Permanently deletes a report template.
    * Authorization:
    *   Scope: reportTemplates:write
    *   Permission: reportTemplates:delete
    *   Domain: organization-scoped
-   * @param name_8 The resource name of the report template.
+   * @param name_11 The resource name of the report template.
    * Format: organizations/{organization}/reportTemplates/{report_template}
    * @return A successful response.
    */
-  ReportTemplateServiceDeleteReportTemplateResponse(name8: string): __Observable<__StrictHttpResponse<{}>> {
+  ReportTemplateServiceDeleteReportTemplateResponse(name11: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name8))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name11))}`,
       __body,
       {
         headers: __headers,
@@ -171,13 +123,61 @@ class ReportTemplateServiceService extends __BaseService {
    *   Scope: reportTemplates:write
    *   Permission: reportTemplates:delete
    *   Domain: organization-scoped
-   * @param name_8 The resource name of the report template.
+   * @param name_11 The resource name of the report template.
    * Format: organizations/{organization}/reportTemplates/{report_template}
    * @return A successful response.
    */
-  ReportTemplateServiceDeleteReportTemplate(name8: string): __Observable<{}> {
-    return this.ReportTemplateServiceDeleteReportTemplateResponse(name8).pipe(
+  ReportTemplateServiceDeleteReportTemplate(name11: string): __Observable<{}> {
+    return this.ReportTemplateServiceDeleteReportTemplateResponse(name11).pipe(
       __map(_r => _r.body as {})
+    );
+  }
+
+  /**
+   * Gets a single report template by resource name.
+   * Authorization:
+   *   Scope: reportTemplates:read
+   *   Permission: reportTemplates:read
+   *   Domain: organization-scoped
+   * @param name_17 The resource name of the report template.
+   * Format: organizations/{organization}/reportTemplates/{report_template}
+   * @return A successful response.
+   */
+  ReportTemplateServiceGetReportTemplateResponse(name17: string): __Observable<__StrictHttpResponse<V1ReportTemplate>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name17))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1ReportTemplate>;
+      })
+    );
+  }
+  /**
+   * Gets a single report template by resource name.
+   * Authorization:
+   *   Scope: reportTemplates:read
+   *   Permission: reportTemplates:read
+   *   Domain: organization-scoped
+   * @param name_17 The resource name of the report template.
+   * Format: organizations/{organization}/reportTemplates/{report_template}
+   * @return A successful response.
+   */
+  ReportTemplateServiceGetReportTemplate(name17: string): __Observable<V1ReportTemplate> {
+    return this.ReportTemplateServiceGetReportTemplateResponse(name17).pipe(
+      __map(_r => _r.body as V1ReportTemplate)
     );
   }
 

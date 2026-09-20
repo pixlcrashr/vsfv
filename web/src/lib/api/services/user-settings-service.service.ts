@@ -16,7 +16,7 @@ import { V1UserSettings } from '../models/v1user-settings';
   providedIn: 'root',
 })
 class UserSettingsServiceService extends __BaseService {
-  static readonly UserSettingsServiceGetUserSettingsPath = '/v1/{name_19}';
+  static readonly UserSettingsServiceGetUserSettingsPath = '/v1/{name_22}';
   static readonly UserSettingsServiceUpdateUserSettingsPath = '/v1/{settings.name}';
 
   constructor(
@@ -32,18 +32,18 @@ class UserSettingsServiceService extends __BaseService {
    *   Scope: settings:read
    *   Permission: settings:read
    *   Domain: global
-   * @param name_19 The resource name of the user settings.
+   * @param name_22 The resource name of the user settings.
    * Format: users/{user}/settings
    * @return A successful response.
    */
-  UserSettingsServiceGetUserSettingsResponse(name19: string): __Observable<__StrictHttpResponse<V1UserSettings>> {
+  UserSettingsServiceGetUserSettingsResponse(name22: string): __Observable<__StrictHttpResponse<V1UserSettings>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name19))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name22))}`,
       __body,
       {
         headers: __headers,
@@ -64,12 +64,12 @@ class UserSettingsServiceService extends __BaseService {
    *   Scope: settings:read
    *   Permission: settings:read
    *   Domain: global
-   * @param name_19 The resource name of the user settings.
+   * @param name_22 The resource name of the user settings.
    * Format: users/{user}/settings
    * @return A successful response.
    */
-  UserSettingsServiceGetUserSettings(name19: string): __Observable<V1UserSettings> {
-    return this.UserSettingsServiceGetUserSettingsResponse(name19).pipe(
+  UserSettingsServiceGetUserSettings(name22: string): __Observable<V1UserSettings> {
+    return this.UserSettingsServiceGetUserSettingsResponse(name22).pipe(
       __map(_r => _r.body as V1UserSettings)
     );
   }

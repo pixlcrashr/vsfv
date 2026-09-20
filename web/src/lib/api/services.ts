@@ -10,12 +10,16 @@ export { BudgetAccountValueServiceService } from './services/budget-account-valu
 export { TransactionAssignmentServiceService } from './services/transaction-assignment-service.service';
 export { AccountGroupAssignmentServiceService } from './services/account-group-assignment-service.service';
 export { BudgetServiceService } from './services/budget-service.service';
+export { CommitteeServiceService } from './services/committee-service.service';
+export { SubmissionItemServiceService } from './services/submission-item-service.service';
 export { LedgerAccountServiceService } from './services/ledger-account-service.service';
-export { LedgerYearServiceService } from './services/ledger-year-service.service';
 export { ReportServiceService } from './services/report-service.service';
+export { LedgerYearServiceService } from './services/ledger-year-service.service';
 export { TransactionServiceService } from './services/transaction-service.service';
+export { SubmissionServiceService } from './services/submission-service.service';
 export { UserIdentityServiceService } from './services/user-identity-service.service';
 export { UserSettingsServiceService } from './services/user-settings-service.service';
 export { BudgetActualAccountValueServiceService } from './services/budget-actual-account-value-service.service';
 export { BudgetRevisionServiceService } from './services/budget-revision-service.service';
 export { BudgetRevisionAccountValueServiceService } from './services/budget-revision-account-value-service.service';
+export { SubmissionCommentServiceService } from './services/submission-comment-service.service';

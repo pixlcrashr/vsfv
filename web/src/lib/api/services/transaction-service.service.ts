@@ -18,8 +18,8 @@ import { V1Decimal } from '../models/v1decimal';
   providedIn: 'root',
 })
 class TransactionServiceService extends __BaseService {
-  static readonly TransactionServiceGetTransactionPath = '/v1/{name_15}';
-  static readonly TransactionServiceDeleteTransactionPath = '/v1/{name_9}';
+  static readonly TransactionServiceDeleteTransactionPath = '/v1/{name_12}';
+  static readonly TransactionServiceGetTransactionPath = '/v1/{name_18}';
   static readonly TransactionServiceListTransactionsPath = '/v1/{parent}/transactions';
   static readonly TransactionServiceCreateTransactionPath = '/v1/{parent}/transactions';
   static readonly TransactionServiceUpdateTransactionPath = '/v1/{transaction.name}';
@@ -32,71 +32,23 @@ class TransactionServiceService extends __BaseService {
   }
 
   /**
-   * Gets a single transaction by resource name.
-   * Authorization:
-   *   Scope: transactions:read
-   *   Permission: transactions:read
-   *   Domain: organization-scoped
-   * @param name_15 The resource name of the transaction.
-   * Format: organizations/{organization}/transactions/{transaction}
-   * @return A successful response.
-   */
-  TransactionServiceGetTransactionResponse(name15: string): __Observable<__StrictHttpResponse<V1Transaction>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name15))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<V1Transaction>;
-      })
-    );
-  }
-  /**
-   * Gets a single transaction by resource name.
-   * Authorization:
-   *   Scope: transactions:read
-   *   Permission: transactions:read
-   *   Domain: organization-scoped
-   * @param name_15 The resource name of the transaction.
-   * Format: organizations/{organization}/transactions/{transaction}
-   * @return A successful response.
-   */
-  TransactionServiceGetTransaction(name15: string): __Observable<V1Transaction> {
-    return this.TransactionServiceGetTransactionResponse(name15).pipe(
-      __map(_r => _r.body as V1Transaction)
-    );
-  }
-
-  /**
    * Permanently deletes a transaction.
    * Authorization:
    *   Scope: transactions:write
    *   Permission: transactions:delete
    *   Domain: organization-scoped
-   * @param name_9 The resource name of the transaction.
+   * @param name_12 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceDeleteTransactionResponse(name9: string): __Observable<__StrictHttpResponse<{}>> {
+  TransactionServiceDeleteTransactionResponse(name12: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name12))}`,
       __body,
       {
         headers: __headers,
@@ -117,13 +69,61 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:write
    *   Permission: transactions:delete
    *   Domain: organization-scoped
-   * @param name_9 The resource name of the transaction.
+   * @param name_12 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceDeleteTransaction(name9: string): __Observable<{}> {
-    return this.TransactionServiceDeleteTransactionResponse(name9).pipe(
+  TransactionServiceDeleteTransaction(name12: string): __Observable<{}> {
+    return this.TransactionServiceDeleteTransactionResponse(name12).pipe(
       __map(_r => _r.body as {})
+    );
+  }
+
+  /**
+   * Gets a single transaction by resource name.
+   * Authorization:
+   *   Scope: transactions:read
+   *   Permission: transactions:read
+   *   Domain: organization-scoped
+   * @param name_18 The resource name of the transaction.
+   * Format: organizations/{organization}/transactions/{transaction}
+   * @return A successful response.
+   */
+  TransactionServiceGetTransactionResponse(name18: string): __Observable<__StrictHttpResponse<V1Transaction>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name18))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1Transaction>;
+      })
+    );
+  }
+  /**
+   * Gets a single transaction by resource name.
+   * Authorization:
+   *   Scope: transactions:read
+   *   Permission: transactions:read
+   *   Domain: organization-scoped
+   * @param name_18 The resource name of the transaction.
+   * Format: organizations/{organization}/transactions/{transaction}
+   * @return A successful response.
+   */
+  TransactionServiceGetTransaction(name18: string): __Observable<V1Transaction> {
+    return this.TransactionServiceGetTransactionResponse(name18).pipe(
+      __map(_r => _r.body as V1Transaction)
     );
   }
 

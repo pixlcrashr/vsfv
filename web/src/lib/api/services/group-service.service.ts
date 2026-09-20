@@ -22,8 +22,8 @@ class GroupServiceService extends __BaseService {
   static readonly GroupServiceListGroupsPath = '/v1/groups';
   static readonly GroupServiceCreateGroupPath = '/v1/groups';
   static readonly GroupServiceUpdateGroupPath = '/v1/{group.name}';
-  static readonly GroupServiceDeleteGroupPath = '/v1/{name_4}';
-  static readonly GroupServiceGetGroupPath = '/v1/{name_9}';
+  static readonly GroupServiceGetGroupPath = '/v1/{name_10}';
+  static readonly GroupServiceDeleteGroupPath = '/v1/{name_5}';
   static readonly GroupServiceAddUserToGroupPath = '/v1/{name}:addUser';
   static readonly GroupServiceRemoveUserFromGroupPath = '/v1/{name}:removeUser';
 
@@ -224,71 +224,23 @@ class GroupServiceService extends __BaseService {
   }
 
   /**
-   * Permanently deletes a group.
-   * Authorization:
-   *   Scope: groups:write
-   *   Permission: groups:delete
-   *   Domain: global
-   * @param name_4 The resource name of the group.
-   * Format: groups/{group}
-   * @return A successful response.
-   */
-  GroupServiceDeleteGroupResponse(name4: string): __Observable<__StrictHttpResponse<{}>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name4))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<{}>;
-      })
-    );
-  }
-  /**
-   * Permanently deletes a group.
-   * Authorization:
-   *   Scope: groups:write
-   *   Permission: groups:delete
-   *   Domain: global
-   * @param name_4 The resource name of the group.
-   * Format: groups/{group}
-   * @return A successful response.
-   */
-  GroupServiceDeleteGroup(name4: string): __Observable<{}> {
-    return this.GroupServiceDeleteGroupResponse(name4).pipe(
-      __map(_r => _r.body as {})
-    );
-  }
-
-  /**
    * Gets a single group by resource name.
    * Authorization:
    *   Scope: groups:read
    *   Permission: groups:read
    *   Domain: global
-   * @param name_9 The resource name of the group.
+   * @param name_10 The resource name of the group.
    * Format: groups/{group}
    * @return A successful response.
    */
-  GroupServiceGetGroupResponse(name9: string): __Observable<__StrictHttpResponse<V1Group>> {
+  GroupServiceGetGroupResponse(name10: string): __Observable<__StrictHttpResponse<V1Group>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
       __body,
       {
         headers: __headers,
@@ -309,13 +261,61 @@ class GroupServiceService extends __BaseService {
    *   Scope: groups:read
    *   Permission: groups:read
    *   Domain: global
-   * @param name_9 The resource name of the group.
+   * @param name_10 The resource name of the group.
    * Format: groups/{group}
    * @return A successful response.
    */
-  GroupServiceGetGroup(name9: string): __Observable<V1Group> {
-    return this.GroupServiceGetGroupResponse(name9).pipe(
+  GroupServiceGetGroup(name10: string): __Observable<V1Group> {
+    return this.GroupServiceGetGroupResponse(name10).pipe(
       __map(_r => _r.body as V1Group)
+    );
+  }
+
+  /**
+   * Permanently deletes a group.
+   * Authorization:
+   *   Scope: groups:write
+   *   Permission: groups:delete
+   *   Domain: global
+   * @param name_5 The resource name of the group.
+   * Format: groups/{group}
+   * @return A successful response.
+   */
+  GroupServiceDeleteGroupResponse(name5: string): __Observable<__StrictHttpResponse<{}>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'DELETE',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name5))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<{}>;
+      })
+    );
+  }
+  /**
+   * Permanently deletes a group.
+   * Authorization:
+   *   Scope: groups:write
+   *   Permission: groups:delete
+   *   Domain: global
+   * @param name_5 The resource name of the group.
+   * Format: groups/{group}
+   * @return A successful response.
+   */
+  GroupServiceDeleteGroup(name5: string): __Observable<{}> {
+    return this.GroupServiceDeleteGroupResponse(name5).pipe(
+      __map(_r => _r.body as {})
     );
   }
 

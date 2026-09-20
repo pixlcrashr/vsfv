@@ -12,6 +12,7 @@ import { V1Organization } from '../models/v1organization';
 import { V1CheckOrganizationIdResponse } from '../models/v1check-organization-id-response';
 import { V1CheckOrganizationIdRequest } from '../models/v1check-organization-id-request';
 import { V1Month } from '../models/v1month';
+import { V1SubmissionSettings } from '../models/v1submission-settings';
 
 /**
  * OrganizationService manages organizations.
@@ -23,8 +24,8 @@ class OrganizationServiceService extends __BaseService {
   static readonly OrganizationServiceListOrganizationsPath = '/v1/organizations';
   static readonly OrganizationServiceCreateOrganizationPath = '/v1/organizations';
   static readonly OrganizationServiceCheckOrganizationIdPath = '/v1/organizations:checkId';
-  static readonly OrganizationServiceGetOrganizationPath = '/v1/{name_12}';
-  static readonly OrganizationServiceDeleteOrganizationPath = '/v1/{name_6}';
+  static readonly OrganizationServiceGetOrganizationPath = '/v1/{name_15}';
+  static readonly OrganizationServiceDeleteOrganizationPath = '/v1/{name_9}';
   static readonly OrganizationServiceUpdateOrganizationPath = '/v1/{organization.name}';
 
   constructor(
@@ -218,18 +219,18 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:read
    *   Permission: organizations:read
    *   Domain: global
-   * @param name_12 The resource name of the organization.
+   * @param name_15 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceGetOrganizationResponse(name12: string): __Observable<__StrictHttpResponse<V1Organization>> {
+  OrganizationServiceGetOrganizationResponse(name15: string): __Observable<__StrictHttpResponse<V1Organization>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name12))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name15))}`,
       __body,
       {
         headers: __headers,
@@ -250,12 +251,12 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:read
    *   Permission: organizations:read
    *   Domain: global
-   * @param name_12 The resource name of the organization.
+   * @param name_15 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceGetOrganization(name12: string): __Observable<V1Organization> {
-    return this.OrganizationServiceGetOrganizationResponse(name12).pipe(
+  OrganizationServiceGetOrganization(name15: string): __Observable<V1Organization> {
+    return this.OrganizationServiceGetOrganizationResponse(name15).pipe(
       __map(_r => _r.body as V1Organization)
     );
   }
@@ -266,18 +267,18 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:write
    *   Permission: organizations:delete
    *   Domain: global
-   * @param name_6 The resource name of the organization.
+   * @param name_9 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceDeleteOrganizationResponse(name6: string): __Observable<__StrictHttpResponse<{}>> {
+  OrganizationServiceDeleteOrganizationResponse(name9: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name6))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
       __body,
       {
         headers: __headers,
@@ -298,12 +299,12 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:write
    *   Permission: organizations:delete
    *   Domain: global
-   * @param name_6 The resource name of the organization.
+   * @param name_9 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceDeleteOrganization(name6: string): __Observable<{}> {
-    return this.OrganizationServiceDeleteOrganizationResponse(name6).pipe(
+  OrganizationServiceDeleteOrganization(name9: string): __Observable<{}> {
+    return this.OrganizationServiceDeleteOrganizationResponse(name9).pipe(
       __map(_r => _r.body as {})
     );
   }
@@ -430,7 +431,7 @@ module OrganizationServiceService {
     /**
      * The organization to update.
      */
-    organization: {uid?: string, display_name: string, display_description?: string, start_month: V1Month, update_time?: string, create_time?: string, etag?: string};
+    organization: {uid?: string, display_name: string, display_description?: string, start_month: V1Month, submission_settings?: V1SubmissionSettings, update_time?: string, create_time?: string, etag?: string};
   }
 }
 
