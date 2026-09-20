@@ -1,18 +1,18 @@
 package xmlformat
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
-	"strings"
 
-	"github.com/gofiber/adaptor/v2"
-	"github.com/gofiber/fiber/v2"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/pixlcrashr/vsfv/pkg/api/humax"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 )
@@ -20,174 +20,140 @@ import (
 // maxXMLSize bounds XML import uploads (and the multipart memory buffer).
 const maxXMLSize = 32 << 20
 
-const (
-	exportPathPrefix = "/api/v1/organizations/"
-	exportPathSuffix = "/data:export-xml"
-)
-
-// RegisterRoutes wires the XML import/export endpoints onto the given Fiber
-// app. Import creates a new organization from an uploaded document; export
+// RegisterRoutes wires the XML import/export endpoints onto the given Huma
+// API. Import creates a new organization from an uploaded document; export
 // downloads an existing organization. Both are organization-administration
-// operations guarded by global organization permissions. The handlers are
-// implemented in net/http so they can share the Bearer-token auth middleware
-// with the grpc-gateway API; they must be registered before the gateway's
-// /api/v1/* catch-all (api.Server does so).
-func RegisterRoutes(app fiber.Router, db *gorm.DB, authMiddleware func(http.Handler) http.Handler, enforcer *authz.Enforcer) {
+// operations guarded by global organization permissions.
+//
+// These routes live outside the protobuf-generated gRPC-gateway API as
+// Huma-hosted exception endpoints (self-documented via Huma's OpenAPI) and
+// must be registered before the gateway's /api/v1/* catch-all (api.Server
+// does so).
+func RegisterRoutes(api huma.API, db *gorm.DB, authDeps *humax.AuthDeps, enforcer *authz.Enforcer) {
 	deps := makeExportRepositoryDependencies(db)
 
-	app.Post("/api/v1/organizations:import-xml",
-		adaptor.HTTPHandler(withAuth(authMiddleware, handleImportXML(db, enforcer))))
-	app.Get("/api/v1/organizations/:organization_id/data:export-xml",
-		adaptor.HTTPHandler(withAuth(authMiddleware, handleExportXML(deps, enforcer))))
-}
-
-// withAuth applies the auth middleware when one is configured (it is nil when
-// the auth server is disabled).
-func withAuth(authMiddleware func(http.Handler) http.Handler, h http.Handler) http.Handler {
-	if authMiddleware == nil {
-		return h
-	}
-	return authMiddleware(h)
-}
-
-// handleImportXML accepts a multipart upload (field "file") containing a V1
-// XML document and imports it as a new organization.
-func handleImportXML(db *gorm.DB, enforcer *authz.Enforcer) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !requireGlobalPermission(w, r, enforcer, authz.ResourceOrganizations, authz.ActionCreate) {
-			return
-		}
-
-		if err := r.ParseMultipartForm(maxXMLSize); err != nil {
-			writeHTTPError(w, http.StatusBadRequest, "invalid multipart form: "+err.Error())
-			return
-		}
-		file, _, err := r.FormFile("file")
+	huma.Register(api, huma.Operation{
+		OperationID:   "import-organization-xml",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/organizations:import-xml",
+		Summary:       "Import an organization from a V1 XML document",
+		Description:   "Creates a new organization from an uploaded V1 XML document (multipart field \"file\").",
+		Tags:          []string{"Import/Export"},
+		MaxBodyBytes:  maxXMLSize,
+		DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, input *importInput) (*importOutput, error) {
+		authed, err := humax.Auth(ctx, authDeps, input.Authorization)
 		if err != nil {
-			writeHTTPError(w, http.StatusBadRequest, "missing file field")
-			return
+			return nil, err
+		}
+		if err := humax.CheckGlobal(authed, enforcer, authz.ResourceOrganizations, authz.ActionCreate); err != nil {
+			return nil, err
+		}
+
+		file, err := openUploadedFile(&input.RawBody)
+		if err != nil {
+			return nil, err
 		}
 		defer file.Close()
 
 		data, err := io.ReadAll(io.LimitReader(file, maxXMLSize))
 		if err != nil {
-			writeHTTPError(w, http.StatusBadRequest, "cannot read uploaded file")
-			return
+			return nil, humax.NewError(http.StatusBadRequest, "cannot read uploaded file")
 		}
 
 		doc, err := Unmarshal(data)
 		if err != nil {
-			writeHTTPError(w, http.StatusUnprocessableEntity, fmt.Sprintf("invalid xml: %v", err))
-			return
+			return nil, humax.NewError(http.StatusUnprocessableEntity, fmt.Sprintf("invalid xml: %v", err))
 		}
 
-		org, err := ImportNewOrganization(r.Context(), db, doc)
+		org, err := ImportNewOrganization(authed, db, doc)
 		switch {
 		case errors.Is(err, ErrOrganizationCustomIDTaken):
-			writeHTTPError(w, http.StatusConflict, err.Error())
+			return nil, humax.NewError(http.StatusConflict, err.Error())
 		case err != nil:
-			writeHTTPError(w, http.StatusUnprocessableEntity, err.Error())
-		default:
-			writeJSON(w, http.StatusCreated, map[string]string{
-				"organization_id": org.ID.String(),
-				"custom_id":       org.CustomID,
-				"display_name":    org.DisplayName,
-			})
+			return nil, humax.NewError(http.StatusUnprocessableEntity, err.Error())
 		}
+
+		return &importOutput{Body: importBody{
+			OrganizationID: org.ID.String(),
+			CustomID:       org.CustomID,
+			DisplayName:    org.DisplayName,
+		}}, nil
 	})
-}
 
-// handleExportXML streams an existing organization as a V1 XML document. The
-// organization ID is taken from the request path because the handler runs as a
-// plain net/http handler behind the Fiber adaptor, which has no path-param
-// support.
-func handleExportXML(deps *ExportRepositoryDependencies, enforcer *authz.Enforcer) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !requireGlobalPermission(w, r, enforcer, authz.ResourceOrganizations, authz.ActionRead) {
-			return
-		}
-
-		orgID, err := parseExportOrganizationID(r.URL.Path)
+	huma.Register(api, huma.Operation{
+		OperationID: "export-organization-xml",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/organizations/{organization_id}/data:export-xml",
+		Summary:     "Export an organization as a V1 XML document",
+		Description: "Downloads the organization as a V1 XML document.",
+		Tags:        []string{"Import/Export"},
+	}, func(ctx context.Context, input *exportInput) (*exportOutput, error) {
+		authed, err := humax.Auth(ctx, authDeps, input.Authorization)
 		if err != nil {
-			writeHTTPError(w, http.StatusBadRequest, "invalid organization_id")
-			return
+			return nil, err
+		}
+		if err := humax.CheckGlobal(authed, enforcer, authz.ResourceOrganizations, authz.ActionRead); err != nil {
+			return nil, err
 		}
 
-		doc, err := ExportOrganization(r.Context(), deps, orgID)
+		orgID, err := uuid.Parse(input.OrganizationID)
+		if err != nil {
+			return nil, humax.NewError(http.StatusBadRequest, "invalid organization_id")
+		}
+
+		doc, err := ExportOrganization(authed, deps, orgID)
 		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			writeHTTPError(w, http.StatusNotFound, "organization not found")
-			return
+			return nil, humax.NewError(http.StatusNotFound, "organization not found")
 		}
 		if err != nil {
-			writeHTTPError(w, http.StatusInternalServerError, err.Error())
-			return
+			return nil, humax.NewError(http.StatusInternalServerError, err.Error())
 		}
 
 		data, err := Marshal(doc)
 		if err != nil {
-			writeHTTPError(w, http.StatusInternalServerError, err.Error())
-			return
+			return nil, humax.NewError(http.StatusInternalServerError, err.Error())
 		}
 
-		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"vsfv-export-%s.xml\"", orgID))
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(data)
+		return &exportOutput{
+			Body:               data,
+			ContentType:        "application/xml; charset=utf-8",
+			ContentDisposition: fmt.Sprintf("attachment; filename=\"vsfv-export-%s.xml\"", orgID),
+		}, nil
 	})
 }
 
-// parseExportOrganizationID extracts the organization UUID from an export
-// request path of the form /api/v1/organizations/{uuid}/data:export-xml.
-func parseExportOrganizationID(path string) (uuid.UUID, error) {
-	if !strings.HasPrefix(path, exportPathPrefix) || !strings.HasSuffix(path, exportPathSuffix) {
-		return uuid.Nil, fmt.Errorf("unexpected export path %q", path)
-	}
-	id := strings.TrimSuffix(strings.TrimPrefix(path, exportPathPrefix), exportPathSuffix)
-	return uuid.Parse(id)
+type importInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer access token"`
+	RawBody       multipart.Form
 }
 
-// requireGlobalPermission reports whether the request may proceed and otherwise
-// writes the matching error response. A nil enforcer disables the check (used
-// by tests).
-func requireGlobalPermission(w http.ResponseWriter, r *http.Request, enforcer *authz.Enforcer, resource, action string) bool {
-	if enforcer == nil {
-		return true
-	}
-	err := authz.CheckGlobal(r.Context(), enforcer, resource, action)
-	if err == nil {
-		return true
-	}
-	if errors.Is(err, authz.ErrUnauthenticated) {
-		writeHTTPError(w, http.StatusUnauthorized, err.Error())
-	} else {
-		writeHTTPError(w, http.StatusForbidden, err.Error())
-	}
-	return false
+type importBody struct {
+	OrganizationID string `json:"organization_id"`
+	CustomID       string `json:"custom_id"`
+	DisplayName    string `json:"display_name"`
 }
 
-func writeHTTPError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+type importOutput struct {
+	Body importBody
 }
 
-func writeJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+type exportInput struct {
+	Authorization  string `header:"Authorization" doc:"Bearer access token"`
+	OrganizationID string `path:"organization_id"`
 }
 
-func makeExportRepositoryDependencies(db *gorm.DB) *ExportRepositoryDependencies {
-	return &ExportRepositoryDependencies{
-		OrganizationRepo:               repository.NewOrganizationRepository(db),
-		AccountRepo:                    repository.NewAccountRepository(db),
-		AccountGroupRepo:               repository.NewAccountGroupRepository(db),
-		AccountGroupAssignmentRepo:     repository.NewAccountGroupAssignmentRepository(db),
-		BudgetRepo:                     repository.NewBudgetRepository(db),
-		BudgetAccountValueRepo:         repository.NewBudgetAccountValueRepository(db),
-		BudgetRevisionRepo:             repository.NewBudgetRevisionRepository(db),
-		BudgetRevisionAccountValueRepo: repository.NewBudgetRevisionAccountValueRepository(db),
-		LedgerAccountRepo:              repository.NewLedgerAccountRepository(db),
-		LedgerYearRepo:                 repository.NewLedgerYearRepository(db),
-		TransactionRepo:                repository.NewTransactionRepository(db),
-		TransactionAssignmentRepo:      repository.NewTransactionAssignmentRepository(db),
+type exportOutput struct {
+	Body               []byte
+	ContentType        string `header:"Content-Type"`
+	ContentDisposition string `header:"Content-Disposition"`
+}
+
+// openUploadedFile extracts the multipart form field "file".
+func openUploadedFile(form *multipart.Form) (multipart.File, error) {
+	headers := form.File["file"]
+	if len(headers) == 0 {
+		return nil, humax.NewError(http.StatusBadRequest, "missing file field")
 	}
+	return headers[0].Open()
 }

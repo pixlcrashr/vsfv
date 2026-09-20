@@ -17,19 +17,22 @@ type Organization struct {
 	CreatedAt          time.Time  `gorm:"not null;default:CURRENT_TIMESTAMP"`
 
 	// Relations
-	AccountGroupAssignments     []AccountGroupAssignment     `gorm:"foreignKey:OrganizationID"`
-	AccountGroups               []AccountGroup               `gorm:"foreignKey:OrganizationID"`
-	Accounts                    []Account                    `gorm:"foreignKey:OrganizationID"`
-	BudgetRevisions             []BudgetRevision             `gorm:"foreignKey:OrganizationID"`
-	BudgetRevisionAccountValues []BudgetRevisionAccountValue `gorm:"foreignKey:OrganizationID"`
-	BudgetAccountValues         []BudgetAccountValue         `gorm:"foreignKey:OrganizationID"`
-	Budgets                     []Budget                     `gorm:"foreignKey:OrganizationID"`
-	LedgerYears                 []LedgerYear                 `gorm:"foreignKey:OrganizationID"`
-	LedgerAccounts              []LedgerAccount              `gorm:"foreignKey:OrganizationID"`
-	ReportTemplates             []ReportTemplate             `gorm:"foreignKey:OrganizationID"`
-	Reports                     []Report                     `gorm:"foreignKey:OrganizationID"`
-	Transactions                []Transaction_               `gorm:"foreignKey:OrganizationID"`
-	TransactionAssignments      []TransactionAssignment      `gorm:"foreignKey:OrganizationID"`
+	AccountGroupAssignments     []AccountGroupAssignment        `gorm:"foreignKey:OrganizationID"`
+	AccountGroups               []AccountGroup                  `gorm:"foreignKey:OrganizationID"`
+	Accounts                    []Account                       `gorm:"foreignKey:OrganizationID"`
+	BudgetRevisions             []BudgetRevision                `gorm:"foreignKey:OrganizationID"`
+	BudgetRevisionAccountValues []BudgetRevisionAccountValue    `gorm:"foreignKey:OrganizationID"`
+	BudgetAccountValues         []BudgetAccountValue            `gorm:"foreignKey:OrganizationID"`
+	Budgets                     []Budget                        `gorm:"foreignKey:OrganizationID"`
+	LedgerYears                 []LedgerYear                    `gorm:"foreignKey:OrganizationID"`
+	LedgerAccounts              []LedgerAccount                 `gorm:"foreignKey:OrganizationID"`
+	ReportTemplates             []ReportTemplate                `gorm:"foreignKey:OrganizationID"`
+	Reports                     []Report                        `gorm:"foreignKey:OrganizationID"`
+	Transactions                []Transaction_                  `gorm:"foreignKey:OrganizationID"`
+	TransactionAssignments      []TransactionAssignment         `gorm:"foreignKey:OrganizationID"`
+	Committees                  []Committee                     `gorm:"foreignKey:OrganizationID"`
+	Submissions                 []Submission                    `gorm:"foreignKey:OrganizationID"`
+	SubmissionSettings          *OrganizationSubmissionSettings `gorm:"foreignKey:OrganizationID"`
 }
 
 func (Organization) TableName() string { return "organizations" }

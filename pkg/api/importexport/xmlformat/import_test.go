@@ -450,15 +450,3 @@ func TestImportNewOrganizationCustomIDConflict(t *testing.T) {
 	require.NoError(t, dbConn.Model(&model.Account{}).Count(&accountCount).Error)
 	require.EqualValues(t, 0, accountCount, "no data must be written on conflict")
 }
-
-func TestParseExportOrganizationID(t *testing.T) {
-	id, err := parseExportOrganizationID("/api/v1/organizations/00000000-0000-0000-0000-000000000001/data:export-xml")
-	require.NoError(t, err)
-	require.Equal(t, "00000000-0000-0000-0000-000000000001", id.String())
-
-	_, err = parseExportOrganizationID("/api/v1/organizations/not-a-uuid/data:export-xml")
-	require.Error(t, err)
-
-	_, err = parseExportOrganizationID("/api/v1/organizations/00000000-0000-0000-0000-000000000001/data:import-xml")
-	require.Error(t, err)
-}

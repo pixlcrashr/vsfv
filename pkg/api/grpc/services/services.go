@@ -31,6 +31,10 @@ type Services struct {
 	Group                      gen.GroupServiceServer
 	AuditLog                   gen.AuditLogServiceServer
 	Auth                       gen.AuthServiceServer
+	Committee                  gen.CommitteeServiceServer
+	Submission                 gen.SubmissionServiceServer
+	SubmissionItem             gen.SubmissionItemServiceServer
+	SubmissionComment          gen.SubmissionCommentServiceServer
 }
 
 // New creates a Services instance wiring all concrete service implementations
@@ -39,7 +43,7 @@ type Services struct {
 func New(db *gorm.DB, enforcer *authz.Enforcer, passwordLogin *auth.PasswordLoginProvider, gitlabEnabled bool) *Services {
 	audits := newAuditWriter(db)
 	return &Services{
-		Organization:               newOrganizationServiceServer(repository.NewOrganizationRepository(db), audits, enforcer),
+		Organization:               newOrganizationServiceServer(repository.NewOrganizationRepository(db), repository.NewOrganizationSubmissionSettingsRepository(db), audits, enforcer),
 		Account:                    newAccountServiceServer(repository.NewAccountRepository(db), audits, enforcer),
 		AccountGroup:               newAccountGroupServiceServer(repository.NewAccountGroupRepository(db), audits, enforcer),
 		AccountGroupAssignment:     newAccountGroupAssignmentServiceServer(repository.NewAccountGroupAssignmentRepository(db), audits, enforcer),
@@ -60,5 +64,9 @@ func New(db *gorm.DB, enforcer *authz.Enforcer, passwordLogin *auth.PasswordLogi
 		Group:                      newGroupServiceServer(repository.NewUserGroupRepository(db, enforcer), audits, enforcer),
 		AuditLog:                   newAuditLogServiceServer(repository.NewAuditLogEntryRepository(db), repository.NewOrganizationRepository(db), repository.NewUserRepository(db), enforcer),
 		Auth:                       newAuthServiceServer(passwordLogin, gitlabEnabled),
+		Committee:                  newCommitteeServiceServer(repository.NewCommitteeRepository(db), repository.NewSubmissionRepository(db), audits, enforcer),
+		Submission:                 newSubmissionServiceServer(repository.NewSubmissionRepository(db), repository.NewCommitteeRepository(db), repository.NewOrganizationSubmissionSettingsRepository(db), audits, enforcer),
+		SubmissionItem:             newSubmissionItemServiceServer(repository.NewSubmissionRepository(db), audits, enforcer),
+		SubmissionComment:          newSubmissionCommentServiceServer(repository.NewSubmissionRepository(db), enforcer),
 	}
 }

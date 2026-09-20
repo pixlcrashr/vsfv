@@ -1,0 +1,221 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// PaymentAccountKind describes the kind of payment account held by a committee.
+enum PaymentAccountKind {
+  PAYMENT_ACCOUNT_KIND_UNSPECIFIED = 0;
+  PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT = 1;
+  PAYMENT_ACCOUNT_KIND_CASH_BOX = 2;
+}
+
+// CommitteePaymentAccount describes a payment account held by a committee
+// (e.g. the committee's own bank account or an independently organized cash
+// box). Committees with at least one payment account may pay expenses from
+// these accounts and submit the bills for documentation.
+message CommitteePaymentAccount {
+  // The UUID of the payment account. Used by submissions to reference the
+  // account they were paid from.
+  string uid = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // The kind of payment account.
+  PaymentAccountKind kind = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Human-readable label of the payment account (e.g. "Gremiumskonto").
+  string display_label = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Committee is an organizational unit (e.g. a student committee) that submits
+// expense submissions and income documents.
+message Committee {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/Committee"
+    pattern: "organizations/{organization}/committees/{committee}"
+  };
+
+  // The resource name of the committee.
+  // Format: organizations/{organization}/committees/{committee}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the committee.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // Human-readable committee name.
+  string display_name = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional free-text description.
+  string display_description = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Whether submitters of this committee may choose between the nonprofit and
+  // commercial scope when creating submissions. If false, submissions of this
+  // committee are always created with the nonprofit scope.
+  bool allow_scope_selection = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Payment accounts held by this committee. If empty, committee members
+  // cannot pay from a committee account and must use the person settlement.
+  repeated CommitteePaymentAccount payment_accounts = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // Last modification timestamp.
+  google.protobuf.Timestamp update_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+message GetCommitteeRequest {
+  // The resource name of the committee.
+  // Format: organizations/{organization}/committees/{committee}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Committee"}
+  ];
+}
+
+message ListCommitteesRequest {
+  // The parent organization resource name.
+  // Format: organizations/{organization}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Organization"}
+  ];
+
+  // Maximum number of committees to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListCommittees call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Filter expression conforming to AIP-160.
+  // Supported fields: display_name.
+  // Example: "display_name=\"AStA\"".
+  string filter = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Order by expression (e.g. "display_name", "create_time desc").
+  string order_by = 5 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListCommitteesResponse {
+  // The committees returned.
+  repeated Committee committees = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+
+  // Total number of committees matching the filter (may be an estimate).
+  int64 total_size = 3;
+}
+
+message CreateCommitteeRequest {
+  // The parent organization resource name.
+  // Format: organizations/{organization}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Organization"}
+  ];
+
+  // The committee to create.
+  Committee committee = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the committee. If not provided, a system-generated
+  // UUID will be used. Must be unique within the parent organization.
+  string committee_id = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UpdateCommitteeRequest {
+  // The committee to update.
+  Committee committee = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The list of fields to update. Updating `payment_accounts` replaces the
+  // entire list.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteCommitteeRequest {
+  // The resource name of the committee.
+  // Format: organizations/{organization}/committees/{committee}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Committee"}
+  ];
+}
+
+// CommitteeService manages committees.
+service CommitteeService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Gets a single committee by resource name.
+  // Authorization:
+  //   Scope: committees:read
+  //   Permission: committees:read
+  //   Domain: organization-scoped
+  rpc GetCommittee(GetCommitteeRequest) returns (Committee) {
+    option (google.api.http) = {get: "/v1/{name=organizations/*/committees/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists committees with pagination and optional filters.
+  // Authorization:
+  //   Scope: committees:read
+  //   Permission: committees:read
+  //   Domain: organization-scoped
+  rpc ListCommittees(ListCommitteesRequest) returns (ListCommitteesResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*}/committees"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a new committee.
+  // Authorization:
+  //   Scope: committees:write
+  //   Permission: committees:create
+  //   Domain: organization-scoped
+  rpc CreateCommittee(CreateCommitteeRequest) returns (Committee) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*}/committees"
+      body: "committee"
+    };
+    option (google.api.method_signature) = "parent,committee,committee_id";
+  }
+
+  // Updates an existing committee.
+  // Authorization:
+  //   Scope: committees:write
+  //   Permission: committees:update
+  //   Domain: organization-scoped
+  rpc UpdateCommittee(UpdateCommitteeRequest) returns (Committee) {
+    option (google.api.http) = {
+      patch: "/v1/{committee.name=organizations/*/committees/*}"
+      body: "committee"
+    };
+    option (google.api.method_signature) = "committee,update_mask";
+  }
+
+  // Deletes a committee. Fails with FAILED_PRECONDITION if the committee is
+  // still referenced by submissions.
+  // Authorization:
+  //   Scope: committees:write
+  //   Permission: committees:delete
+  //   Domain: organization-scoped
+  rpc DeleteCommittee(DeleteCommitteeRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/{name=organizations/*/committees/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}

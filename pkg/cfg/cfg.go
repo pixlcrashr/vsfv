@@ -9,11 +9,27 @@ import (
 )
 
 type Config struct {
-	Server    Server    `mapstructure:"server"`
-	Database  Database  `mapstructure:"database"`
-	Auth      Auth      `mapstructure:"auth"`
-	Gotenberg Gotenberg `mapstructure:"gotenberg"`
-	CORS      CORS      `mapstructure:"cors"`
+	Server          Server          `mapstructure:"server"`
+	Database        Database        `mapstructure:"database"`
+	Auth            Auth            `mapstructure:"auth"`
+	Gotenberg       Gotenberg       `mapstructure:"gotenberg"`
+	CORS            CORS            `mapstructure:"cors"`
+	Storage         Storage         `mapstructure:"storage"`
+	SubmissionDecay SubmissionDecay `mapstructure:"submission-decay"`
+}
+
+// Storage configures local file storage for submission attachments.
+type Storage struct {
+	// AttachmentsPath is the directory where submission attachment binaries
+	// are stored.
+	AttachmentsPath string `mapstructure:"attachments-path"`
+}
+
+// SubmissionDecay configures the background sweeper that automatically
+// rejects pending submissions once the organization-wide deadline has passed.
+type SubmissionDecay struct {
+	// Interval between sweeps. Defaults to one hour.
+	Interval time.Duration `mapstructure:"interval"`
 }
 
 type Server struct {
@@ -102,6 +118,8 @@ func Load(cfgFile string) (*Config, error) {
 	viper.SetDefault("auth.gitlab.enabled", false)
 	viper.SetDefault("auth.password.enabled", false)
 	viper.SetDefault("auth.jwks.key-files", []string{})
+	viper.SetDefault("storage.attachments-path", "attachments")
+	viper.SetDefault("submission-decay.interval", time.Hour)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

@@ -1,0 +1,833 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+import "pixlcrashr/vsfv/v1/committee.proto";
+import "pixlcrashr/vsfv/v1/decimal.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// Direction describes whether a submission documents an expense or an income.
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_EXPENSE = 1;
+  DIRECTION_INCOME = 2;
+}
+
+// Settlement describes how an expense submission is (or was) settled.
+enum Settlement {
+  SETTLEMENT_UNSPECIFIED = 0;
+  // The submitter paid privately and receives a payout.
+  SETTLEMENT_PERSON = 1;
+  // The expense was already paid from a committee-held payment account
+  // (bank account or cash box); the submission is documentation only.
+  SETTLEMENT_COMMITTEE_ACCOUNT = 2;
+  // The expense is not yet paid; the treasury pays the vendor from the
+  // central account.
+  SETTLEMENT_PAYMENT_REQUEST = 3;
+}
+
+// Scope describes whether a submission relates to nonprofit ("hoheitlich")
+// or commercial ("gewerblich") activity.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  SCOPE_NONPROFIT = 1;
+  SCOPE_COMMERCIAL = 2;
+}
+
+// SubmissionStatus is the lifecycle state of a submission.
+// DRAFT → PENDING → (FURTHER_INFO_REQUIRED → PENDING) → APPROVED → COMPLETED,
+// or REJECTED. Expenses settled via SETTLEMENT_COMMITTEE_ACCOUNT and income
+// submissions are COMPLETED directly upon approval.
+enum SubmissionStatus {
+  SUBMISSION_STATUS_UNSPECIFIED = 0;
+  SUBMISSION_STATUS_DRAFT = 1;
+  SUBMISSION_STATUS_PENDING = 2;
+  SUBMISSION_STATUS_FURTHER_INFO_REQUIRED = 3;
+  SUBMISSION_STATUS_REJECTED = 4;
+  SUBMISSION_STATUS_APPROVED = 5;
+  SUBMISSION_STATUS_COMPLETED = 6;
+}
+
+// PayoutMethod describes how a person settlement payout is executed.
+enum PayoutMethod {
+  PAYOUT_METHOD_UNSPECIFIED = 0;
+  PAYOUT_METHOD_BANK_TRANSFER = 1;
+  PAYOUT_METHOD_CASH = 2;
+}
+
+// PaymentRequestTiming describes when the treasury should execute a payment
+// request.
+enum PaymentRequestTiming {
+  PAYMENT_REQUEST_TIMING_UNSPECIFIED = 0;
+  PAYMENT_REQUEST_TIMING_ON_INVOICE = 1;
+  PAYMENT_REQUEST_TIMING_ADVANCE = 2;
+}
+
+// DocumentForm describes in which form the original document exists.
+enum DocumentForm {
+  DOCUMENT_FORM_UNSPECIFIED = 0;
+  DOCUMENT_FORM_PAPER_ORIGINAL = 1;
+  DOCUMENT_FORM_DIGITAL_ORIGINAL = 2;
+}
+
+// BankDetails are the personal bank account details of the submitting person
+// for a person settlement payout.
+message BankDetails {
+  // Name of the account holder.
+  string account_holder = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // IBAN of the account.
+  string iban = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // BIC of the account (optional).
+  string bic = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// PersonDetails are the settlement details for a person settlement.
+message PersonDetails {
+  // How the payout should be executed.
+  PayoutMethod payout_method = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The bank account for the payout (required for bank transfer payouts).
+  BankDetails bank_details = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// CommitteeAccountDetails are the settlement details for an expense that was
+// already paid from a committee-held payment account.
+message CommitteeAccountDetails {
+  // The UUID of the committee payment account the expense was paid from
+  // (Committee.payment_accounts[].uid).
+  string payment_account_uid = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Label of the payment account at the time of submission (snapshot, so
+  // historical submissions stay readable if the account is renamed/removed).
+  string payment_account_label = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The date the expense was paid.
+  google.type.Date paid_date = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional payment reference (e.g. mandate or booking reference).
+  string payment_reference = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// PaymentRequestDetails are the settlement details for an expense that the
+// treasury should pay from the central account.
+message PaymentRequestDetails {
+  // Name of the vendor / payment recipient.
+  string vendor_name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // IBAN of the vendor.
+  string vendor_iban = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // BIC of the vendor (optional).
+  string vendor_bic = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // When the treasury should execute the payment.
+  PaymentRequestTiming timing = 4 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Submission is a documented expense or income with receipts, submitted by a
+// committee member and reviewed by the treasury.
+message Submission {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/Submission"
+    pattern: "organizations/{organization}/submissions/{submission}"
+  };
+
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the submission.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // Human-readable public ID (per-organization yearly sequence, e.g. "2026/04").
+  string public_id = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The user that created the submission.
+  // Format: users/{user}
+  string created_by_user = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+
+  // The committee the submission belongs to.
+  // Format: organizations/{organization}/committees/{committee}
+  string committee = 5 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Committee"}
+  ];
+
+  // Whether this submission documents an expense or an income.
+  Direction direction = 6 [(google.api.field_behavior) = REQUIRED];
+
+  // How the expense is settled. Must be unset for income submissions.
+  Settlement settlement = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // The nonprofit/commercial scope of the submission.
+  Scope scope = 8 [(google.api.field_behavior) = REQUIRED];
+
+  // The lifecycle state of the submission.
+  SubmissionStatus status = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Free-text notice from the submitter.
+  string notice = 10 [(google.api.field_behavior) = OPTIONAL];
+
+  // Settlement details; the variant must match `settlement`.
+  oneof settlement_details {
+    // Details for a person settlement.
+    PersonDetails person_details = 11;
+    // Details for an already-paid committee account settlement.
+    CommitteeAccountDetails committee_account_details = 12;
+    // Details for a payment request to the treasury.
+    PaymentRequestDetails payment_request_details = 13;
+  }
+
+  // Sum of all item amounts (read-only derived value).
+  Decimal total_amount = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Entity tag for optimistic concurrency control.
+  string etag = 15 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Time the submission was soft-deleted, if deleted.
+  google.protobuf.Timestamp delete_time = 16 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Time at which the soft-deleted submission is purged automatically.
+  google.protobuf.Timestamp purge_time = 17 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Last modification timestamp.
+  google.protobuf.Timestamp update_time = 18 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 19 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// SubmissionItem is a single bill/receipt (expense) or income document within
+// a submission.
+message SubmissionItem {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/SubmissionItem"
+    pattern: "organizations/{organization}/submissions/{submission}/items/{item}"
+  };
+
+  // The resource name of the item.
+  // Format: organizations/{organization}/submissions/{submission}/items/{item}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the item.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // Human-readable public ID derived from the submission's public ID and the
+  // item index (e.g. "2026/04/2").
+  string public_id = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Document category. Free-form to keep the API generalization-friendly;
+  // clients present per-direction presets (expenses: invoice, cash receipt,
+  // ...; income: donation receipt, sponsorship agreement, ...).
+  string category = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // In which form the original document exists.
+  DocumentForm document_form = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Origin/source of an income (e.g. sponsor name). Only used by income
+  // submissions.
+  string source = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // Free-text description of the document.
+  string description = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // Amount of the item.
+  Decimal amount = 8 [(google.api.field_behavior) = REQUIRED];
+
+  // Time the original document was received by the treasury.
+  google.protobuf.Timestamp original_receive_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The user that received the original document.
+  // Format: users/{user}
+  string original_received_by = 10 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+}
+
+// SubmissionComment is a comment on a submission, written either by the
+// submitter or by the reviewing treasury. Admin-only comments are only
+// visible to the treasury.
+message SubmissionComment {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/SubmissionComment"
+    pattern: "organizations/{organization}/submissions/{submission}/comments/{comment}"
+  };
+
+  // The resource name of the comment.
+  // Format: organizations/{organization}/submissions/{submission}/comments/{comment}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the comment.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // The comment text.
+  string content = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Whether the comment is only visible to the treasury. Can only be set by
+  // users holding the treasury comment permission.
+  bool is_admin_only = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // The user that wrote the comment.
+  // Format: users/{user}
+  string created_by_user = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+
+  // The status change caused by this comment, if any (e.g. a rejection).
+  SubmissionStatusChange status_change = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// SubmissionStatusChange describes a status transition associated with a
+// comment.
+message SubmissionStatusChange {
+  // The status before the transition.
+  SubmissionStatus from = 1;
+
+  // The status after the transition.
+  SubmissionStatus to = 2;
+}
+
+// SubmissionSettings hold the per-organization submission configuration.
+message SubmissionSettings {
+  // The settlement kinds enabled for expense submissions in this
+  // organization. Defaults to all kinds.
+  repeated Settlement enabled_settlement_kinds = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // Organization-wide submission deadline. Pending submissions are
+  // automatically rejected once this date is reached. Unset means no deadline.
+  google.type.Date submission_deadline = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message GetSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+}
+
+message ListSubmissionsRequest {
+  // The parent organization resource name.
+  // Format: organizations/{organization}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Organization"}
+  ];
+
+  // Maximum number of submissions to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListSubmissions call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Filter expression conforming to AIP-160.
+  // Supported fields: direction, settlement, status, committee, created_by_user.
+  // Example: "committee=\"organizations/{organization}/committees/{committee}\" AND status=\"PENDING\"".
+  string filter = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Order by expression (e.g. "create_time desc").
+  string order_by = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Whether to include soft-deleted submissions in the result.
+  bool show_deleted = 6 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListSubmissionsResponse {
+  // The submissions returned.
+  repeated Submission submissions = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+
+  // Total number of submissions matching the filter (may be an estimate).
+  int64 total_size = 3;
+}
+
+message CreateSubmissionRequest {
+  // The parent organization resource name.
+  // Format: organizations/{organization}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Organization"}
+  ];
+
+  // The submission to create. Submissions are always created in the DRAFT
+  // state, so the request may omit fields that are still unknown; all fields
+  // are validated on submit.
+  Submission submission = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the submission. If not provided, a system-generated
+  // UUID will be used. Must be unique within the parent organization.
+  string submission_id = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UpdateSubmissionRequest {
+  // The submission to update.
+  Submission submission = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The list of fields to update. The `status`, `created_by_user` and
+  // read-only fields cannot be updated. Updating `scope` requires the
+  // treasury update permission (submitters cannot change the scope after
+  // creation).
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+}
+
+message SubmitSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+}
+
+message ApproveSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // Optional note recorded with the approval.
+  string note = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message RejectSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // The reason for the rejection; recorded as a comment.
+  string reason = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message RequestFurtherInfoRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // What information is required; recorded as a comment.
+  string reason = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CompleteSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // The date the payout/payment was executed (if already known).
+  google.type.Date paid_date = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional payment reference recorded with the completion.
+  string payment_reference = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UndeleteSubmissionRequest {
+  // The resource name of the submission.
+  // Format: organizations/{organization}/submissions/{submission}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+}
+
+message GetSubmissionItemRequest {
+  // The resource name of the item.
+  // Format: organizations/{organization}/submissions/{submission}/items/{item}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/SubmissionItem"}
+  ];
+}
+
+message ListSubmissionItemsRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // Maximum number of items to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListSubmissionItems call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListSubmissionItemsResponse {
+  // The items returned.
+  repeated SubmissionItem items = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+}
+
+message CreateSubmissionItemRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // The item to create.
+  SubmissionItem item = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the item. If not provided, a system-generated
+  // UUID will be used. Must be unique within the parent submission.
+  string item_id = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UpdateSubmissionItemRequest {
+  // The item to update.
+  SubmissionItem item = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The list of fields to update.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteSubmissionItemRequest {
+  // The resource name of the item.
+  // Format: organizations/{organization}/submissions/{submission}/items/{item}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/SubmissionItem"}
+  ];
+}
+
+message ListSubmissionCommentsRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // Maximum number of comments to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListSubmissionComments call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListSubmissionCommentsResponse {
+  // The comments returned (admin-only comments are omitted for requesters
+  // without the treasury comment permission).
+  repeated SubmissionComment comments = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+}
+
+message CreateSubmissionCommentRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // The comment to create.
+  SubmissionComment comment = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// SubmissionService manages submissions (expense claims and income documents).
+service SubmissionService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Gets a single submission by resource name.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read or submissions:read_own
+  //   Domain: organization-scoped
+  rpc GetSubmission(GetSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {get: "/v1/{name=organizations/*/submissions/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists submissions with pagination and optional filters. Drafts are only
+  // included when explicitly filtered by status.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read or submissions:read_own
+  //   Domain: organization-scoped
+  rpc ListSubmissions(ListSubmissionsRequest) returns (ListSubmissionsResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*}/submissions"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a new submission in the DRAFT state.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:create
+  //   Domain: organization-scoped
+  rpc CreateSubmission(CreateSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*}/submissions"
+      body: "submission"
+    };
+    option (google.api.method_signature) = "parent,submission,submission_id";
+  }
+
+  // Updates an existing submission. Only allowed while the submission is in
+  // DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter
+  // or the treasury. Updating the scope requires the treasury update
+  // permission.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update or submissions:update_own
+  //   Domain: organization-scoped
+  rpc UpdateSubmission(UpdateSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      patch: "/v1/{submission.name=organizations/*/submissions/*}"
+      body: "submission"
+    };
+    option (google.api.method_signature) = "submission,update_mask";
+  }
+
+  // Soft-deletes a submission. The submission is purged automatically after
+  // the retention period.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:delete or submissions:update_own
+  //   Domain: organization-scoped
+  rpc DeleteSubmission(DeleteSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {delete: "/v1/{name=organizations/*/submissions/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Submits a draft for review (DRAFT → PENDING). Validates that the
+  // submission is complete.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update or submissions:update_own
+  //   Domain: organization-scoped
+  rpc SubmitSubmission(SubmitSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{name=organizations/*/submissions/*}:submit"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Approves a submission (PENDING/FURTHER_INFO_REQUIRED → APPROVED, or →
+  // COMPLETED for committee-account settlements and income submissions).
+  // Treasury only.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update
+  //   Domain: organization-scoped
+  rpc ApproveSubmission(ApproveSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{name=organizations/*/submissions/*}:approve"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Rejects a submission (→ REJECTED) and records the reason as a comment.
+  // Treasury only.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update
+  //   Domain: organization-scoped
+  rpc RejectSubmission(RejectSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{name=organizations/*/submissions/*}:reject"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Requests further information (PENDING → FURTHER_INFO_REQUIRED) and
+  // records the reason as a comment. Treasury only.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update
+  //   Domain: organization-scoped
+  rpc RequestFurtherInfo(RequestFurtherInfoRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{name=organizations/*/submissions/*}:requestFurtherInfo"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Completes an approved submission (APPROVED → COMPLETED), optionally
+  // recording the execution date and payment reference. Treasury only.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update
+  //   Domain: organization-scoped
+  rpc CompleteSubmission(CompleteSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{name=organizations/*/submissions/*}:complete"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Restores a soft-deleted submission.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:delete
+  //   Domain: organization-scoped
+  rpc UndeleteSubmission(UndeleteSubmissionRequest) returns (Submission) {
+    option (google.api.http) = {
+      post: "/v1/{name=organizations/*/submissions/*}:undelete"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// SubmissionItemService manages the bills/receipts and income documents of a
+// submission.
+service SubmissionItemService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Gets a single item by resource name.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read or submissions:read_own
+  //   Domain: organization-scoped
+  rpc GetSubmissionItem(GetSubmissionItemRequest) returns (SubmissionItem) {
+    option (google.api.http) = {get: "/v1/{name=organizations/*/submissions/*/items/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the items of a submission.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read or submissions:read_own
+  //   Domain: organization-scoped
+  rpc ListSubmissionItems(ListSubmissionItemsRequest) returns (ListSubmissionItemsResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*/submissions/*}/items"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a new item. Only allowed while the submission is in DRAFT,
+  // PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter or the
+  // treasury.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:create or submissions:update_own
+  //   Domain: organization-scoped
+  rpc CreateSubmissionItem(CreateSubmissionItemRequest) returns (SubmissionItem) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*/submissions/*}/items"
+      body: "item"
+    };
+    option (google.api.method_signature) = "parent,item,item_id";
+  }
+
+  // Updates an existing item. Only allowed while the submission is in DRAFT,
+  // PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter or the
+  // treasury.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update or submissions:update_own
+  //   Domain: organization-scoped
+  rpc UpdateSubmissionItem(UpdateSubmissionItemRequest) returns (SubmissionItem) {
+    option (google.api.http) = {
+      patch: "/v1/{item.name=organizations/*/submissions/*/items/*}"
+      body: "item"
+    };
+    option (google.api.method_signature) = "item,update_mask";
+  }
+
+  // Removes an item from the submission. Only allowed while the submission is
+  // in DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the
+  // submitter or the treasury.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:delete or submissions:update_own
+  //   Domain: organization-scoped
+  rpc DeleteSubmissionItem(DeleteSubmissionItemRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/{name=organizations/*/submissions/*/items/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// SubmissionCommentService manages the comments of a submission.
+service SubmissionCommentService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Lists the comments of a submission. Admin-only comments are omitted for
+  // requesters without the treasury comment permission.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read, submissions:read_own, submissions:comment or submissions:comment_own
+  //   Domain: organization-scoped
+  rpc ListSubmissionComments(ListSubmissionCommentsRequest) returns (ListSubmissionCommentsResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*/submissions/*}/comments"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a comment on a submission.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:comment or submissions:comment_own
+  //   Domain: organization-scoped
+  rpc CreateSubmissionComment(CreateSubmissionCommentRequest) returns (SubmissionComment) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*/submissions/*}/comments"
+      body: "comment"
+    };
+    option (google.api.method_signature) = "parent,comment";
+  }
+}

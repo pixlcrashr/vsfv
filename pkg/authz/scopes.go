@@ -42,8 +42,10 @@ const (
 	ScopeSettingsWrite        = "settings:write"
 	ScopeOrganizationsRead    = "organizations:read"
 	ScopeOrganizationsWrite   = "organizations:write"
-	ScopeReimbursementsRead   = "reimbursements:read"
-	ScopeReimbursementsWrite  = "reimbursements:write"
+	ScopeSubmissionsRead      = "submissions:read"
+	ScopeSubmissionsWrite     = "submissions:write"
+	ScopeCommitteesRead       = "committees:read"
+	ScopeCommitteesWrite      = "committees:write"
 	ScopeAuditLogsRead        = "auditLogs:read"
 )
 
@@ -65,7 +67,8 @@ var AllAPIScopes = []string{
 	ScopeGroupsRead, ScopeGroupsWrite,
 	ScopeSettingsRead, ScopeSettingsWrite,
 	ScopeOrganizationsRead, ScopeOrganizationsWrite,
-	ScopeReimbursementsRead, ScopeReimbursementsWrite,
+	ScopeSubmissionsRead, ScopeSubmissionsWrite,
+	ScopeCommitteesRead, ScopeCommitteesWrite,
 	ScopeAuditLogsRead,
 }
 
@@ -102,8 +105,10 @@ var ScopeToResource = map[string]string{
 	ScopeSettingsWrite:        ResourceSettings,
 	ScopeOrganizationsRead:    ResourceOrganizations,
 	ScopeOrganizationsWrite:   ResourceOrganizations,
-	ScopeReimbursementsRead:   ResourceReimbursements,
-	ScopeReimbursementsWrite:  ResourceReimbursements,
+	ScopeSubmissionsRead:      ResourceSubmissions,
+	ScopeSubmissionsWrite:     ResourceSubmissions,
+	ScopeCommitteesRead:       ResourceCommittees,
+	ScopeCommitteesWrite:      ResourceCommittees,
 	ScopeAuditLogsRead:        ResourceAuditLogs,
 }
 

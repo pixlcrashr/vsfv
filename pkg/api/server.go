@@ -37,7 +37,7 @@ type Server struct {
 // Huma REST API.  db is still required for the routes that have not yet been
 // migrated to the service layer. enforcer guards the routes that cannot use
 // the service-layer permission checks (XML import/export).
-func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, authSrv *auth.Server, gitlabHandler *auth.GitLabHandler, enforcer *authz.Enforcer) *Server {
+func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, authSrv *auth.Server, gitlabHandler *auth.GitLabHandler, enforcer *authz.Enforcer, attachmentsPath string) *Server {
 	app := fiber.New(fiber.Config{
 		// Disable default startup banner — the serve command prints its own.
 		DisableStartupMessage: true,
@@ -61,8 +61,8 @@ func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, 
 	humaConfig := huma.DefaultConfig("VS-Finanzverwaltung API", version)
 	api := humafiber.New(app, humaConfig)
 
-	// Build auth middleware for the grpc-gateway routes and the XML
-	// import/export routes.
+	// Build auth middleware for the grpc-gateway routes. The Huma exception
+	// endpoints authenticate via authSrv directly (see humax).
 	var authMiddleware func(http.Handler) http.Handler
 	if authSrv != nil {
 		authMiddleware = auth.HTTPMiddleware(authSrv.OAuth2(), func() fosite.Session {
@@ -71,7 +71,7 @@ func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, 
 	}
 
 	s := &Server{app: app, API: api}
-	RegisterRoutes(s.app, s.API, db, authMiddleware, enforcer)
+	RegisterRoutes(s.API, db, authSrv, enforcer, attachmentsPath)
 
 	apiserv.RegisterRoutes(app, svc, authMiddleware)
 

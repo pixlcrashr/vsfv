@@ -132,6 +132,16 @@ var (
 		filtering.DeclareIdent("account", filtering.TypeString),
 		filtering.DeclareIdent("transaction", filtering.TypeString),
 	)
+	committeeDecls = mustDecls(
+		filtering.DeclareIdent("display_name", filtering.TypeString),
+	)
+	submissionDecls = mustDecls(
+		filtering.DeclareIdent("direction", filtering.TypeString),
+		filtering.DeclareIdent("settlement", filtering.TypeString),
+		filtering.DeclareIdent("status", filtering.TypeString),
+		filtering.DeclareIdent("committee", filtering.TypeString),
+		filtering.DeclareIdent("created_by_user", filtering.TypeString),
+	)
 	reportTemplateDecls = mustDecls(
 		filtering.DeclareIdent("display_name", filtering.TypeString),
 	)
@@ -565,6 +575,110 @@ func ParseTransactionAssignmentFilter(raw string) (cond.Cond, error) {
 		return nil, err
 	}
 	return buildCond(f.CheckedExpr.GetExpr(), 0)
+}
+
+// ── Committee ────────────────────────────────────────────────────────────────
+
+// ParseCommitteeFilter parses an AIP-160 filter string into an abstract condition chain.
+func ParseCommitteeFilter(raw string) (cond.Cond, error) {
+	f, err := parseWith(raw, committeeDecls)
+	if err != nil || f == nil {
+		return nil, err
+	}
+	return buildCond(f.CheckedExpr.GetExpr(), 0)
+}
+
+// ── Submission ───────────────────────────────────────────────────────────────
+
+// ParseSubmissionFilter parses an AIP-160 filter string into an abstract condition chain.
+func ParseSubmissionFilter(raw string) (cond.Cond, error) {
+	f, err := parseWith(raw, submissionDecls)
+	if err != nil || f == nil {
+		return nil, err
+	}
+	return buildCond(f.CheckedExpr.GetExpr(), 0)
+}
+
+// SubmissionFilters holds the filter parameters that are resolved to enum
+// values and UUIDs at the service level instead of being applied as raw
+// column conditions.
+type SubmissionFilters struct {
+	Direction     *string
+	Settlement    *string
+	Status        *string
+	Committee     string
+	CreatedByUser string
+}
+
+// ExtractSubmissionFilters parses the supported submission filters
+// (direction, settlement, status, committee, created_by_user) out of a
+// condition chain and returns the remaining condition for SQL evaluation.
+func ExtractSubmissionFilters(c cond.Cond) (*SubmissionFilters, cond.Cond, error) {
+	filters := &SubmissionFilters{}
+
+	var extract func(c cond.Cond) error
+	extract = func(c cond.Cond) error {
+		if c == nil || c.IsEmpty() {
+			return nil
+		}
+
+		switch cc := c.(type) {
+		case cond.FieldCond:
+			s, ok := cc.Value.(string)
+			if !ok {
+				return nil
+			}
+			if cc.Op != cond.OpEq {
+				return fmt.Errorf("filter field %q only supports equality", cc.Field)
+			}
+			switch cc.Field {
+			case "direction":
+				filters.Direction = &s
+			case "settlement":
+				filters.Settlement = &s
+			case "status":
+				filters.Status = &s
+			case "committee":
+				filters.Committee = s
+			case "created_by_user":
+				filters.CreatedByUser = s
+			}
+			return nil
+		case cond.AndCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.OrCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.NotCond:
+			if err := extract(cc.Inner); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := extract(c); err != nil {
+		return nil, nil, err
+	}
+
+	remaining := cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+		switch field {
+		case "direction", "settlement", "status", "committee", "created_by_user":
+			return "", nil, false
+		}
+		return field, value, true
+	})
+	if remaining != nil && remaining.IsEmpty() {
+		remaining = nil
+	}
+
+	return filters, remaining, nil
 }
 
 // ── ReportTemplate ───────────────────────────────────────────────────────────

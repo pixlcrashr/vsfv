@@ -6,6 +6,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
@@ -348,4 +349,23 @@ func parseDecimal(s string) (apd.Decimal, error) {
 		return apd.Decimal{}, err
 	}
 	return *d, nil
+}
+
+// makeExportRepositoryDependencies constructs the export repository set from
+// the given database handle.
+func makeExportRepositoryDependencies(db *gorm.DB) *ExportRepositoryDependencies {
+	return &ExportRepositoryDependencies{
+		OrganizationRepo:               repository.NewOrganizationRepository(db),
+		AccountRepo:                    repository.NewAccountRepository(db),
+		AccountGroupRepo:               repository.NewAccountGroupRepository(db),
+		AccountGroupAssignmentRepo:     repository.NewAccountGroupAssignmentRepository(db),
+		BudgetRepo:                     repository.NewBudgetRepository(db),
+		BudgetAccountValueRepo:         repository.NewBudgetAccountValueRepository(db),
+		BudgetRevisionRepo:             repository.NewBudgetRevisionRepository(db),
+		BudgetRevisionAccountValueRepo: repository.NewBudgetRevisionAccountValueRepository(db),
+		LedgerAccountRepo:              repository.NewLedgerAccountRepository(db),
+		LedgerYearRepo:                 repository.NewLedgerYearRepository(db),
+		TransactionRepo:                repository.NewTransactionRepository(db),
+		TransactionAssignmentRepo:      repository.NewTransactionAssignmentRepository(db),
+	}
 }

@@ -56,7 +56,13 @@ func Run(cfg *cfg.Config) error {
 		return fmt.Errorf("creating gRPC server: %w", err)
 	}
 
-	srv := api.New(gormDB, svcSet, "dev", cfg.CORS, authDeps.server, authDeps.gitlabHandler, enforcer)
+	srv := api.New(gormDB, svcSet, "dev", cfg.CORS, authDeps.server, authDeps.gitlabHandler, enforcer, cfg.Storage.AttachmentsPath)
+
+	// Background sweeper: auto-rejects pending submissions whose
+	// organization-wide deadline has passed.
+	sweepStop := make(chan struct{})
+	defer close(sweepStop)
+	go runSubmissionDecaySweeper(context.Background(), gormDB, cfg.SubmissionDecay.Interval, sweepStop)
 
 	return runServers(srv, grpcSrv, cfg.Server.Address)
 }

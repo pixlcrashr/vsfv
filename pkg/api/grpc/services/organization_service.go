@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/query/order"
 	"github.com/theater-improrama/go-utils/optional"
 	"go.einride.tech/aip/ordering"
+	date "google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -34,13 +36,60 @@ var (
 
 type organizationServiceServer struct {
 	gen.UnimplementedOrganizationServiceServer
-	repo     *repository.OrganizationRepository
-	audits   *auditWriter
-	enforcer *authz.Enforcer
+	repo         *repository.OrganizationRepository
+	settingsRepo *repository.OrganizationSubmissionSettingsRepository
+	audits       *auditWriter
+	enforcer     *authz.Enforcer
 }
 
-func newOrganizationServiceServer(repo *repository.OrganizationRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.OrganizationServiceServer {
-	return &organizationServiceServer{repo: repo, audits: audits, enforcer: enforcer}
+func newOrganizationServiceServer(repo *repository.OrganizationRepository, settingsRepo *repository.OrganizationSubmissionSettingsRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.OrganizationServiceServer {
+	return &organizationServiceServer{repo: repo, settingsRepo: settingsRepo, audits: audits, enforcer: enforcer}
+}
+
+// submissionSettingsToProto loads the submission settings of an organization
+// and maps them to their proto representation. A missing row maps to default
+// settings.
+func (s *organizationServiceServer) submissionSettingsToProto(ctx context.Context, orgID uuid.UUID) *gen.SubmissionSettings {
+	settings, err := s.settingsRepo.GetOrDefault(ctx, orgID)
+	if err != nil {
+		return nil
+	}
+	out := &gen.SubmissionSettings{}
+	for _, name := range settings.EnabledSettlementKinds {
+		if v, ok := gen.Settlement_value[name]; ok {
+			out.EnabledSettlementKinds = append(out.EnabledSettlementKinds, gen.Settlement(v))
+		}
+	}
+	if settings.SubmissionDeadline != nil {
+		d := settings.SubmissionDeadline
+		out.SubmissionDeadline = &date.Date{Year: int32(d.Year()), Month: int32(d.Month()), Day: int32(d.Day())}
+	}
+	return out
+}
+
+// applySubmissionSettingsUpdate persists the submission settings from an
+// UpdateOrganization request when the field mask covers them.
+func (s *organizationServiceServer) applySubmissionSettingsUpdate(ctx context.Context, orgID uuid.UUID, mask []string, settings *gen.SubmissionSettings) error {
+	if len(mask) != 0 && !slices.Contains(mask, "submission_settings") {
+		return nil
+	}
+	if settings == nil {
+		return nil
+	}
+
+	var kinds []string
+	for _, k := range settings.EnabledSettlementKinds {
+		kinds = append(kinds, k.String())
+	}
+
+	var deadline *time.Time
+	if settings.SubmissionDeadline != nil {
+		t := time.Date(int(settings.SubmissionDeadline.Year), time.Month(settings.SubmissionDeadline.Month), int(settings.SubmissionDeadline.Day), 0, 0, 0, 0, time.UTC)
+		deadline = &t
+	}
+
+	_, err := s.settingsRepo.Upsert(ctx, orgID, kinds, deadline)
+	return err
 }
 
 func (s *organizationServiceServer) GetOrganization(ctx context.Context, req *gen.GetOrganizationRequest) (*gen.Organization, error) {
@@ -63,7 +112,9 @@ func (s *organizationServiceServer) GetOrganization(ctx context.Context, req *ge
 		return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
 	}
 
-	return OrganizationToProto(m), nil
+	proto := OrganizationToProto(m)
+	proto.SubmissionSettings = s.submissionSettingsToProto(ctx, m.ID)
+	return proto, nil
 }
 
 func (s *organizationServiceServer) ListOrganizations(ctx context.Context, req *gen.ListOrganizationsRequest) (*gen.ListOrganizationsResponse, error) {
@@ -104,7 +155,9 @@ func (s *organizationServiceServer) ListOrganizations(ctx context.Context, req *
 
 	resp := &gen.ListOrganizationsResponse{TotalSize: total}
 	for _, m := range ms {
-		resp.Organizations = append(resp.Organizations, OrganizationToProto(m))
+		proto := OrganizationToProto(m)
+		proto.SubmissionSettings = s.submissionSettingsToProto(ctx, m.ID)
+		resp.Organizations = append(resp.Organizations, proto)
 	}
 
 	nextOffset := offset + int64(len(ms))
@@ -185,6 +238,10 @@ func (s *organizationServiceServer) UpdateOrganization(ctx context.Context, req 
 	}
 
 	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
+		return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
+	}
+
+	if err := s.applySubmissionSettingsUpdate(ctx, m.ID, req.UpdateMask.GetPaths(), req.Organization.SubmissionSettings); err != nil {
 		return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
 	}
 

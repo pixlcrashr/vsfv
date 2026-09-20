@@ -1,11 +1,41 @@
 package auth
 
 import (
+	"context"
+	"errors"
 	"net/http"
 
 	"github.com/ory/fosite"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 )
+
+// ErrNoSubject is returned by AuthenticateToken when the token is valid but
+// carries no user subject.
+var ErrNoSubject = errors.New("no subject in token")
+
+// AuthenticateToken introspects the given Bearer token via fosite and returns a
+// context carrying the user ID and granted scopes. It is the shared primitive
+// behind HTTPMiddleware and the Huma-based exception endpoints.
+func AuthenticateToken(ctx context.Context, oauth2 fosite.OAuth2Provider, sessionFactory func() fosite.Session, token string) (context.Context, error) {
+	session := sessionFactory()
+
+	_, ar, err := oauth2.IntrospectToken(ctx, token, fosite.AccessToken, session)
+	if err != nil {
+		return nil, err
+	}
+
+	userID := ar.GetSession().GetSubject()
+	if userID == "" {
+		return nil, ErrNoSubject
+	}
+
+	var scopes []string
+	if granted := ar.GetGrantedScopes(); granted != nil {
+		scopes = granted
+	}
+
+	return authz.WithUser(ctx, userID, scopes), nil
+}
 
 // HTTPMiddleware wraps an http.Handler with Bearer token authentication.
 // It introspects the token via fosite, extracts the user ID and granted scopes,
@@ -19,27 +49,16 @@ func HTTPMiddleware(oauth2 fosite.OAuth2Provider, sessionFactory func() fosite.S
 				return
 			}
 
-			ctx := r.Context()
-			session := sessionFactory()
-
-			_, ar, err := oauth2.IntrospectToken(ctx, token, fosite.AccessToken, session)
+			ctx, err := AuthenticateToken(r.Context(), oauth2, sessionFactory, token)
 			if err != nil {
-				writeJSONError(w, http.StatusUnauthorized, "invalid_token", "token validation failed")
+				if errors.Is(err, ErrNoSubject) {
+					writeJSONError(w, http.StatusUnauthorized, "invalid_token", "no subject in token")
+				} else {
+					writeJSONError(w, http.StatusUnauthorized, "invalid_token", "token validation failed")
+				}
 				return
 			}
 
-			userID := ar.GetSession().GetSubject()
-			if userID == "" {
-				writeJSONError(w, http.StatusUnauthorized, "invalid_token", "no subject in token")
-				return
-			}
-
-			var scopes []string
-			if granted := ar.GetGrantedScopes(); granted != nil {
-				scopes = granted
-			}
-
-			ctx = authz.WithUser(ctx, userID, scopes)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

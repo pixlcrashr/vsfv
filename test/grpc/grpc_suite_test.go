@@ -6,6 +6,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/pixlcrashr/vsfv/pkg/db/model"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"google.golang.org/grpc"
@@ -75,10 +77,29 @@ var _ = BeforeSuite(func() {
 	enforcer, err := authz.NewEnforcer(gormDB)
 	Expect(err).NotTo(HaveOccurred())
 
-	svc := services.New(gormDB, enforcer)
+	// Seed the admin system group and bind a fixed test user to it so the
+	// enforcer authorizes every request (the bufconn server bypasses the
+	// HTTP auth middleware that would normally inject the user).
+	const testUserID = "00000000-0000-0000-0000-0000000000a1"
+	Expect(authz.SeedAdminGroup(context.Background(), gormDB, enforcer)).NotTo(HaveOccurred())
+	var adminGroup model.UserGroup
+	Expect(gormDB.Where("custom_id = ?", authz.AdminGroupCustomID).First(&adminGroup).Error).NotTo(HaveOccurred())
+	Expect(enforcer.AddGlobalGroupingPolicy(testUserID, adminGroup.ID.String())).To(BeTrue())
+	testCtx := authz.WithUser(context.Background(), testUserID, authz.AllAPIScopes)
+
+	svc := services.New(gormDB, enforcer, nil, false)
 
 	lis = bufconn.Listen(bufSize)
-	s := googlegrpc.NewServer()
+	s := googlegrpc.NewServer(
+		googlegrpc.UnaryInterceptor(func(
+			ctx context.Context,
+			req interface{},
+			_ *googlegrpc.UnaryServerInfo,
+			handler googlegrpc.UnaryHandler,
+		) (interface{}, error) {
+			return handler(testCtx, req)
+		}),
+	)
 	gen.RegisterOrganizationServiceServer(s, svc.Organization)
 	gen.RegisterAccountServiceServer(s, svc.Account)
 	gen.RegisterBudgetServiceServer(s, svc.Budget)

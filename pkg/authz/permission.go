@@ -41,7 +41,8 @@ const (
 	ResourceGroups          = "groups"
 	ResourceSettings        = "settings"
 	ResourceOrganizations   = "organizations"
-	ResourceReimbursements  = "reimbursements"
+	ResourceSubmissions     = "submissions"
+	ResourceCommittees      = "committees"
 	ResourceAuditLogs       = "auditLogs"
 )
 
