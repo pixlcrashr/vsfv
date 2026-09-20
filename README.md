@@ -22,5 +22,12 @@ Finanzverwaltungssoftware für Verfasste Studierendenschaften.
 - Antragsverwaltung
     - Vorlagenverwaltung für Anträge
     - Zuordnung von (Finanz-)Anträgen zu Haushaltskonten
+- Belegeinreichungen
+    - Geführte Einreichung von Ausgaben (Auslagenerstattung, Zahlung aus Gremiumskonto/-kasse, Zahlungsauftrag an die Kassenführung) und Einnahmebelegen
+    - Entwürfe, Fristen (Deadlines mit automatischer Ablehnung), Kommentare und Prüfworkflow
 - SSO/OAuth2 Authentifizierung
 - Benutzer- und Rechteverwaltung
+
+## Architektur / API
+
+Die Haupt-API ist eine protobuf-first HTTP/JSON-API unter `/api/v1` (grpc-gateway, generiert aus `proto/`; OpenAPI-Spezifikation in `openapi.swagger.yaml`). Routen, die sich nicht als protobuf-CRUD ausdrücken lassen (z. B. Binär-Uploads/-Downloads), werden als Huma-Endpunkte betrieben und über Humas OpenAPI-Endpunkt (`/openapi`) selbstdokumentiert.

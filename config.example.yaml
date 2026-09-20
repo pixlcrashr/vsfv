@@ -44,6 +44,15 @@ gotenberg:
   # URL of the Gotenberg HTTP server for PDF conversion.
   url: "http://127.0.0.1:3000"
 
+storage:
+  # Directory where submission attachment binaries are stored.
+  attachments-path: "attachments"
+
+submission-decay:
+  # Interval between deadline sweeps that auto-reject pending submissions
+  # whose organization-wide deadline has passed. Defaults to 1h.
+  interval: 1h
+
 cors:
   # Enable CORS middleware. Defaults to false.
   enabled: false

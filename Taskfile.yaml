@@ -35,6 +35,10 @@ tasks:
     dir: web
     cmds:
       - npm run generate:apiV2
+      - cmd: powershell -NoProfile -Command '$p="src/lib/api/models/v1nested-account.ts";$c=[IO.File]::ReadAllText($p);[IO.File]::WriteAllText($p,($c -replace "(?m)^import \{ V1NestedAccount \} from \x27\./v1nested-account\x27;\r?\n?",""))'
+        platforms: [windows]
+      - cmd: sed -i "/^import { V1NestedAccount } from '\.\/v1nested-account';$/d" src/lib/api/models/v1nested-account.ts
+        platforms: [linux]
   build:
     desc: Full production build (web + Go with embedded assets)
     cmds:

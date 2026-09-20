@@ -45,6 +45,8 @@ tags:
       BudgetRevisionAccountValueService provides read-only access to the
       per-account values captured within a BudgetRevision. All resources in this
       service are immutable and server-managed.
+  - name: CommitteeService
+    description: CommitteeService manages committees.
   - name: GroupService
     description: GroupService manages groups and their per-organization permission policies.
   - name: LedgerAccountService
@@ -53,6 +55,14 @@ tags:
       Accounts are auto-created during import; only Get, List, Update, Delete are exposed.
   - name: LedgerYearService
     description: LedgerYearService manages fiscal/economic years within an organization.
+  - name: SubmissionService
+    description: SubmissionService manages submissions (expense claims and income documents).
+  - name: SubmissionItemService
+    description: |-
+      SubmissionItemService manages the bills/receipts and income documents of a
+      submission.
+  - name: SubmissionCommentService
+    description: SubmissionCommentService manages the comments of a submission.
   - name: OrganizationService
     description: OrganizationService manages organizations.
   - name: ReportService
@@ -935,6 +945,79 @@ paths:
               - period_end
       tags:
         - BudgetService
+  /v1/{committee.name}:
+    patch:
+      summary: |-
+        Updates an existing committee.
+        Authorization:
+          Scope: committees:write
+          Permission: committees:update
+          Domain: organization-scoped
+      operationId: CommitteeService_UpdateCommittee
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Committee'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: committee.name
+          description: |-
+            The resource name of the committee.
+            Format: organizations/{organization}/committees/{committee}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+
+        - name: committee
+          description: The committee to update.
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              uid:
+                type: string
+                description: The UUID of the committee.
+                readOnly: true
+              display_name:
+                type: string
+                description: Human-readable committee name.
+              display_description:
+                type: string
+                description: Optional free-text description.
+              allow_scope_selection:
+                type: boolean
+                description: |-
+                  Whether submitters of this committee may choose between the nonprofit and
+                  commercial scope when creating submissions. If false, submissions of this
+                  committee are always created with the nonprofit scope.
+              payment_accounts:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/definitions/v1CommitteePaymentAccount'
+                description: |-
+                  Payment accounts held by this committee. If empty, committee members
+                  cannot pay from a committee account and must use the person settlement.
+              update_time:
+                type: string
+                format: date-time
+                description: Last modification timestamp.
+                readOnly: true
+              create_time:
+                type: string
+                format: date-time
+                description: Creation timestamp.
+                readOnly: true
+            title: The committee to update.
+            required:
+              - display_name
+      tags:
+        - CommitteeService
   /v1/{group.name}:
     patch:
       summary: |-
@@ -1018,6 +1101,88 @@ paths:
               - display_name
       tags:
         - GroupService
+  /v1/{item.name}:
+    patch:
+      summary: |-
+        Updates an existing item. Only allowed while the submission is in DRAFT,
+        PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter or the
+        treasury.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update or submissions:update_own
+          Domain: organization-scoped
+      operationId: SubmissionItemService_UpdateSubmissionItem
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1SubmissionItem'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: item.name
+          description: |-
+            The resource name of the item.
+            Format: organizations/{organization}/submissions/{submission}/items/{item}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
+        - name: item
+          description: The item to update.
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              uid:
+                type: string
+                description: The UUID of the item.
+                readOnly: true
+              public_id:
+                type: string
+                description: |-
+                  Human-readable public ID derived from the submission's public ID and the
+                  item index (e.g. "2026/04/2").
+                readOnly: true
+              category:
+                type: string
+                description: |-
+                  Document category. Free-form to keep the API generalization-friendly;
+                  clients present per-direction presets (expenses: invoice, cash receipt,
+                  ...; income: donation receipt, sponsorship agreement, ...).
+              document_form:
+                $ref: '#/definitions/v1DocumentForm'
+                description: In which form the original document exists.
+              source:
+                type: string
+                description: |-
+                  Origin/source of an income (e.g. sponsor name). Only used by income
+                  submissions.
+              description:
+                type: string
+                description: Free-text description of the document.
+              amount:
+                $ref: '#/definitions/v1Decimal'
+                description: Amount of the item.
+              original_receive_time:
+                type: string
+                format: date-time
+                description: Time the original document was received by the treasury.
+                readOnly: true
+              original_received_by:
+                type: string
+                title: |-
+                  The user that received the original document.
+                  Format: users/{user}
+                readOnly: true
+            title: The item to update.
+            required:
+              - amount
+      tags:
+        - SubmissionItemService
   /v1/{ledger_account.name}:
     patch:
       summary: |-
@@ -1091,6 +1256,64 @@ paths:
   /v1/{name_10}:
     get:
       summary: |-
+        Gets a single group by resource name.
+        Authorization:
+          Scope: groups:read
+          Permission: groups:read
+          Domain: global
+      operationId: GroupService_GetGroup
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Group'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_10
+          description: |-
+            The resource name of the group.
+            Format: groups/{group}
+          in: path
+          required: true
+          type: string
+          pattern: groups/[^/]+
+      tags:
+        - GroupService
+    delete:
+      summary: |-
+        Permanently deletes a report.
+        Authorization:
+          Scope: reports:write
+          Permission: reports:delete
+          Domain: organization-scoped
+      operationId: ReportService_DeleteReport
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            type: object
+            properties: {}
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_10
+          description: |-
+            The resource name of the report.
+            Format: organizations/{organization}/reports/{report}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/reports/[^/]+
+      tags:
+        - ReportService
+  /v1/{name_11}:
+    get:
+      summary: |-
         Gets a single ledger account by resource name.
         Authorization:
           Scope: ledgerAccount:read
@@ -1107,7 +1330,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_10
+        - name: name_11
           description: |-
             The resource name of the ledger account.
             Format: organizations/{organization}/ledgerAccounts/{ledger_account}
@@ -1117,6 +1340,122 @@ paths:
           pattern: organizations/[^/]+/ledgerAccounts/[^/]+
       tags:
         - LedgerAccountService
+    delete:
+      summary: |-
+        Permanently deletes a report template.
+        Authorization:
+          Scope: reportTemplates:write
+          Permission: reportTemplates:delete
+          Domain: organization-scoped
+      operationId: ReportTemplateService_DeleteReportTemplate
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            type: object
+            properties: {}
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_11
+          description: |-
+            The resource name of the report template.
+            Format: organizations/{organization}/reportTemplates/{report_template}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/reportTemplates/[^/]+
+      tags:
+        - ReportTemplateService
+  /v1/{name_12}:
+    get:
+      summary: |-
+        Gets a single ledger year by resource name.
+        Authorization:
+          Scope: ledgerYear:read
+          Permission: ledgerYear:read
+          Domain: organization-scoped
+      operationId: LedgerYearService_GetLedgerYear
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1LedgerYear'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_12
+          description: |-
+            The resource name of the ledger year.
+            Format: organizations/{organization}/ledgerYears/{ledger_year}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/ledgerYears/[^/]+
+      tags:
+        - LedgerYearService
+    delete:
+      summary: |-
+        Permanently deletes a transaction.
+        Authorization:
+          Scope: transactions:write
+          Permission: transactions:delete
+          Domain: organization-scoped
+      operationId: TransactionService_DeleteTransaction
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            type: object
+            properties: {}
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_12
+          description: |-
+            The resource name of the transaction.
+            Format: organizations/{organization}/transactions/{transaction}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/transactions/[^/]+
+      tags:
+        - TransactionService
+  /v1/{name_13}:
+    get:
+      summary: |-
+        Gets a single submission by resource name.
+        Authorization:
+          Scope: submissions:read
+          Permission: submissions:read or submissions:read_own
+          Domain: organization-scoped
+      operationId: SubmissionService_GetSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_13
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+      tags:
+        - SubmissionService
     delete:
       summary: |-
         Deletes a transaction assignment.
@@ -1136,7 +1475,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_10
+        - name: name_13
           description: |-
             The resource name of the transaction assignment.
             Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
@@ -1146,36 +1485,36 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+/assignments/[^/]+
       tags:
         - TransactionAssignmentService
-  /v1/{name_11}:
+  /v1/{name_14}:
     get:
       summary: |-
-        Gets a single ledger year by resource name.
+        Gets a single item by resource name.
         Authorization:
-          Scope: ledgerYear:read
-          Permission: ledgerYear:read
+          Scope: submissions:read
+          Permission: submissions:read or submissions:read_own
           Domain: organization-scoped
-      operationId: LedgerYearService_GetLedgerYear
+      operationId: SubmissionItemService_GetSubmissionItem
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1LedgerYear'
+            $ref: '#/definitions/v1SubmissionItem'
         default:
           description: An unexpected error response.
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_11
+        - name: name_14
           description: |-
-            The resource name of the ledger year.
-            Format: organizations/{organization}/ledgerYears/{ledger_year}
+            The resource name of the item.
+            Format: organizations/{organization}/submissions/{submission}/items/{item}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/ledgerYears/[^/]+
+          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
       tags:
-        - LedgerYearService
-  /v1/{name_12}:
+        - SubmissionItemService
+  /v1/{name_15}:
     get:
       summary: |-
         Gets a single organization by resource name.
@@ -1194,7 +1533,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_12
+        - name: name_15
           description: |-
             The resource name of the organization.
             Format: organizations/{organization}
@@ -1204,7 +1543,7 @@ paths:
           pattern: organizations/[^/]+
       tags:
         - OrganizationService
-  /v1/{name_13}:
+  /v1/{name_16}:
     get:
       summary: |-
         Gets report metadata by resource name.
@@ -1223,7 +1562,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_13
+        - name: name_16
           description: |-
             The resource name of the report.
             Format: organizations/{organization}/reports/{report}
@@ -1233,7 +1572,7 @@ paths:
           pattern: organizations/[^/]+/reports/[^/]+
       tags:
         - ReportService
-  /v1/{name_14}:
+  /v1/{name_17}:
     get:
       summary: |-
         Gets a single report template by resource name.
@@ -1252,7 +1591,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_14
+        - name: name_17
           description: |-
             The resource name of the report template.
             Format: organizations/{organization}/reportTemplates/{report_template}
@@ -1262,7 +1601,7 @@ paths:
           pattern: organizations/[^/]+/reportTemplates/[^/]+
       tags:
         - ReportTemplateService
-  /v1/{name_15}:
+  /v1/{name_18}:
     get:
       summary: |-
         Gets a single transaction by resource name.
@@ -1281,7 +1620,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_15
+        - name: name_18
           description: |-
             The resource name of the transaction.
             Format: organizations/{organization}/transactions/{transaction}
@@ -1291,7 +1630,7 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+
       tags:
         - TransactionService
-  /v1/{name_16}:
+  /v1/{name_19}:
     get:
       summary: |-
         Gets a single transaction assignment by resource name.
@@ -1310,7 +1649,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_16
+        - name: name_19
           description: |-
             The resource name of the transaction assignment.
             Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
@@ -1320,93 +1659,6 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+/assignments/[^/]+
       tags:
         - TransactionAssignmentService
-  /v1/{name_17}:
-    get:
-      summary: |-
-        Gets a single user by resource name.
-        Authorization:
-          Scope: users:read
-          Permission: users:read
-          Domain: global
-      operationId: UserService_GetUser
-      responses:
-        "200":
-          description: A successful response.
-          schema:
-            $ref: '#/definitions/v1User'
-        default:
-          description: An unexpected error response.
-          schema:
-            $ref: '#/definitions/rpcStatus'
-      parameters:
-        - name: name_17
-          description: |-
-            The resource name of the user.
-            Format: users/{user}
-          in: path
-          required: true
-          type: string
-          pattern: users/[^/]+
-      tags:
-        - UserService
-  /v1/{name_18}:
-    get:
-      summary: |-
-        Gets a single identity record.
-        Authorization:
-          Scope: users:read
-          Permission: users:read
-          Domain: global
-      operationId: UserIdentityService_GetUserIdentity
-      responses:
-        "200":
-          description: A successful response.
-          schema:
-            $ref: '#/definitions/v1UserIdentity'
-        default:
-          description: An unexpected error response.
-          schema:
-            $ref: '#/definitions/rpcStatus'
-      parameters:
-        - name: name_18
-          description: |-
-            The resource name of the identity.
-            Format: users/{user}/identities/{identity}
-          in: path
-          required: true
-          type: string
-          pattern: users/[^/]+/identities/[^/]+
-      tags:
-        - UserIdentityService
-  /v1/{name_19}:
-    get:
-      summary: |-
-        Gets the settings for a user.
-        Authorization:
-          Scope: settings:read
-          Permission: settings:read
-          Domain: global
-      operationId: UserSettingsService_GetUserSettings
-      responses:
-        "200":
-          description: A successful response.
-          schema:
-            $ref: '#/definitions/v1UserSettings'
-        default:
-          description: An unexpected error response.
-          schema:
-            $ref: '#/definitions/rpcStatus'
-      parameters:
-        - name: name_19
-          description: |-
-            The resource name of the user settings.
-            Format: users/{user}/settings
-          in: path
-          required: true
-          type: string
-          pattern: users/[^/]+/settings
-      tags:
-        - UserSettingsService
   /v1/{name_1}:
     get:
       summary: |-
@@ -1499,6 +1751,93 @@ paths:
             $ref: '#/definitions/LedgerYearServiceCloseLedgerYearBody'
       tags:
         - LedgerYearService
+  /v1/{name_20}:
+    get:
+      summary: |-
+        Gets a single user by resource name.
+        Authorization:
+          Scope: users:read
+          Permission: users:read
+          Domain: global
+      operationId: UserService_GetUser
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1User'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_20
+          description: |-
+            The resource name of the user.
+            Format: users/{user}
+          in: path
+          required: true
+          type: string
+          pattern: users/[^/]+
+      tags:
+        - UserService
+  /v1/{name_21}:
+    get:
+      summary: |-
+        Gets a single identity record.
+        Authorization:
+          Scope: users:read
+          Permission: users:read
+          Domain: global
+      operationId: UserIdentityService_GetUserIdentity
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1UserIdentity'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_21
+          description: |-
+            The resource name of the identity.
+            Format: users/{user}/identities/{identity}
+          in: path
+          required: true
+          type: string
+          pattern: users/[^/]+/identities/[^/]+
+      tags:
+        - UserIdentityService
+  /v1/{name_22}:
+    get:
+      summary: |-
+        Gets the settings for a user.
+        Authorization:
+          Scope: settings:read
+          Permission: settings:read
+          Domain: global
+      operationId: UserSettingsService_GetUserSettings
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1UserSettings'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_22
+          description: |-
+            The resource name of the user settings.
+            Format: users/{user}/settings
+          in: path
+          required: true
+          type: string
+          pattern: users/[^/]+/settings
+      tags:
+        - UserSettingsService
   /v1/{name_2}:
     get:
       summary: |-
@@ -1646,12 +1985,13 @@ paths:
         - BudgetService
     delete:
       summary: |-
-        Permanently deletes a group.
+        Deletes a committee. Fails with FAILED_PRECONDITION if the committee is
+        still referenced by submissions.
         Authorization:
-          Scope: groups:write
-          Permission: groups:delete
-          Domain: global
-      operationId: GroupService_DeleteGroup
+          Scope: committees:write
+          Permission: committees:delete
+          Domain: organization-scoped
+      operationId: CommitteeService_DeleteCommittee
       responses:
         "200":
           description: A successful response.
@@ -1665,14 +2005,14 @@ paths:
       parameters:
         - name: name_4
           description: |-
-            The resource name of the group.
-            Format: groups/{group}
+            The resource name of the committee.
+            Format: organizations/{organization}/committees/{committee}
           in: path
           required: true
           type: string
-          pattern: groups/[^/]+
+          pattern: organizations/[^/]+/committees/[^/]+
       tags:
-        - GroupService
+        - CommitteeService
   /v1/{name_5}:
     get:
       summary: |-
@@ -1704,12 +2044,12 @@ paths:
         - BudgetAccountValueService
     delete:
       summary: |-
-        Permanently deletes a ledger account.
+        Permanently deletes a group.
         Authorization:
-          Scope: ledgerAccount:write
-          Permission: ledgerAccount:delete
-          Domain: organization-scoped
-      operationId: LedgerAccountService_DeleteLedgerAccount
+          Scope: groups:write
+          Permission: groups:delete
+          Domain: global
+      operationId: GroupService_DeleteGroup
       responses:
         "200":
           description: A successful response.
@@ -1723,14 +2063,14 @@ paths:
       parameters:
         - name: name_5
           description: |-
-            The resource name of the ledger account.
-            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+            The resource name of the group.
+            Format: groups/{group}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
+          pattern: groups/[^/]+
       tags:
-        - LedgerAccountService
+        - GroupService
   /v1/{name_6}:
     get:
       summary: |-
@@ -1762,12 +2102,12 @@ paths:
         - BudgetActualAccountValueService
     delete:
       summary: |-
-        Permanently deletes an organization.
+        Permanently deletes a ledger account.
         Authorization:
-          Scope: organizations:write
-          Permission: organizations:delete
-          Domain: global
-      operationId: OrganizationService_DeleteOrganization
+          Scope: ledgerAccount:write
+          Permission: ledgerAccount:delete
+          Domain: organization-scoped
+      operationId: LedgerAccountService_DeleteLedgerAccount
       responses:
         "200":
           description: A successful response.
@@ -1781,14 +2121,14 @@ paths:
       parameters:
         - name: name_6
           description: |-
-            The resource name of the organization.
-            Format: organizations/{organization}
+            The resource name of the ledger account.
+            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+
+          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
       tags:
-        - OrganizationService
+        - LedgerAccountService
   /v1/{name_7}:
     get:
       summary: |-
@@ -1820,18 +2160,18 @@ paths:
         - BudgetRevisionService
     delete:
       summary: |-
-        Permanently deletes a report.
+        Soft-deletes a submission. The submission is purged automatically after
+        the retention period.
         Authorization:
-          Scope: reports:write
-          Permission: reports:delete
+          Scope: submissions:write
+          Permission: submissions:delete or submissions:update_own
           Domain: organization-scoped
-      operationId: ReportService_DeleteReport
+      operationId: SubmissionService_DeleteSubmission
       responses:
         "200":
           description: A successful response.
           schema:
-            type: object
-            properties: {}
+            $ref: '#/definitions/v1Submission'
         default:
           description: An unexpected error response.
           schema:
@@ -1839,14 +2179,14 @@ paths:
       parameters:
         - name: name_7
           description: |-
-            The resource name of the report.
-            Format: organizations/{organization}/reports/{report}
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/reports/[^/]+
+          pattern: organizations/[^/]+/submissions/[^/]+
       tags:
-        - ReportService
+        - SubmissionService
   /v1/{name_8}:
     get:
       summary: |-
@@ -1878,12 +2218,14 @@ paths:
         - BudgetRevisionAccountValueService
     delete:
       summary: |-
-        Permanently deletes a report template.
+        Removes an item from the submission. Only allowed while the submission is
+        in DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the
+        submitter or the treasury.
         Authorization:
-          Scope: reportTemplates:write
-          Permission: reportTemplates:delete
+          Scope: submissions:write
+          Permission: submissions:delete or submissions:update_own
           Domain: organization-scoped
-      operationId: ReportTemplateService_DeleteReportTemplate
+      operationId: SubmissionItemService_DeleteSubmissionItem
       responses:
         "200":
           description: A successful response.
@@ -1897,28 +2239,28 @@ paths:
       parameters:
         - name: name_8
           description: |-
-            The resource name of the report template.
-            Format: organizations/{organization}/reportTemplates/{report_template}
+            The resource name of the item.
+            Format: organizations/{organization}/submissions/{submission}/items/{item}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/reportTemplates/[^/]+
+          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
       tags:
-        - ReportTemplateService
+        - SubmissionItemService
   /v1/{name_9}:
     get:
       summary: |-
-        Gets a single group by resource name.
+        Gets a single committee by resource name.
         Authorization:
-          Scope: groups:read
-          Permission: groups:read
-          Domain: global
-      operationId: GroupService_GetGroup
+          Scope: committees:read
+          Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteeService_GetCommittee
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1Group'
+            $ref: '#/definitions/v1Committee'
         default:
           description: An unexpected error response.
           schema:
@@ -1926,22 +2268,22 @@ paths:
       parameters:
         - name: name_9
           description: |-
-            The resource name of the group.
-            Format: groups/{group}
+            The resource name of the committee.
+            Format: organizations/{organization}/committees/{committee}
           in: path
           required: true
           type: string
-          pattern: groups/[^/]+
+          pattern: organizations/[^/]+/committees/[^/]+
       tags:
-        - GroupService
+        - CommitteeService
     delete:
       summary: |-
-        Permanently deletes a transaction.
+        Permanently deletes an organization.
         Authorization:
-          Scope: transactions:write
-          Permission: transactions:delete
-          Domain: organization-scoped
-      operationId: TransactionService_DeleteTransaction
+          Scope: organizations:write
+          Permission: organizations:delete
+          Domain: global
+      operationId: OrganizationService_DeleteOrganization
       responses:
         "200":
           description: A successful response.
@@ -1955,14 +2297,14 @@ paths:
       parameters:
         - name: name_9
           description: |-
-            The resource name of the transaction.
-            Format: organizations/{organization}/transactions/{transaction}
+            The resource name of the organization.
+            Format: organizations/{organization}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/transactions/[^/]+
+          pattern: organizations/[^/]+
       tags:
-        - TransactionService
+        - OrganizationService
   /v1/{name}:
     get:
       summary: |-
@@ -2056,6 +2398,42 @@ paths:
             $ref: '#/definitions/GroupServiceAddUserToGroupBody'
       tags:
         - GroupService
+  /v1/{name}:approve:
+    post:
+      summary: |-
+        Approves a submission (PENDING/FURTHER_INFO_REQUIRED → APPROVED, or →
+        COMPLETED for committee-account settlements and income submissions).
+        Treasury only.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update
+          Domain: organization-scoped
+      operationId: SubmissionService_ApproveSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionServiceApproveSubmissionBody'
+      tags:
+        - SubmissionService
   /v1/{name}:archive:
     post:
       summary: |-
@@ -2161,6 +2539,41 @@ paths:
             $ref: '#/definitions/BudgetServiceCloseBudgetBody'
       tags:
         - BudgetService
+  /v1/{name}:complete:
+    post:
+      summary: |-
+        Completes an approved submission (APPROVED → COMPLETED), optionally
+        recording the execution date and payment reference. Treasury only.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update
+          Domain: organization-scoped
+      operationId: SubmissionService_CompleteSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionServiceCompleteSubmissionBody'
+      tags:
+        - SubmissionService
   /v1/{name}:getNested:
     get:
       summary: |-
@@ -2227,6 +2640,41 @@ paths:
           pattern: users/[^/]+
       tags:
         - UserService
+  /v1/{name}:reject:
+    post:
+      summary: |-
+        Rejects a submission (→ REJECTED) and records the reason as a comment.
+        Treasury only.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update
+          Domain: organization-scoped
+      operationId: SubmissionService_RejectSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionServiceRejectSubmissionBody'
+      tags:
+        - SubmissionService
   /v1/{name}:removeUser:
     post:
       summary: |-
@@ -2262,6 +2710,41 @@ paths:
             $ref: '#/definitions/GroupServiceRemoveUserFromGroupBody'
       tags:
         - GroupService
+  /v1/{name}:requestFurtherInfo:
+    post:
+      summary: |-
+        Requests further information (PENDING → FURTHER_INFO_REQUIRED) and
+        records the reason as a comment. Treasury only.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update
+          Domain: organization-scoped
+      operationId: SubmissionService_RequestFurtherInfo
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionServiceRequestFurtherInfoBody'
+      tags:
+        - SubmissionService
   /v1/{name}:restore:
     post:
       summary: |-
@@ -2296,6 +2779,75 @@ paths:
             $ref: '#/definitions/AccountServiceRestoreAccountBody'
       tags:
         - AccountService
+  /v1/{name}:submit:
+    post:
+      summary: |-
+        Submits a draft for review (DRAFT → PENDING). Validates that the
+        submission is complete.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update or submissions:update_own
+          Domain: organization-scoped
+      operationId: SubmissionService_SubmitSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionServiceSubmitSubmissionBody'
+      tags:
+        - SubmissionService
+  /v1/{name}:undelete:
+    post:
+      summary: |-
+        Restores a soft-deleted submission.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:delete
+          Domain: organization-scoped
+      operationId: SubmissionService_UndeleteSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionServiceUndeleteSubmissionBody'
+      tags:
+        - SubmissionService
   /v1/{organization.name}:
     patch:
       summary: |-
@@ -2343,6 +2895,9 @@ paths:
               start_month:
                 $ref: '#/definitions/v1Month'
                 description: The start month of ledger years for this organization. It is assumed that the start date is the 1st of the month.
+              submission_settings:
+                $ref: '#/definitions/v1SubmissionSettings'
+                description: Submission settings for this organization.
               update_time:
                 type: string
                 format: date-time
@@ -3185,6 +3740,179 @@ paths:
           collectionFormat: multi
       tags:
         - BudgetActualAccountValueService
+  /v1/{parent}/comments:
+    get:
+      summary: |-
+        Lists the comments of a submission. Admin-only comments are omitted for
+        requesters without the treasury comment permission.
+        Authorization:
+          Scope: submissions:read
+          Permission: submissions:read, submissions:read_own, submissions:comment or submissions:comment_own
+          Domain: organization-scoped
+      operationId: SubmissionCommentService_ListSubmissionComments
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListSubmissionCommentsResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent submission resource name.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: page_size
+          description: |-
+            Maximum number of comments to return. The service may return fewer.
+            If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListSubmissionComments call.
+          in: query
+          required: false
+          type: string
+      tags:
+        - SubmissionCommentService
+    post:
+      summary: |-
+        Creates a comment on a submission.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:comment or submissions:comment_own
+          Domain: organization-scoped
+      operationId: SubmissionCommentService_CreateSubmissionComment
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1SubmissionComment'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent submission resource name.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: comment
+          description: The comment to create.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1SubmissionComment'
+      tags:
+        - SubmissionCommentService
+  /v1/{parent}/committees:
+    get:
+      summary: |-
+        Lists committees with pagination and optional filters.
+        Authorization:
+          Scope: committees:read
+          Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteeService_ListCommittees
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListCommitteesResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent organization resource name.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+        - name: page_size
+          description: |-
+            Maximum number of committees to return. The service may return fewer.
+            If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListCommittees call.
+          in: query
+          required: false
+          type: string
+        - name: filter
+          description: |-
+            Filter expression conforming to AIP-160.
+            Supported fields: display_name.
+            Example: "display_name=\"AStA\"".
+          in: query
+          required: false
+          type: string
+        - name: order_by
+          description: Order by expression (e.g. "display_name", "create_time desc").
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteeService
+    post:
+      summary: |-
+        Creates a new committee.
+        Authorization:
+          Scope: committees:write
+          Permission: committees:create
+          Domain: organization-scoped
+      operationId: CommitteeService_CreateCommittee
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Committee'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent organization resource name.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+        - name: committee
+          description: The committee to create.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1Committee'
+        - name: committee_id
+          description: |-
+            The ID to use for the committee. If not provided, a system-generated
+            UUID will be used. Must be unique within the parent organization.
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteeService
   /v1/{parent}/identities:
     get:
       summary: |-
@@ -3227,6 +3955,91 @@ paths:
           type: string
       tags:
         - UserIdentityService
+  /v1/{parent}/items:
+    get:
+      summary: |-
+        Lists the items of a submission.
+        Authorization:
+          Scope: submissions:read
+          Permission: submissions:read or submissions:read_own
+          Domain: organization-scoped
+      operationId: SubmissionItemService_ListSubmissionItems
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListSubmissionItemsResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent submission resource name.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: page_size
+          description: |-
+            Maximum number of items to return. The service may return fewer.
+            If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListSubmissionItems call.
+          in: query
+          required: false
+          type: string
+      tags:
+        - SubmissionItemService
+    post:
+      summary: |-
+        Creates a new item. Only allowed while the submission is in DRAFT,
+        PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter or the
+        treasury.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:create or submissions:update_own
+          Domain: organization-scoped
+      operationId: SubmissionItemService_CreateSubmissionItem
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1SubmissionItem'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent submission resource name.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: item
+          description: The item to create.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1SubmissionItem'
+        - name: item_id
+          description: |-
+            The ID to use for the item. If not provided, a system-generated
+            UUID will be used. Must be unique within the parent submission.
+          in: query
+          required: false
+          type: string
+      tags:
+        - SubmissionItemService
   /v1/{parent}/ledgerAccounts:
     get:
       summary: |-
@@ -3698,6 +4511,111 @@ paths:
           pattern: organizations/[^/]+/budgets/[^/]+
       tags:
         - BudgetRevisionService
+  /v1/{parent}/submissions:
+    get:
+      summary: |-
+        Lists submissions with pagination and optional filters. Drafts are only
+        included when explicitly filtered by status.
+        Authorization:
+          Scope: submissions:read
+          Permission: submissions:read or submissions:read_own
+          Domain: organization-scoped
+      operationId: SubmissionService_ListSubmissions
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListSubmissionsResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent organization resource name.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+        - name: page_size
+          description: |-
+            Maximum number of submissions to return. The service may return fewer.
+            If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListSubmissions call.
+          in: query
+          required: false
+          type: string
+        - name: filter
+          description: |-
+            Filter expression conforming to AIP-160.
+            Supported fields: direction, settlement, status, committee, created_by_user.
+            Example: "committee=\"organizations/{organization}/committees/{committee}\" AND status=\"PENDING\"".
+          in: query
+          required: false
+          type: string
+        - name: order_by
+          description: Order by expression (e.g. "create_time desc").
+          in: query
+          required: false
+          type: string
+        - name: show_deleted
+          description: Whether to include soft-deleted submissions in the result.
+          in: query
+          required: false
+          type: boolean
+      tags:
+        - SubmissionService
+    post:
+      summary: |-
+        Creates a new submission in the DRAFT state.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:create
+          Domain: organization-scoped
+      operationId: SubmissionService_CreateSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent organization resource name.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+        - name: submission
+          description: |-
+            The submission to create. Submissions are always created in the DRAFT
+            state, so the request may omit fields that are still unknown; all fields
+            are validated on submit.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1Submission'
+        - name: submission_id
+          description: |-
+            The ID to use for the submission. If not provided, a system-generated
+            UUID will be used. Must be unique within the parent organization.
+          in: query
+          required: false
+          type: string
+      tags:
+        - SubmissionService
   /v1/{parent}/transactions:
     get:
       summary: |-
@@ -3999,6 +4917,122 @@ paths:
           type: boolean
       tags:
         - UserSettingsService
+  /v1/{submission.name}:
+    patch:
+      summary: |-
+        Updates an existing submission. Only allowed while the submission is in
+        DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter
+        or the treasury. Updating the scope requires the treasury update
+        permission.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:update or submissions:update_own
+          Domain: organization-scoped
+      operationId: SubmissionService_UpdateSubmission
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Submission'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: submission.name
+          description: |-
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+
+        - name: submission
+          description: The submission to update.
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              uid:
+                type: string
+                description: The UUID of the submission.
+                readOnly: true
+              public_id:
+                type: string
+                description: Human-readable public ID (per-organization yearly sequence, e.g. "2026/04").
+                readOnly: true
+              created_by_user:
+                type: string
+                title: |-
+                  The user that created the submission.
+                  Format: users/{user}
+                readOnly: true
+              committee:
+                type: string
+                title: |-
+                  The committee the submission belongs to.
+                  Format: organizations/{organization}/committees/{committee}
+              direction:
+                $ref: '#/definitions/v1Direction'
+                description: Whether this submission documents an expense or an income.
+              settlement:
+                $ref: '#/definitions/v1Settlement'
+                description: How the expense is settled. Must be unset for income submissions.
+              scope:
+                $ref: '#/definitions/v1Scope'
+                description: The nonprofit/commercial scope of the submission.
+              status:
+                $ref: '#/definitions/v1SubmissionStatus'
+                description: The lifecycle state of the submission.
+                readOnly: true
+              notice:
+                type: string
+                description: Free-text notice from the submitter.
+              person_details:
+                $ref: '#/definitions/v1PersonDetails'
+                description: Details for a person settlement.
+              committee_account_details:
+                $ref: '#/definitions/v1CommitteeAccountDetails'
+                description: Details for an already-paid committee account settlement.
+              payment_request_details:
+                $ref: '#/definitions/v1PaymentRequestDetails'
+                description: Details for a payment request to the treasury.
+              total_amount:
+                $ref: '#/definitions/v1Decimal'
+                description: Sum of all item amounts (read-only derived value).
+                readOnly: true
+              etag:
+                type: string
+                description: Entity tag for optimistic concurrency control.
+                readOnly: true
+              delete_time:
+                type: string
+                format: date-time
+                description: Time the submission was soft-deleted, if deleted.
+                readOnly: true
+              purge_time:
+                type: string
+                format: date-time
+                description: Time at which the soft-deleted submission is purged automatically.
+                readOnly: true
+              update_time:
+                type: string
+                format: date-time
+                description: Last modification timestamp.
+                readOnly: true
+              create_time:
+                type: string
+                format: date-time
+                description: Creation timestamp.
+                readOnly: true
+            title: The submission to update.
+            required:
+              - committee
+              - direction
+              - scope
+      tags:
+        - SubmissionService
   /v1/{transaction.name}:
     patch:
       summary: |-
@@ -4163,6 +5197,41 @@ definitions:
     required:
       - user
   LedgerYearServiceCloseLedgerYearBody:
+    type: object
+  SubmissionServiceApproveSubmissionBody:
+    type: object
+    properties:
+      note:
+        type: string
+        description: Optional note recorded with the approval.
+  SubmissionServiceCompleteSubmissionBody:
+    type: object
+    properties:
+      paid_date:
+        $ref: '#/definitions/typeDate'
+        description: The date the payout/payment was executed (if already known).
+      payment_reference:
+        type: string
+        description: Optional payment reference recorded with the completion.
+  SubmissionServiceRejectSubmissionBody:
+    type: object
+    properties:
+      reason:
+        type: string
+        description: The reason for the rejection; recorded as a comment.
+    required:
+      - reason
+  SubmissionServiceRequestFurtherInfoBody:
+    type: object
+    properties:
+      reason:
+        type: string
+        description: What information is required; recorded as a comment.
+    required:
+      - reason
+  SubmissionServiceSubmitSubmissionBody:
+    type: object
+  SubmissionServiceUndeleteSubmissionBody:
     type: object
   UserServiceCheckUserPermissionsBody:
     type: object
@@ -4475,6 +5544,24 @@ definitions:
       One entry is created per mutating API call: an update that changes multiple
       fields at once results in a single entry containing the per-field diff.
       Entries are append-only and can never be modified or deleted.
+  v1BankDetails:
+    type: object
+    properties:
+      account_holder:
+        type: string
+        description: Name of the account holder.
+      iban:
+        type: string
+        description: IBAN of the account.
+      bic:
+        type: string
+        description: BIC of the account (optional).
+    description: |-
+      BankDetails are the personal bank account details of the submitting person
+      for a person settlement payout.
+    required:
+      - account_holder
+      - iban
   v1BatchCheckUserPermissionsRequest:
     type: object
     properties:
@@ -4831,6 +5918,103 @@ definitions:
     description: |-
       CheckUserPermissionsResponse reports which of the requested permissions
       the user actually holds.
+  v1Committee:
+    type: object
+    properties:
+      name:
+        type: string
+        title: |-
+          The resource name of the committee.
+          Format: organizations/{organization}/committees/{committee}
+        readOnly: true
+      uid:
+        type: string
+        description: The UUID of the committee.
+        readOnly: true
+      display_name:
+        type: string
+        description: Human-readable committee name.
+      display_description:
+        type: string
+        description: Optional free-text description.
+      allow_scope_selection:
+        type: boolean
+        description: |-
+          Whether submitters of this committee may choose between the nonprofit and
+          commercial scope when creating submissions. If false, submissions of this
+          committee are always created with the nonprofit scope.
+      payment_accounts:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1CommitteePaymentAccount'
+        description: |-
+          Payment accounts held by this committee. If empty, committee members
+          cannot pay from a committee account and must use the person settlement.
+      update_time:
+        type: string
+        format: date-time
+        description: Last modification timestamp.
+        readOnly: true
+      create_time:
+        type: string
+        format: date-time
+        description: Creation timestamp.
+        readOnly: true
+    description: |-
+      Committee is an organizational unit (e.g. a student committee) that submits
+      expense submissions and income documents.
+    required:
+      - display_name
+  v1CommitteeAccountDetails:
+    type: object
+    properties:
+      payment_account_uid:
+        type: string
+        description: |-
+          The UUID of the committee payment account the expense was paid from
+          (Committee.payment_accounts[].uid).
+      payment_account_label:
+        type: string
+        description: |-
+          Label of the payment account at the time of submission (snapshot, so
+          historical submissions stay readable if the account is renamed/removed).
+        readOnly: true
+      paid_date:
+        $ref: '#/definitions/typeDate'
+        description: The date the expense was paid.
+      payment_reference:
+        type: string
+        description: Optional payment reference (e.g. mandate or booking reference).
+    description: |-
+      CommitteeAccountDetails are the settlement details for an expense that was
+      already paid from a committee-held payment account.
+    required:
+      - payment_account_uid
+      - paid_date
+  v1CommitteePaymentAccount:
+    type: object
+    properties:
+      uid:
+        type: string
+        description: |-
+          The UUID of the payment account. Used by submissions to reference the
+          account they were paid from.
+        readOnly: true
+      kind:
+        $ref: '#/definitions/v1PaymentAccountKind'
+        description: The kind of payment account.
+      display_label:
+        type: string
+        description: Human-readable label of the payment account (e.g. "Gremiumskonto").
+    description: |-
+      CommitteePaymentAccount describes a payment account held by a committee
+      (e.g. the committee's own bank account or an independently organized cash
+      box). Committees with at least one payment account may pay expenses from
+      these accounts and submit the bills for documentation.
+    required:
+      - kind
+      - display_label
   v1Decimal:
     type: object
     properties:
@@ -4842,6 +6026,22 @@ definitions:
       monetary and other values where floating-point rounding is unacceptable.
 
       The value is a formatted decimal string, e.g. "1234.56", "-42", "0.001".
+  v1Direction:
+    type: string
+    enum:
+      - DIRECTION_UNSPECIFIED
+      - DIRECTION_EXPENSE
+      - DIRECTION_INCOME
+    default: DIRECTION_UNSPECIFIED
+    description: Direction describes whether a submission documents an expense or an income.
+  v1DocumentForm:
+    type: string
+    enum:
+      - DOCUMENT_FORM_UNSPECIFIED
+      - DOCUMENT_FORM_PAPER_ORIGINAL
+      - DOCUMENT_FORM_DIGITAL_ORIGINAL
+    default: DOCUMENT_FORM_UNSPECIFIED
+    description: DocumentForm describes in which form the original document exists.
   v1GenerateHtmlPreviewRequest:
     type: object
     properties:
@@ -5155,6 +6355,22 @@ definitions:
         type: string
         format: int64
         description: Total number of budgets matching the filter (may be an estimate).
+  v1ListCommitteesResponse:
+    type: object
+    properties:
+      committees:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1Committee'
+        description: The committees returned.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+      total_size:
+        type: string
+        format: int64
+        description: Total number of committees matching the filter (may be an estimate).
   v1ListGroupsResponse:
     type: object
     properties:
@@ -5261,6 +6477,48 @@ definitions:
         type: string
         format: int64
         description: Total number of reports matching the filter (may be an estimate).
+  v1ListSubmissionCommentsResponse:
+    type: object
+    properties:
+      comments:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1SubmissionComment'
+        description: |-
+          The comments returned (admin-only comments are omitted for requesters
+          without the treasury comment permission).
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+  v1ListSubmissionItemsResponse:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1SubmissionItem'
+        description: The items returned.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+  v1ListSubmissionsResponse:
+    type: object
+    properties:
+      submissions:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1Submission'
+        description: The submissions returned.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+      total_size:
+        type: string
+        format: int64
+        description: Total number of submissions matching the filter (may be an estimate).
   v1ListTransactionAssignmentsResponse:
     type: object
     properties:
@@ -5443,6 +6701,9 @@ definitions:
       start_month:
         $ref: '#/definitions/v1Month'
         description: The start month of ledger years for this organization. It is assumed that the start date is the 1st of the month.
+      submission_settings:
+        $ref: '#/definitions/v1SubmissionSettings'
+        description: Submission settings for this organization.
       update_time:
         type: string
         format: date-time
@@ -5461,6 +6722,66 @@ definitions:
     required:
       - display_name
       - start_month
+  v1PaymentAccountKind:
+    type: string
+    enum:
+      - PAYMENT_ACCOUNT_KIND_UNSPECIFIED
+      - PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT
+      - PAYMENT_ACCOUNT_KIND_CASH_BOX
+    default: PAYMENT_ACCOUNT_KIND_UNSPECIFIED
+    description: PaymentAccountKind describes the kind of payment account held by a committee.
+  v1PaymentRequestDetails:
+    type: object
+    properties:
+      vendor_name:
+        type: string
+        description: Name of the vendor / payment recipient.
+      vendor_iban:
+        type: string
+        description: IBAN of the vendor.
+      vendor_bic:
+        type: string
+        description: BIC of the vendor (optional).
+      timing:
+        $ref: '#/definitions/v1PaymentRequestTiming'
+        description: When the treasury should execute the payment.
+    description: |-
+      PaymentRequestDetails are the settlement details for an expense that the
+      treasury should pay from the central account.
+    required:
+      - vendor_name
+      - vendor_iban
+      - timing
+  v1PaymentRequestTiming:
+    type: string
+    enum:
+      - PAYMENT_REQUEST_TIMING_UNSPECIFIED
+      - PAYMENT_REQUEST_TIMING_ON_INVOICE
+      - PAYMENT_REQUEST_TIMING_ADVANCE
+    default: PAYMENT_REQUEST_TIMING_UNSPECIFIED
+    description: |-
+      PaymentRequestTiming describes when the treasury should execute a payment
+      request.
+  v1PayoutMethod:
+    type: string
+    enum:
+      - PAYOUT_METHOD_UNSPECIFIED
+      - PAYOUT_METHOD_BANK_TRANSFER
+      - PAYOUT_METHOD_CASH
+    default: PAYOUT_METHOD_UNSPECIFIED
+    description: PayoutMethod describes how a person settlement payout is executed.
+  v1PersonDetails:
+    type: object
+    properties:
+      payout_method:
+        $ref: '#/definitions/v1PayoutMethod'
+        description: How the payout should be executed.
+      bank_details:
+        $ref: '#/definitions/v1BankDetails'
+        description: The bank account for the payout (required for bank transfer payouts).
+    description: PersonDetails are the settlement details for a person settlement.
+    required:
+      - payout_method
   v1Report:
     type: object
     properties:
@@ -5533,6 +6854,261 @@ definitions:
     required:
       - display_name
       - template
+  v1Scope:
+    type: string
+    enum:
+      - SCOPE_UNSPECIFIED
+      - SCOPE_NONPROFIT
+      - SCOPE_COMMERCIAL
+    default: SCOPE_UNSPECIFIED
+    description: |-
+      Scope describes whether a submission relates to nonprofit ("hoheitlich")
+      or commercial ("gewerblich") activity.
+  v1Settlement:
+    type: string
+    enum:
+      - SETTLEMENT_UNSPECIFIED
+      - SETTLEMENT_PERSON
+      - SETTLEMENT_COMMITTEE_ACCOUNT
+      - SETTLEMENT_PAYMENT_REQUEST
+    default: SETTLEMENT_UNSPECIFIED
+    description: |-
+      Settlement describes how an expense submission is (or was) settled.
+
+       - SETTLEMENT_PERSON: The submitter paid privately and receives a payout.
+       - SETTLEMENT_COMMITTEE_ACCOUNT: The expense was already paid from a committee-held payment account
+      (bank account or cash box); the submission is documentation only.
+       - SETTLEMENT_PAYMENT_REQUEST: The expense is not yet paid; the treasury pays the vendor from the
+      central account.
+  v1Submission:
+    type: object
+    properties:
+      name:
+        type: string
+        title: |-
+          The resource name of the submission.
+          Format: organizations/{organization}/submissions/{submission}
+        readOnly: true
+      uid:
+        type: string
+        description: The UUID of the submission.
+        readOnly: true
+      public_id:
+        type: string
+        description: Human-readable public ID (per-organization yearly sequence, e.g. "2026/04").
+        readOnly: true
+      created_by_user:
+        type: string
+        title: |-
+          The user that created the submission.
+          Format: users/{user}
+        readOnly: true
+      committee:
+        type: string
+        title: |-
+          The committee the submission belongs to.
+          Format: organizations/{organization}/committees/{committee}
+      direction:
+        $ref: '#/definitions/v1Direction'
+        description: Whether this submission documents an expense or an income.
+      settlement:
+        $ref: '#/definitions/v1Settlement'
+        description: How the expense is settled. Must be unset for income submissions.
+      scope:
+        $ref: '#/definitions/v1Scope'
+        description: The nonprofit/commercial scope of the submission.
+      status:
+        $ref: '#/definitions/v1SubmissionStatus'
+        description: The lifecycle state of the submission.
+        readOnly: true
+      notice:
+        type: string
+        description: Free-text notice from the submitter.
+      person_details:
+        $ref: '#/definitions/v1PersonDetails'
+        description: Details for a person settlement.
+      committee_account_details:
+        $ref: '#/definitions/v1CommitteeAccountDetails'
+        description: Details for an already-paid committee account settlement.
+      payment_request_details:
+        $ref: '#/definitions/v1PaymentRequestDetails'
+        description: Details for a payment request to the treasury.
+      total_amount:
+        $ref: '#/definitions/v1Decimal'
+        description: Sum of all item amounts (read-only derived value).
+        readOnly: true
+      etag:
+        type: string
+        description: Entity tag for optimistic concurrency control.
+        readOnly: true
+      delete_time:
+        type: string
+        format: date-time
+        description: Time the submission was soft-deleted, if deleted.
+        readOnly: true
+      purge_time:
+        type: string
+        format: date-time
+        description: Time at which the soft-deleted submission is purged automatically.
+        readOnly: true
+      update_time:
+        type: string
+        format: date-time
+        description: Last modification timestamp.
+        readOnly: true
+      create_time:
+        type: string
+        format: date-time
+        description: Creation timestamp.
+        readOnly: true
+    description: |-
+      Submission is a documented expense or income with receipts, submitted by a
+      committee member and reviewed by the treasury.
+    required:
+      - committee
+      - direction
+      - scope
+  v1SubmissionComment:
+    type: object
+    properties:
+      name:
+        type: string
+        title: |-
+          The resource name of the comment.
+          Format: organizations/{organization}/submissions/{submission}/comments/{comment}
+        readOnly: true
+      uid:
+        type: string
+        description: The UUID of the comment.
+        readOnly: true
+      content:
+        type: string
+        description: The comment text.
+      is_admin_only:
+        type: boolean
+        description: |-
+          Whether the comment is only visible to the treasury. Can only be set by
+          users holding the treasury comment permission.
+      created_by_user:
+        type: string
+        title: |-
+          The user that wrote the comment.
+          Format: users/{user}
+        readOnly: true
+      status_change:
+        $ref: '#/definitions/v1SubmissionStatusChange'
+        description: The status change caused by this comment, if any (e.g. a rejection).
+        readOnly: true
+      create_time:
+        type: string
+        format: date-time
+        description: Creation timestamp.
+        readOnly: true
+    description: |-
+      SubmissionComment is a comment on a submission, written either by the
+      submitter or by the reviewing treasury. Admin-only comments are only
+      visible to the treasury.
+    required:
+      - content
+  v1SubmissionItem:
+    type: object
+    properties:
+      name:
+        type: string
+        title: |-
+          The resource name of the item.
+          Format: organizations/{organization}/submissions/{submission}/items/{item}
+        readOnly: true
+      uid:
+        type: string
+        description: The UUID of the item.
+        readOnly: true
+      public_id:
+        type: string
+        description: |-
+          Human-readable public ID derived from the submission's public ID and the
+          item index (e.g. "2026/04/2").
+        readOnly: true
+      category:
+        type: string
+        description: |-
+          Document category. Free-form to keep the API generalization-friendly;
+          clients present per-direction presets (expenses: invoice, cash receipt,
+          ...; income: donation receipt, sponsorship agreement, ...).
+      document_form:
+        $ref: '#/definitions/v1DocumentForm'
+        description: In which form the original document exists.
+      source:
+        type: string
+        description: |-
+          Origin/source of an income (e.g. sponsor name). Only used by income
+          submissions.
+      description:
+        type: string
+        description: Free-text description of the document.
+      amount:
+        $ref: '#/definitions/v1Decimal'
+        description: Amount of the item.
+      original_receive_time:
+        type: string
+        format: date-time
+        description: Time the original document was received by the treasury.
+        readOnly: true
+      original_received_by:
+        type: string
+        title: |-
+          The user that received the original document.
+          Format: users/{user}
+        readOnly: true
+    description: |-
+      SubmissionItem is a single bill/receipt (expense) or income document within
+      a submission.
+    required:
+      - amount
+  v1SubmissionSettings:
+    type: object
+    properties:
+      enabled_settlement_kinds:
+        type: array
+        items:
+          $ref: '#/definitions/v1Settlement'
+        description: |-
+          The settlement kinds enabled for expense submissions in this
+          organization. Defaults to all kinds.
+      submission_deadline:
+        $ref: '#/definitions/typeDate'
+        description: |-
+          Organization-wide submission deadline. Pending submissions are
+          automatically rejected once this date is reached. Unset means no deadline.
+    description: SubmissionSettings hold the per-organization submission configuration.
+  v1SubmissionStatus:
+    type: string
+    enum:
+      - SUBMISSION_STATUS_UNSPECIFIED
+      - SUBMISSION_STATUS_DRAFT
+      - SUBMISSION_STATUS_PENDING
+      - SUBMISSION_STATUS_FURTHER_INFO_REQUIRED
+      - SUBMISSION_STATUS_REJECTED
+      - SUBMISSION_STATUS_APPROVED
+      - SUBMISSION_STATUS_COMPLETED
+    default: SUBMISSION_STATUS_UNSPECIFIED
+    description: |-
+      SubmissionStatus is the lifecycle state of a submission.
+      DRAFT → PENDING → (FURTHER_INFO_REQUIRED → PENDING) → APPROVED → COMPLETED,
+      or REJECTED. Expenses settled via SETTLEMENT_COMMITTEE_ACCOUNT and income
+      submissions are COMPLETED directly upon approval.
+  v1SubmissionStatusChange:
+    type: object
+    properties:
+      from:
+        $ref: '#/definitions/v1SubmissionStatus'
+        description: The status before the transition.
+      to:
+        $ref: '#/definitions/v1SubmissionStatus'
+        description: The status after the transition.
+    description: |-
+      SubmissionStatusChange describes a status transition associated with a
+      comment.
   v1Transaction:
     type: object
     properties:

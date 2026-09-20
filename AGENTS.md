@@ -2,10 +2,10 @@
 
 ## Project Overview
 
-This is a Go API server (`github.com/pixlcrashr/vsfv`) that exposes two parallel HTTP APIs on the same Fiber server:
+This is a Go API server (`github.com/pixlcrashr/vsfv`) that exposes a single protobuf-first HTTP/JSON API plus a small set of Huma-hosted exception endpoints on the same Fiber server:
 
-1. **Huma REST API** — defined under `pkg/api/` (one sub-package per entity). Do not remove or break this API.
-2. **gRPC-Gateway REST/JSON API** — defined via Protocol Buffers in `proto/`, generated into `pkg/grpc/gen/`, and served in-process via `pkg/api/grpc/server.go`. This is a pure HTTP/JSON transcoding (no TCP gRPC port); service implementations live in `pkg/api/grpc/services/`.
+1. **gRPC-Gateway REST/JSON API** (primary) — defined via Protocol Buffers in `proto/`, generated into `pkg/grpc/gen/`, and served in-process via `pkg/api/grpc/http_server.go` (pure HTTP/JSON transcoding, no TCP gRPC port; service implementations live in `pkg/api/grpc/services/`). All routes live under `/api/v1/`.
+2. **Huma exception endpoints** (secondary) — a small number of routes that cannot be expressed as protobuf CRUD (binary uploads/downloads such as XML import/export and submission attachments). They are registered via the `humafiber` API in `pkg/api/router.go` and **must be mounted before the gateway's `/api/v1/*` catch-all** (Fiber matches routes in registration order). They are self-documented by Huma's OpenAPI endpoint (`/openapi`).
 
 ## Proto Code Generation
 
@@ -26,7 +26,7 @@ These are equivalent to running `buf build` and `buf generate` directly from the
 Generated output directories:
 - `pkg/grpc/gen/` — protoc-gen-go, protoc-gen-go-grpc, protoc-gen-go-aip, protoc-gen-grpc-gateway output
 - `docs/proto/` — protoc-gen-doc HTML output
-- `openapi.yaml` — merged OpenAPI v2 spec (protoc-gen-openapiv2 output)
+- `openapi.swagger.yaml` — merged OpenAPI v2 spec (protoc-gen-openapiv2 output); the Angular client (`web/package.json` → `generate:apiV2`) is generated from this file
 
 **`pkg/grpc/gen/` is read-only at all times. Never manually edit any file in this directory.** All files are fully regenerated on every `task proto:generate` run (equivalent to `buf generate`). Treat any file in this directory as a build artifact.
 
@@ -52,7 +52,7 @@ go run ./tools/gen-dao/main.go -o ./pkg/db/model/dao
 - Use `google.api.resource` + `google.api.resource_reference` on all resource messages and name fields
 - Use `google.protobuf.FieldMask` on all Update requests
 - **Do not use the `optional` keyword** (proto3 optional) — `protoc-gen-go-aip` does not support it. Use a `oneof` wrapper instead for nullable scalars
-- File downloads/uploads stay in the Huma API only; do not add streaming or file RPCs to proto
+- Binary uploads/downloads (file transfer) never go through proto — no streaming or file RPCs; binary transfer belongs to the Huma exception endpoints
 
 ## Adding a New Service
 
@@ -62,23 +62,29 @@ go run ./tools/gen-dao/main.go -o ./pkg/db/model/dao
 4. Call `gen.Register<Entity>ServiceHandlerServer(ctx, mux, svc.<Entity>)` in `pkg/api/grpc/server.go`
 5. Implement the real server by replacing the `Unimplemented` stub with a concrete struct
 
-## Huma REST API Style Rules
+## Huma Exception Endpoint Style Rules
 
-All `pkg/api/` models and routes follow these conventions:
+Routes that cannot be expressed as protobuf CRUD (binary uploads/downloads etc.) are implemented as **Huma operations** and registered in `pkg/api/router.go` (via the `humafiber` adapter) **before** the grpc-gateway `/api/v1/*` catch-all, so Fiber's registration-order matching picks them first. They are self-documented via Huma's `/openapi`.
 
-### URL paths (`routes.go`)
+Conventions:
+
+### URL paths
 - Resource collection names are **camelCase** (e.g. `/transactionAccounts`, `/reportTemplates`, `/importSources`)
-- Path parameter placeholders are **snake_case** (e.g. `{transaction_id}`, `{budget_id}`, `{report_template_id}`)
-- All routes are prefixed with `/old/api/v1/` (Huma mounts on the Fiber app; the grpc-gateway API is at `/api/v1/`)
+- Path parameter placeholders are **snake_case** (e.g. `{transaction_id}`, `{submission_id}`, `{item_id}`)
+- All routes are prefixed with `/api/v1/` (same top-level namespace as the grpc-gateway API; custom verbs may use the AIP-style `:verb` suffix, e.g. `data:export-xml`, `attachments/{attachment_id}:download`)
 
-### Request / response field tags (`models.go`)
+### Request / response field tags
 - `path:"..."` tags — **snake_case** (matches the `{snake_case}` placeholder in the route path)
-- `query:"..."` tags — **snake_case** (e.g. `page_size`, `page_token`, `order_by`, `display_name`, `show_deleted`, `import_source_id`)
-- `json:"..."` tags — **snake_case** for all fields, including response body fields (e.g. `display_name`, `credit_transaction_account_id`, `update_time`, `create_time`, `next_page_token`)
+- `header:"..."` / `query:"..."` tags — **snake_case** (e.g. `page_size`, `page_token`, `show_deleted`)
+- `json:"..."` tags — **snake_case** for all body fields (e.g. `organization_id`, `file_name`, `create_time`)
 
-### Soft-delete / archive fields (AIP-132)
+### Authentication & error bodies
+- Authenticate with `pkg/api/humax`: declare `Authorization string \`header:"Authorization"\`` on the input struct and call `humax.Auth(ctx, authDeps, input.Authorization)` first; permission checks use `humax.CheckGlobal` / the enforcer
+- Keep the legacy error body shape `{"error": "..."}` (via `humax.NewError`) so the SPA's error handling keeps working
+
+### Soft-delete / archive fields (AIP-132/164)
 - List requests that support soft-deleted resources expose a `show_deleted` query parameter (bool, default false)
-- The corresponding Go struct field may be named `IncludeArchived` or `IncludeClosed` — only the tag name must be `show_deleted`
+- The corresponding Go struct field may be named `IncludeArchived` or `IncludeClosed` — only the tag/parameter name must be `show_deleted`
 
 ## Database Migrations
 
@@ -99,7 +105,8 @@ When a schema change is needed:
 | `pkg/grpc/gen/` | Generated Go code — **read-only**, regenerate with `buf generate` |
 | `pkg/api/grpc/services/` | Service container; wire real implementations here |
 | `pkg/api/grpc/server.go` | Registers grpc-gateway routes onto the Fiber app |
-| `pkg/api/` | Huma REST API (one package per entity) — keep intact |
+| `pkg/api/` | Huma exception endpoints (e.g. `importexport/xmlformat`, `attachments`); registered in `pkg/api/router.go` before the gateway catch-all |
+| `pkg/api/humax/` | Shared plumbing for Huma exception endpoints (auth, legacy error shape) |
 | `pkg/db/model/` | GORM database models |
 | `pkg/db/model/dao/` | Generated DAO query code — **read-only**, regenerate with `go generate ./pkg/db/model/` |
 | `pkg/db/repository/` | Database repository layer |
