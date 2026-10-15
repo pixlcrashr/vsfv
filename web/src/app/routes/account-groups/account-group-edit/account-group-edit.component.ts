@@ -18,6 +18,7 @@ import {
   LoadingSpinnerComponent,
   NotificationService,
   AuditLogHistoryComponent,
+  AccountCodeCellComponent,
 } from '../../../shared/components';
 import {
   DeleteAccountGroupDialogComponent,
@@ -38,6 +39,7 @@ import { AccountGroupEditService, AccountGroupRow } from './account-group-edit.s
     PageContentLayoutComponent,
     LoadingSpinnerComponent,
     AuditLogHistoryComponent,
+    AccountCodeCellComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs()">
@@ -114,15 +116,12 @@ import { AccountGroupEditService, AccountGroupRow } from './account-group-edit.s
                     </div>
                   } @else {
                     @let rows = editService.rows();
-                    @let accountCols = editService.accountCols();
-                    @let maxDepth = editService.maxDepth();
 
                     <div class="overflow-x-auto">
                       <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                           <tr>
                             <th
-                              [colSpan]="maxDepth + 1"
                               scope="col"
                               class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                             >
@@ -151,20 +150,17 @@ import { AccountGroupEditService, AccountGroupRow } from './account-group-edit.s
                         <tbody class="divide-y divide-gray-200 bg-white">
                           @for (row of rows; track row.accountId) {
                             <tr [class.bg-gray-50]="row.isArchived" [class.hover:bg-gray-100]="!row.isArchived" [class.hover:bg-gray-50]="row.isArchived" class="transition-colors">
-                              @for (i of accountCols; track $index) {
-                                @if (row.depth === $index) {
-                                  <td [colSpan]="maxDepth + 1 - $index" class="px-3 py-2 text-xs text-gray-900">
-                                    {{ row.displayCode }} &mdash; {{ row.displayName }}
-                                    @if (row.isArchived) {
-                                      <span class="ml-1.5 inline-block px-1 py-0.5 text-[10px] rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                        <ng-container i18n>Archiviert</ng-container>
-                                      </span>
-                                    }
-                                  </td>
-                                } @else if (row.depth > $index) {
-                                  <td class="px-2"></td>
-                                }
-                              }
+                              <td class="px-3 py-2 text-xs text-gray-900">
+                                <div class="flex items-center gap-2">
+                                  <app-account-code-cell [code]="row.displayCode" [depth]="row.depth" />
+                                  <span class="truncate">{{ row.displayName }}</span>
+                                  @if (row.isArchived) {
+                                    <span class="ml-1.5 inline-block px-1 py-0.5 text-[10px] rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                      <ng-container i18n>Archiviert</ng-container>
+                                    </span>
+                                  }
+                                </div>
+                              </td>
 
                               <td class="px-1 py-1 text-center">
                                 <input
@@ -221,7 +217,7 @@ import { AccountGroupEditService, AccountGroupRow } from './account-group-edit.s
                   <h3 i18n class="text-xs font-semibold text-gray-500 uppercase mb-3">Aktionen</h3>
                   <div class="space-y-2">
                     <a
-                      [routerLink]="['/accountGroups', groupId, 'stats']"
+                      [routerLink]="['/organizations', orgId, 'accountGroups', groupId, 'stats']"
                       class="block w-full px-3 py-2 text-xs font-medium text-center text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                     >
                       <ng-container i18n>Statistik anzeigen</ng-container>
@@ -273,7 +269,7 @@ export class AccountGroupEditComponent implements OnInit, OnDestroy {
   readonly groupForm: FormGroup;
 
   groupId = '';
-  private orgId = '';
+  orgId = '';
 
   private getOrgId(): string {
     let snapshot = this.route.snapshot;

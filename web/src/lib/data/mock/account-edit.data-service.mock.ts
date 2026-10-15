@@ -27,7 +27,8 @@ export class MockAccountEditDataService extends AccountEditDataService {
     id: string,
     name: string,
     code: string,
-    description: string
+    description: string,
+    invertSign: boolean
   ): Observable<AccountDetails> {
     const account = this.accounts.find((a) => a.id === id);
     if (account) {
@@ -41,6 +42,9 @@ export class MockAccountEditDataService extends AccountEditDataService {
       if (account.description !== description) {
         changes.push({ field: 'display_description', oldValue: account.description, newValue: description });
       }
+      if (!!account.invertSign !== invertSign) {
+        changes.push({ field: 'invert_sign', oldValue: String(!!account.invertSign), newValue: String(invertSign) });
+      }
       if (changes.length > 0) {
         this.auditHistory.record(this.accountResource(organizationId, id), 'UPDATE', changes);
       }
@@ -48,6 +52,7 @@ export class MockAccountEditDataService extends AccountEditDataService {
       account.name = name;
       account.code = code;
       account.description = description;
+      account.invertSign = invertSign;
       account.updatedAt = new Date();
     }
     return of(account || this.accounts[0]).pipe(delay(300));

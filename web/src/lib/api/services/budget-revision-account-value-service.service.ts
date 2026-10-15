@@ -78,26 +78,39 @@ class BudgetRevisionAccountValueServiceService extends __BaseService {
   }
 
   /**
-   * Lists the account values captured in a revision, with pagination.
+   * Lists the account values captured in a revision, with pagination. The
+   * wildcard parent form (organizations/{organization}/budgets/-/revisions/-,
+   * revisions selected via the `revision` filter) fetches values across
+   * multiple revisions in a single request.
    * Authorization:
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
    * @param params The `BudgetRevisionAccountValueServiceService.BudgetRevisionAccountValueServiceListBudgetRevisionAccountValuesParams` containing the following parameters:
    *
-   * - `parent_1`: The parent revision resource name.
-   *   Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
+   * - `parent_1`: The parent revision resource name. Two forms are accepted:
+   *    - A single revision:
+   *      organizations/{organization}/budgets/{budget}/revisions/{revision}
+   *    - The wildcard form organizations/{organization}/budgets/-/revisions/-,
+   *      which fetches the values of multiple revisions at once. The revisions
+   *      to fetch are selected via the `revision` filter field.
+   *   The dash "-" is the only wildcard marker; "*" is not supported. Mixed
+   *   forms (a concrete budget with a "-" revision or vice versa) are rejected.
    *
    * - `page_token`: A page token from a previous ListBudgetRevisionAccountValues call.
    *
    * - `page_size`: Maximum number of account values to return. The service may return fewer.
-   *   If unspecified, at most 50 are returned. Maximum value is 200.
+   *   If unspecified, at most 100 are returned. Maximum value is 500.
    *
    * - `order_by`: Order by expression (e.g. "account", "value desc").
    *
    * - `filter`: Filter expression conforming to AIP-160.
-   *   Supported fields: account.
-   *   Example: "account=\"organizations/{organization}/accounts/{account}\"".
+   *   Supported fields:
+   *     - account:  the account resource name (e.g.
+   *                 "organizations/{organization}/accounts/{account}").
+   *     - revision: the revision resource name. Required (at least one) when the
+   *                 budget and revision segments of the parent are the wildcard
+   *                 "-", e.g.: revision="..." OR revision="...".
    *
    * @return A successful response.
    */
@@ -128,26 +141,39 @@ class BudgetRevisionAccountValueServiceService extends __BaseService {
     );
   }
   /**
-   * Lists the account values captured in a revision, with pagination.
+   * Lists the account values captured in a revision, with pagination. The
+   * wildcard parent form (organizations/{organization}/budgets/-/revisions/-,
+   * revisions selected via the `revision` filter) fetches values across
+   * multiple revisions in a single request.
    * Authorization:
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
    * @param params The `BudgetRevisionAccountValueServiceService.BudgetRevisionAccountValueServiceListBudgetRevisionAccountValuesParams` containing the following parameters:
    *
-   * - `parent_1`: The parent revision resource name.
-   *   Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
+   * - `parent_1`: The parent revision resource name. Two forms are accepted:
+   *    - A single revision:
+   *      organizations/{organization}/budgets/{budget}/revisions/{revision}
+   *    - The wildcard form organizations/{organization}/budgets/-/revisions/-,
+   *      which fetches the values of multiple revisions at once. The revisions
+   *      to fetch are selected via the `revision` filter field.
+   *   The dash "-" is the only wildcard marker; "*" is not supported. Mixed
+   *   forms (a concrete budget with a "-" revision or vice versa) are rejected.
    *
    * - `page_token`: A page token from a previous ListBudgetRevisionAccountValues call.
    *
    * - `page_size`: Maximum number of account values to return. The service may return fewer.
-   *   If unspecified, at most 50 are returned. Maximum value is 200.
+   *   If unspecified, at most 100 are returned. Maximum value is 500.
    *
    * - `order_by`: Order by expression (e.g. "account", "value desc").
    *
    * - `filter`: Filter expression conforming to AIP-160.
-   *   Supported fields: account.
-   *   Example: "account=\"organizations/{organization}/accounts/{account}\"".
+   *   Supported fields:
+   *     - account:  the account resource name (e.g.
+   *                 "organizations/{organization}/accounts/{account}").
+   *     - revision: the revision resource name. Required (at least one) when the
+   *                 budget and revision segments of the parent are the wildcard
+   *                 "-", e.g.: revision="..." OR revision="...".
    *
    * @return A successful response.
    */
@@ -166,8 +192,14 @@ module BudgetRevisionAccountValueServiceService {
   export interface BudgetRevisionAccountValueServiceListBudgetRevisionAccountValuesParams {
 
     /**
-     * The parent revision resource name.
-     * Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
+     * The parent revision resource name. Two forms are accepted:
+     *  - A single revision:
+     *    organizations/{organization}/budgets/{budget}/revisions/{revision}
+     *  - The wildcard form organizations/{organization}/budgets/-/revisions/-,
+     *    which fetches the values of multiple revisions at once. The revisions
+     *    to fetch are selected via the `revision` filter field.
+     * The dash "-" is the only wildcard marker; "*" is not supported. Mixed
+     * forms (a concrete budget with a "-" revision or vice versa) are rejected.
      */
     parent1: string;
 
@@ -178,7 +210,7 @@ module BudgetRevisionAccountValueServiceService {
 
     /**
      * Maximum number of account values to return. The service may return fewer.
-     * If unspecified, at most 50 are returned. Maximum value is 200.
+     * If unspecified, at most 100 are returned. Maximum value is 500.
      */
     pageSize?: number;
 
@@ -189,8 +221,12 @@ module BudgetRevisionAccountValueServiceService {
 
     /**
      * Filter expression conforming to AIP-160.
-     * Supported fields: account.
-     * Example: "account=\"organizations/{organization}/accounts/{account}\"".
+     * Supported fields:
+     *   - account:  the account resource name (e.g.
+     *               "organizations/{organization}/accounts/{account}").
+     *   - revision: the revision resource name. Required (at least one) when the
+     *               budget and revision segments of the parent are the wildcard
+     *               "-", e.g.: revision="..." OR revision="...".
      */
     filter?: string;
   }

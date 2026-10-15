@@ -1,7 +1,7 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { Account, AccountGroupAssignment, AccountGroupOperation } from '../../../shared/models';
 import { AccountWithOperation } from './account-group-edit.data-service';
-import { naturalCompare } from '../../../shared/utils/account-sort.utils';
+import { AccountHierarchyService } from '../../../shared/services/account-hierarchy.service';
 
 export interface AccountGroupRow {
   accountId: string;
@@ -17,6 +17,8 @@ export interface AccountGroupRow {
 
 @Injectable()
 export class AccountGroupEditService {
+  private readonly hierarchy = inject(AccountHierarchyService);
+
   private readonly accountsWithOps = signal<AccountWithOperation[]>([]);
 
   setAccountsWithOperations(accounts: AccountWithOperation[]): void {
@@ -53,37 +55,29 @@ export class AccountGroupEditService {
     );
   }
 
-  readonly maxDepth = computed(() => {
-    const accounts = this.accountsWithOps();
-    if (accounts.length === 0) return 0;
-    return Math.max(...accounts.map(x => this.computeDepth(x.account)));
-  });
-
-  readonly accountCols = computed(() =>
-    Array.from({ length: this.maxDepth() + 1 }, (_, i) => i)
-  );
-
-  private computeDepth(account: Account): number {
-    return account.fullCode.split('.').length - 1;
-  }
-
+  /**
+   * Accounts in the canonical hierarchy order (depth-first, siblings
+   * naturally sorted by code — identical to the /accounts list), with the
+   * depth coming from the shared account hierarchy service.
+   */
   readonly rows = computed((): AccountGroupRow[] => {
-    const accounts = this.accountsWithOps();
+    const items = this.accountsWithOps();
+    const itemByAccountId = new Map(items.map((item) => [item.account.id, item]));
+    const ordered = this.hierarchy.flatten(items.map((item) => item.account));
 
-    return accounts
-      .map(item => ({
-        accountId: item.account.id,
-        displayCode: item.account.code,
-        displayName: item.account.name,
-        fullCode: item.account.fullCode,
-        depth: this.computeDepth(item.account),
-        isArchived: item.account.isArchived,
+    return ordered.map((account) => {
+      const item = itemByAccountId.get(account.id)!;
+      return {
+        accountId: account.id,
+        displayCode: account.code,
+        displayName: account.name,
+        fullCode: account.fullCode,
+        depth: account.depth,
+        isArchived: account.isArchived,
         operation: item.assignment?.operation ?? 'I',
         assignmentId: item.assignment?.id ?? null,
         account: item.account,
-      }))
-      // fullCode is the dotted code path, so a natural sort yields the
-      // tree order (2 before 2.2 before 2.10 before 3).
-      .sort((a, b) => naturalCompare(a.fullCode, b.fullCode));
+      };
+    });
   });
 }

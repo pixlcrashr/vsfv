@@ -45,6 +45,14 @@ export interface V1Account {
   etag?: string;
 
   /**
+   * Whether actual values of this account (and, inherited, of its
+   * non-overriding descendants) are returned with a reversed sign, so
+   * expense-oriented accounts can display positive values against positive
+   * targets.
+   */
+  invert_sign?: boolean;
+
+  /**
    * Whether the account is archived (soft-deleted).
    */
   is_archived?: boolean;

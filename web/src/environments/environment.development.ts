@@ -9,6 +9,9 @@ import { MockBudgetEditDataService } from '../lib/data/mock/budget-edit.data-ser
 import { MockSubmissionListDataService } from '../lib/data/mock/submission-list.data-service.mock';
 import { MockSubmissionEditDataService } from '../lib/data/mock/submission-edit.data-service.mock';
 import { MockSubmissionNewDataService } from '../lib/data/mock/submission-new.data-service.mock';
+import { MockCommitteeListDataService } from '../lib/data/mock/committee-list.data-service.mock';
+import { MockCommitteeEditDataService } from '../lib/data/mock/committee-edit.data-service.mock';
+import { MockCommitteeNewDataService } from '../lib/data/mock/committee-new.data-service.mock';
 import { MockReportTemplateListDataService } from '../lib/data/mock/report-template-list.data-service.mock';
 import { MockReportTemplateEditDataService } from '../lib/data/mock/report-template-edit.data-service.mock';
 import { MockReportTemplateNewDataService } from '../lib/data/mock/report-template-new.data-service.mock';
@@ -66,6 +69,9 @@ export const environment = {
     submissionList: MockSubmissionListDataService,
     submissionEdit: MockSubmissionEditDataService,
     submissionNew: MockSubmissionNewDataService,
+    committeeList: MockCommitteeListDataService,
+    committeeEdit: MockCommitteeEditDataService,
+    committeeNew: MockCommitteeNewDataService,
     reportTemplateList: MockReportTemplateListDataService,
     reportTemplateEdit: MockReportTemplateEditDataService,
     reportTemplateNew: MockReportTemplateNewDataService,
@@ -98,6 +104,7 @@ export const environment = {
     organizationEdit: MockOrganizationEditDataService,
     createOrganizationDialog: MockCreateOrganizationDialogDataService,
     mainLayout: MockMainLayoutDataService,
+    organizationStore: MockOrganizationStoreDataService,
     authorizationData: MockAuthorizationDataService,
     currentUser: MockCurrentUserService,
     userProfile: MockUserProfileDataService,
@@ -105,3 +112,4 @@ export const environment = {
     login: MockLoginDataService,
   },
 };
+import { MockOrganizationStoreDataService } from '../lib/data/mock/organization-store.data-service.mock';

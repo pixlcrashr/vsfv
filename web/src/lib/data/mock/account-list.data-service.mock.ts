@@ -19,7 +19,7 @@ export class MockAccountListDataService extends AccountListDataService {
 
   listAccounts(organizationId: string): Observable<HierarchicalAccount[]> {
     const flat = [...this.getAccounts(organizationId)];
-    return of(this.hierarchy.build(flat)).pipe(delay(300));
+    return of(this.hierarchy.tree(flat)).pipe(delay(300));
   }
 
   createAccount(
@@ -29,6 +29,7 @@ export class MockAccountListDataService extends AccountListDataService {
     description: string,
     parentAccountId: string | null,
     isContainer: boolean,
+    invertSign: boolean,
   ): Observable<Account> {
     const accounts = this.getAccounts(organizationId);
     const newAccount: Account = {
@@ -39,6 +40,7 @@ export class MockAccountListDataService extends AccountListDataService {
       description,
       isArchived: false,
       isContainer,
+      invertSign,
       parentAccountId,
     };
 

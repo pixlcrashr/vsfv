@@ -18,6 +18,8 @@ import { BudgetServiceService } from './services/budget-service.service';
 import { CommitteeServiceService } from './services/committee-service.service';
 import { SubmissionItemServiceService } from './services/submission-item-service.service';
 import { LedgerAccountServiceService } from './services/ledger-account-service.service';
+import { CommitteeMemberServiceService } from './services/committee-member-service.service';
+import { CommitteePaymentAccountServiceService } from './services/committee-payment-account-service.service';
 import { ReportServiceService } from './services/report-service.service';
 import { LedgerYearServiceService } from './services/ledger-year-service.service';
 import { TransactionServiceService } from './services/transaction-service.service';
@@ -57,6 +59,8 @@ import { SubmissionCommentServiceService } from './services/submission-comment-s
     CommitteeServiceService,
     SubmissionItemServiceService,
     LedgerAccountServiceService,
+    CommitteeMemberServiceService,
+    CommitteePaymentAccountServiceService,
     ReportServiceService,
     LedgerYearServiceService,
     TransactionServiceService,

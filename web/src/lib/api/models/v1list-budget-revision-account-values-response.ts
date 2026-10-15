@@ -13,7 +13,7 @@ export interface V1ListBudgetRevisionAccountValuesResponse {
   next_page_token?: string;
 
   /**
-   * Total number of account values in this revision.
+   * Total number of account values matching the query.
    */
   total_size?: string;
 }

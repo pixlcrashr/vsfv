@@ -1,5 +1,4 @@
 /* tslint:disable */
-import { V1CommitteePaymentAccount } from './v1committee-payment-account';
 
 /**
  * Committee is an organizational unit (e.g. a student committee) that submits
@@ -28,13 +27,15 @@ export interface V1Committee {
    * Human-readable committee name.
    */
   display_name: string;
-  name?: string;
 
   /**
-   * Payment accounts held by this committee. If empty, committee members
-   * cannot pay from a committee account and must use the person settlement.
+   * Whether the committee is referenced by other resources (currently
+   * submissions, including soft-deleted ones). A referenced committee cannot
+   * be deleted; DeleteCommittee fails with FAILED_PRECONDITION. Clients can
+   * use this to disable delete actions.
    */
-  payment_accounts?: Array<V1CommitteePaymentAccount>;
+  is_referenced?: boolean;
+  name?: string;
 
   /**
    * The UUID of the committee.

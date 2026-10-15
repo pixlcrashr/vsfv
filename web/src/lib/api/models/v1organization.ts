@@ -1,6 +1,6 @@
 /* tslint:disable */
 import { V1Month } from './v1month';
-import { V1SubmissionSettings } from './v1submission-settings';
+import { V1OrganizationSubmissionSettings } from './v1organization-submission-settings';
 
 /**
  * Organization is the top-level resource that owns all other resources.
@@ -36,7 +36,7 @@ export interface V1Organization {
   /**
    * Submission settings for this organization.
    */
-  submission_settings?: V1SubmissionSettings;
+  submission_settings?: V1OrganizationSubmissionSettings;
 
   /**
    * The UUID of the organization.

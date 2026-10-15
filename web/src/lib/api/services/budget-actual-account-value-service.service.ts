@@ -94,7 +94,7 @@ class BudgetActualAccountValueServiceService extends __BaseService {
    * - `page_token`: A page token from a previous ListBudgetActualAccountValues call.
    *
    * - `page_size`: Maximum number of actual account values to return. The service may return
-   *   fewer. If unspecified, at most 50 are returned. Maximum value is 200.
+   *   fewer. If unspecified, at most 100 are returned. Maximum value is 500.
    *
    * - `order_by`: Order by expression (e.g. "account", "value desc").
    *
@@ -151,7 +151,7 @@ class BudgetActualAccountValueServiceService extends __BaseService {
    * - `page_token`: A page token from a previous ListBudgetActualAccountValues call.
    *
    * - `page_size`: Maximum number of actual account values to return. The service may return
-   *   fewer. If unspecified, at most 50 are returned. Maximum value is 200.
+   *   fewer. If unspecified, at most 100 are returned. Maximum value is 500.
    *
    * - `order_by`: Order by expression (e.g. "account", "value desc").
    *
@@ -258,7 +258,7 @@ module BudgetActualAccountValueServiceService {
 
     /**
      * Maximum number of actual account values to return. The service may return
-     * fewer. If unspecified, at most 50 are returned. Maximum value is 200.
+     * fewer. If unspecified, at most 100 are returned. Maximum value is 500.
      */
     pageSize?: number;
 

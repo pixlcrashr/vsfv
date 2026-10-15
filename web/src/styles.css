@@ -240,3 +240,48 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Budget list drag & drop reordering: the CDK preview clones the dragged
+   <tr> outside its table, so give it explicit table-like styling. */
+.cdk-drag-preview.budget-row-drag-preview {
+  background-color: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  opacity: 1;
+}
+
+.dark .cdk-drag-preview.budget-row-drag-preview {
+  background-color: #111827;
+  color: #f9fafb;
+  border-color: #374151;
+}
+
+/* Drop indicator: while dragging, the CDK placeholder clone marks the exact
+   position where the row will land. Render it as an empty highlighted slot:
+   hide the cloned content (keeping cell sizes intact) and draw accent lines. */
+tr.cdk-drag-placeholder {
+  border-top-color: transparent;
+}
+
+tr.cdk-drag-placeholder > td {
+  color: transparent !important; /* beats the dark-mode text color compatibility rules */
+  background-color: rgb(219 234 254); /* blue-100 */
+  border-top: 2px solid rgb(37 99 235); /* blue-600 */
+  border-bottom: 2px solid rgb(37 99 235);
+}
+
+tr.cdk-drag-placeholder > td > * {
+  visibility: hidden;
+}
+
+.dark tr.cdk-drag-placeholder {
+  border-top-color: transparent;
+}
+
+.dark tr.cdk-drag-placeholder > td {
+  background-color: rgb(30 58 138 / 0.4); /* blue-900/40 */
+  border-top-color: rgb(96 165 250); /* blue-400 */
+  border-bottom-color: rgb(96 165 250); /* blue-400 */
+}

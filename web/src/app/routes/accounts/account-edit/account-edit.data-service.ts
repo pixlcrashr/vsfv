@@ -15,7 +15,8 @@ export abstract class AccountEditDataService {
     accountId: string,
     name: string,
     code: string,
-    description: string
+    description: string,
+    invertSign: boolean
   ): Observable<AccountDetails>;
   abstract listParentAccounts(organizationId: string): Observable<Account[]>;
 

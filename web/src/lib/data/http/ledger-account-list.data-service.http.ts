@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { EMPTY, Observable, expand, map, toArray } from 'rxjs';
 import {
   LedgerAccountListDataService,
   LedgerAccountListItem,
   LedgerAccountListFilter,
 } from '../../../app/routes/ledger/ledger-accounts/ledger-account-list.data-service';
 import { LedgerAccountServiceService } from '../../api/services/ledger-account-service.service';
+import { V1LedgerAccountType } from '../../api/models/v1ledger-account-type';
 import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
 @Injectable({ providedIn: 'root' })
@@ -18,42 +19,55 @@ export class HttpLedgerAccountListDataService implements LedgerAccountListDataSe
     pageToken?: string
   ): Observable<{ accounts: LedgerAccountListItem[]; nextPageToken?: string; totalSize: number }> {
     const parent = `organizations/${organizationId}`;
+    const pageSize = 100; // server maximum; anything larger is clamped
 
     const filterParts: string[] = [];
-    if (filter?.accountType) {
-      filterParts.push(`account_type=${filter.accountType}`);
+    if (filter?.type) {
+      filterParts.push(`type=${filter.type}`);
     }
     if (filter?.search) {
       filterParts.push(`code:"${filter.search}"`);
     }
+    const filterString = filterParts.length > 0 ? filterParts.join(' AND ') : undefined;
 
     return this.api
       .LedgerAccountServiceListLedgerAccounts({
         parent,
         pageToken,
-        pageSize: 50,
-        filter: filterParts.length > 0 ? filterParts.join(' AND ') : undefined,
+        pageSize,
+        filter: filterString,
         orderBy: 'code',
       })
       .pipe(
-        map((response) => ({
-          accounts:
-            response.ledger_accounts?.map((account) => ({
+        expand((response) => {
+          const next = response.next_page_token;
+          if (!next) {
+            return EMPTY;
+          }
+          return this.api.LedgerAccountServiceListLedgerAccounts({
+            parent,
+            pageToken: next,
+            pageSize,
+            filter: filterString,
+            orderBy: 'code',
+          });
+        }),
+        map((response) => response.ledger_accounts ?? []),
+        toArray(),
+        map((pages) => ({
+          accounts: pages
+            .flat()
+            .map((account) => ({
               id: account.uid || '',
-              code: account.code,
+              code: account.code ?? '',
               displayName: account.display_name || '',
               displayDescription: account.display_description,
-              accountType: account.account_type,
+              type: (account.type ?? 'LEDGER_ACCOUNT_TYPE_UNSPECIFIED') as V1LedgerAccountType,
               updateTime: account.update_time,
-            })) || [],
-          nextPageToken: response.next_page_token,
-          totalSize: Number(response.total_size) || 0,
-        })),
-        // The server's order_by is a plain string sort; order the page
-        // naturally (1, 2, 10) for display.
-        map((result) => ({
-          ...result,
-          accounts: result.accounts.sort((a, b) => naturalCompare(a.code, b.code)),
+            }))
+            .sort((a, b) => naturalCompare(a.code, b.code)),
+          // The full list is assembled here, so no further pages remain.
+          totalSize: pages.flat().length,
         }))
       );
   }

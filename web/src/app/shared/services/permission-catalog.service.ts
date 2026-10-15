@@ -157,6 +157,15 @@ export class PermissionCatalogService {
       ],
     },
     {
+      name: 'Gremien',
+      permissions: [
+        { id: Permissions.COMMITTEES_READ, name: 'Gremien anzeigen', description: 'Gremien einsehen' },
+        { id: Permissions.COMMITTEES_CREATE, name: 'Gremien erstellen', description: 'Gremien erstellen' },
+        { id: Permissions.COMMITTEES_UPDATE, name: 'Gremien bearbeiten', description: 'Gremien ändern' },
+        { id: Permissions.COMMITTEES_DELETE, name: 'Gremien löschen', description: 'Gremien löschen' },
+      ],
+    },
+    {
       name: 'Audit-Log',
       permissions: [
         { id: Permissions.AUDIT_LOGS_READ, name: 'Audit-Log anzeigen', description: 'Änderungshistorie einsehen' },

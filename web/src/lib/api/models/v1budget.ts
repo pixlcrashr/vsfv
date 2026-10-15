@@ -39,6 +39,13 @@ export interface V1Budget {
   name?: string;
 
   /**
+   * Position of the budget in the organization's custom ordering. A lower
+   * value means a higher position; the first budget has the lowest value.
+   * Assigned automatically; modified only via ReorderBudgets.
+   */
+  order?: number;
+
+  /**
    * Budget period end date. Immutable after creation.
    */
   period_end: TypeDate;

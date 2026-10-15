@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { mockCurrentUserCommittees } from './_shared-committee-data';
 import { Observable, of, delay } from 'rxjs';
 import { faker } from '@faker-js/faker/locale/de';
 import {
@@ -26,6 +27,7 @@ const COMMITTEES: Committee[] = [
     isActive: true,
     allowScopeSelection: true,
     paymentAccounts: [{ uid: 'acc-asta-bank', kind: 'bank_account', label: 'Gremiumskonto AStA' }],
+    isReferenced: true,
     createdAt: faker.date.past(),
     updatedAt: faker.date.recent(),
   },
@@ -185,8 +187,10 @@ export class MockSubmissionEditDataService extends SubmissionEditDataService {
     return of(this.auditLogs.get(submissionId)!).pipe(delay(250));
   }
 
+  // Mirrors the ListUserCommittees endpoint: only committees the current
+  // user is a member of can be picked.
   getCommittees(): Observable<Committee[]> {
-    return of(COMMITTEES.map((c) => ({ ...c }))).pipe(delay(200));
+    return of(mockCurrentUserCommittees().map((c) => ({ ...c }))).pipe(delay(200));
   }
 
   private addCommentInternal(
@@ -292,7 +296,7 @@ export class MockSubmissionEditDataService extends SubmissionEditDataService {
       id: faker.string.uuid(),
       publicId: `${year}/01/${j + 1}`,
       submissionId: id,
-      category: 'rechnung',
+      category: 'invoice',
       documentForm: 'paper_original' as const,
       source: null,
       description: faker.commerce.productName(),
@@ -315,6 +319,7 @@ export class MockSubmissionEditDataService extends SubmissionEditDataService {
       createdByUserFullName: faker.person.fullName(),
       committeeId: 'committee-asta',
       committeeName: 'AStA',
+      type: 'income_expense',
       direction: 'expense',
       settlement: 'person',
       scope: 'hoheitlich',
@@ -326,6 +331,7 @@ export class MockSubmissionEditDataService extends SubmissionEditDataService {
           accountHolder: faker.person.fullName(),
           iban: faker.finance.iban({ countryCode: 'DE' }),
           bic: faker.finance.bic(),
+          accountNumber: null,
         },
       },
       committeeAccountSettlement: null,

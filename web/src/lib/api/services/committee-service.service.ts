@@ -8,8 +8,8 @@ import { Observable as __Observable } from 'rxjs';
 import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1Committee } from '../models/v1committee';
-import { V1CommitteePaymentAccount } from '../models/v1committee-payment-account';
 import { V1ListCommitteesResponse } from '../models/v1list-committees-response';
+import { V1ListUserCommitteesResponse } from '../models/v1list-user-committees-response';
 
 /**
  * CommitteeService manages committees.
@@ -23,6 +23,7 @@ class CommitteeServiceService extends __BaseService {
   static readonly CommitteeServiceGetCommitteePath = '/v1/{name_9}';
   static readonly CommitteeServiceListCommitteesPath = '/v1/{parent}/committees';
   static readonly CommitteeServiceCreateCommitteePath = '/v1/{parent}/committees';
+  static readonly CommitteeServiceListUserCommitteesPath = '/v1/{parent}/committees:listForUser';
 
   constructor(
     config: __Configuration,
@@ -333,6 +334,95 @@ class CommitteeServiceService extends __BaseService {
       __map(_r => _r.body as V1Committee)
     );
   }
+
+  /**
+   * Lists the committees a user is a member of within an organization
+   * (custom method, AIP-136). Only memberships are considered; committees
+   * the user is not a member of are not returned.
+   * Authorization:
+   *   Own committees (user empty or the calling user):
+   *     Permission: submissions:create or submissions:update or
+   *                 committees:read
+   *   Another user's committees:
+   *     Scope: committees:read
+   *     Permission: committees:read
+   *   Domain: organization-scoped
+   * @param params The `CommitteeServiceService.CommitteeServiceListUserCommitteesParams` containing the following parameters:
+   *
+   * - `parent`: The parent organization resource name.
+   *   Format: organizations/{organization}
+   *
+   * - `user`: The user to list committees for.
+   *   Format: users/{user}
+   *   Defaults to the calling user. Listing the committees of another user
+   *   requires the committees:read permission.
+   *
+   * - `page_token`: A page token from a previous ListUserCommittees call.
+   *
+   * - `page_size`: Maximum number of committees to return. The service may return fewer.
+   *   If unspecified, at most 20 are returned. Maximum value is 100.
+   *
+   * @return A successful response.
+   */
+  CommitteeServiceListUserCommitteesResponse(params: CommitteeServiceService.CommitteeServiceListUserCommitteesParams): __Observable<__StrictHttpResponse<V1ListUserCommitteesResponse>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    if (params.user != null) __params = __params.set('user', params.user.toString());
+    if (params.pageToken != null) __params = __params.set('page_token', params.pageToken.toString());
+    if (params.pageSize != null) __params = __params.set('page_size', params.pageSize.toString());
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(params.parent))}/committees:listForUser`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1ListUserCommitteesResponse>;
+      })
+    );
+  }
+  /**
+   * Lists the committees a user is a member of within an organization
+   * (custom method, AIP-136). Only memberships are considered; committees
+   * the user is not a member of are not returned.
+   * Authorization:
+   *   Own committees (user empty or the calling user):
+   *     Permission: submissions:create or submissions:update or
+   *                 committees:read
+   *   Another user's committees:
+   *     Scope: committees:read
+   *     Permission: committees:read
+   *   Domain: organization-scoped
+   * @param params The `CommitteeServiceService.CommitteeServiceListUserCommitteesParams` containing the following parameters:
+   *
+   * - `parent`: The parent organization resource name.
+   *   Format: organizations/{organization}
+   *
+   * - `user`: The user to list committees for.
+   *   Format: users/{user}
+   *   Defaults to the calling user. Listing the committees of another user
+   *   requires the committees:read permission.
+   *
+   * - `page_token`: A page token from a previous ListUserCommittees call.
+   *
+   * - `page_size`: Maximum number of committees to return. The service may return fewer.
+   *   If unspecified, at most 20 are returned. Maximum value is 100.
+   *
+   * @return A successful response.
+   */
+  CommitteeServiceListUserCommittees(params: CommitteeServiceService.CommitteeServiceListUserCommitteesParams): __Observable<V1ListUserCommitteesResponse> {
+    return this.CommitteeServiceListUserCommitteesResponse(params).pipe(
+      __map(_r => _r.body as V1ListUserCommitteesResponse)
+    );
+  }
 }
 
 module CommitteeServiceService {
@@ -351,7 +441,7 @@ module CommitteeServiceService {
     /**
      * The committee to update.
      */
-    committee: {uid?: string, display_name: string, display_description?: string, allow_scope_selection?: boolean, payment_accounts?: Array<V1CommitteePaymentAccount>, update_time?: string, create_time?: string};
+    committee: {uid?: string, display_name: string, display_description?: string, allow_scope_selection?: boolean, update_time?: string, create_time?: string, is_referenced?: boolean};
   }
 
   /**
@@ -410,6 +500,37 @@ module CommitteeServiceService {
      * UUID will be used. Must be unique within the parent organization.
      */
     committeeId?: string;
+  }
+
+  /**
+   * Parameters for CommitteeServiceListUserCommittees
+   */
+  export interface CommitteeServiceListUserCommitteesParams {
+
+    /**
+     * The parent organization resource name.
+     * Format: organizations/{organization}
+     */
+    parent: string;
+
+    /**
+     * The user to list committees for.
+     * Format: users/{user}
+     * Defaults to the calling user. Listing the committees of another user
+     * requires the committees:read permission.
+     */
+    user?: string;
+
+    /**
+     * A page token from a previous ListUserCommittees call.
+     */
+    pageToken?: string;
+
+    /**
+     * Maximum number of committees to return. The service may return fewer.
+     * If unspecified, at most 20 are returned. Maximum value is 100.
+     */
+    pageSize?: number;
   }
 }
 

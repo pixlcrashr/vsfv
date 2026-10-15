@@ -71,7 +71,7 @@ export class MockSubmissionListDataService extends SubmissionListDataService {
         const category =
           direction === 'income'
             ? faker.helpers.arrayElement(['Spendenquittung', 'Sponsoringvertrag', 'Zustellungsbestätigung'])
-            : faker.helpers.arrayElement(['rechnung', 'quittung_kassenbon', 'eigenbeleg', 'fahrtkostennachweis']);
+            : faker.helpers.arrayElement(['invoice', 'cash_receipt', 'self_written_receipt', 'travel_expense_proof']);
 
         return {
           id: faker.string.uuid(),
@@ -121,6 +121,7 @@ export class MockSubmissionListDataService extends SubmissionListDataService {
         createdByUserFullName: faker.person.fullName(),
         committeeId: 'committee-asta',
         committeeName: 'AStA',
+        type: 'income_expense',
         direction,
         settlement,
         scope: i % 4 === 0 ? 'gewerblich' : 'hoheitlich',
@@ -136,6 +137,7 @@ export class MockSubmissionListDataService extends SubmissionListDataService {
                         accountHolder: faker.person.fullName(),
                         iban: faker.finance.iban({ countryCode: 'DE' }),
                         bic: faker.finance.bic(),
+                        accountNumber: null,
                       }
                     : null,
               }
@@ -152,10 +154,12 @@ export class MockSubmissionListDataService extends SubmissionListDataService {
         paymentRequestSettlement:
           settlement === 'payment_request'
             ? {
-                vendorName: faker.company.name(),
-                vendorIban: faker.finance.iban({ countryCode: 'DE' }),
-                vendorBic: faker.finance.bic(),
-                timing: i % 2 === 0 ? 'on_invoice' : 'advance',
+                bankDetails: {
+                  accountHolder: faker.company.name(),
+                  iban: faker.finance.iban({ countryCode: 'DE' }),
+                  bic: faker.finance.bic(),
+                  accountNumber: null,
+                },
               }
             : null,
         completionPaidDate: status === 'completed' ? faker.date.recent() : null,
@@ -177,6 +181,7 @@ export class MockSubmissionListDataService extends SubmissionListDataService {
         isActive: true,
         allowScopeSelection: true,
         paymentAccounts: [{ uid: 'acc-asta-bank', kind: 'bank_account', label: 'Gremiumskonto AStA' }],
+        isReferenced: true,
         createdAt: faker.date.past(),
         updatedAt: faker.date.recent(),
       },
@@ -187,6 +192,7 @@ export class MockSubmissionListDataService extends SubmissionListDataService {
         isActive: true,
         allowScopeSelection: false,
         paymentAccounts: [],
+        isReferenced: false,
         createdAt: faker.date.past(),
         updatedAt: faker.date.recent(),
       },

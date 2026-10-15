@@ -18,8 +18,8 @@ import { V1Decimal } from '../models/v1decimal';
   providedIn: 'root',
 })
 class TransactionServiceService extends __BaseService {
-  static readonly TransactionServiceDeleteTransactionPath = '/v1/{name_12}';
-  static readonly TransactionServiceGetTransactionPath = '/v1/{name_18}';
+  static readonly TransactionServiceDeleteTransactionPath = '/v1/{name_14}';
+  static readonly TransactionServiceGetTransactionPath = '/v1/{name_20}';
   static readonly TransactionServiceListTransactionsPath = '/v1/{parent}/transactions';
   static readonly TransactionServiceCreateTransactionPath = '/v1/{parent}/transactions';
   static readonly TransactionServiceUpdateTransactionPath = '/v1/{transaction.name}';
@@ -37,18 +37,18 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:write
    *   Permission: transactions:delete
    *   Domain: organization-scoped
-   * @param name_12 The resource name of the transaction.
+   * @param name_14 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceDeleteTransactionResponse(name12: string): __Observable<__StrictHttpResponse<{}>> {
+  TransactionServiceDeleteTransactionResponse(name14: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name12))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name14))}`,
       __body,
       {
         headers: __headers,
@@ -69,12 +69,12 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:write
    *   Permission: transactions:delete
    *   Domain: organization-scoped
-   * @param name_12 The resource name of the transaction.
+   * @param name_14 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceDeleteTransaction(name12: string): __Observable<{}> {
-    return this.TransactionServiceDeleteTransactionResponse(name12).pipe(
+  TransactionServiceDeleteTransaction(name14: string): __Observable<{}> {
+    return this.TransactionServiceDeleteTransactionResponse(name14).pipe(
       __map(_r => _r.body as {})
     );
   }
@@ -85,18 +85,18 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:read
    *   Permission: transactions:read
    *   Domain: organization-scoped
-   * @param name_18 The resource name of the transaction.
+   * @param name_20 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceGetTransactionResponse(name18: string): __Observable<__StrictHttpResponse<V1Transaction>> {
+  TransactionServiceGetTransactionResponse(name20: string): __Observable<__StrictHttpResponse<V1Transaction>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name18))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name20))}`,
       __body,
       {
         headers: __headers,
@@ -117,12 +117,12 @@ class TransactionServiceService extends __BaseService {
    *   Scope: transactions:read
    *   Permission: transactions:read
    *   Domain: organization-scoped
-   * @param name_18 The resource name of the transaction.
+   * @param name_20 The resource name of the transaction.
    * Format: organizations/{organization}/transactions/{transaction}
    * @return A successful response.
    */
-  TransactionServiceGetTransaction(name18: string): __Observable<V1Transaction> {
-    return this.TransactionServiceGetTransactionResponse(name18).pipe(
+  TransactionServiceGetTransaction(name20: string): __Observable<V1Transaction> {
+    return this.TransactionServiceGetTransactionResponse(name20).pipe(
       __map(_r => _r.body as V1Transaction)
     );
   }

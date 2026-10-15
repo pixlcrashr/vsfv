@@ -38,11 +38,18 @@ export abstract class MatrixDataService {
 
     public abstract listAccounts(organizationId: string): Observable<Account[]>;
 
-    public abstract listMatrixTargetValues(organizationId: string): Observable<MatrixTargetValues>;
+    /**
+     * Fetches the revision target values of the given revisions
+     * (`organizations/{org}/budgets/{budget}/revisions/{revision}` resource
+     * names) in as few requests as possible.
+     */
+    public abstract listMatrixTargetValues(organizationId: string, revisionNames: string[]): Observable<MatrixTargetValues>;
 
-    public abstract listMatrixActualValues(organizationId: string): Observable<MatrixActualValues>;
+    /** Fetches the computed actual values of the given budgets. */
+    public abstract listMatrixActualValues(organizationId: string, budgetIds: string[]): Observable<MatrixActualValues>;
 
-    public abstract listMatrixEditableValues(organizationId: string): Observable<MatrixEditableValuesByBudget[]>;
+    /** Fetches the editable values of the given budgets. */
+    public abstract listMatrixEditableValues(organizationId: string, budgetIds: string[]): Observable<MatrixEditableValuesByBudget[]>;
 
     public abstract updateMatrixBudgetValues(organizationId: string, updates: MatrixBudgetValueUpdate[]): Observable<void>;
 }

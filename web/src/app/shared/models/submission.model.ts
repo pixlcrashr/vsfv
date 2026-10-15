@@ -1,14 +1,17 @@
 // Submission (Belegeinreichung) types.
 //
-// A submission documents either an expense (with one of three settlement
-// kinds) or an income (documentation only, no settlement).
+// A submission is either an income/expense document (income_expense, with one
+// of three settlement kinds for expenses) or a pure documentation upload
+// (misc, e.g. a cash book or event statement).
+
+export type SubmissionType = 'income_expense' | 'misc';
 
 export type SubmissionDirection = 'expense' | 'income';
 
 // SettlementKind describes how an expense is settled:
 // - person: submitter paid privately and receives a payout
 // - committee_account: already paid from a committee-held account (bank or cash box)
-// - payment_request: treasury pays the vendor from the central account
+// - payment_request: treasury pays the recipient from the central account
 export type SettlementKind = 'person' | 'committee_account' | 'payment_request';
 
 export type SubmissionScope = 'hoheitlich' | 'gewerblich';
@@ -23,8 +26,6 @@ export type SubmissionStatus =
 
 export type PayoutMethod = 'bank_transfer' | 'cash';
 
-export type PaymentRequestTiming = 'on_invoice' | 'advance';
-
 export type DocumentForm = 'paper_original' | 'digital_original';
 
 export type CommitteePaymentAccountKind = 'bank_account' | 'cash_box';
@@ -33,6 +34,7 @@ export interface BankDetails {
   accountHolder: string;
   iban: string;
   bic: string | null;
+  accountNumber: string | null;
 }
 
 export interface PersonSettlement {
@@ -48,10 +50,8 @@ export interface CommitteeAccountSettlement {
 }
 
 export interface PaymentRequestSettlement {
-  vendorName: string;
-  vendorIban: string;
-  vendorBic: string | null;
-  timing: PaymentRequestTiming;
+  // The recipient the treasury pays.
+  bankDetails: BankDetails;
 }
 
 export interface CommitteePaymentAccount {
@@ -98,9 +98,12 @@ export interface Submission {
   createdByUserFullName: string;
   committeeId: string;
   committeeName: string;
-  direction: SubmissionDirection;
-  settlement: SettlementKind | null; // null for income submissions
-  scope: SubmissionScope;
+  type: SubmissionType;
+  // Direction and scope only apply to income_expense submissions; misc
+  // document collections carry neither.
+  direction: SubmissionDirection | null;
+  settlement: SettlementKind | null; // null for income and misc submissions
+  scope: SubmissionScope | null;
   status: SubmissionStatus;
   notice: string | null;
   personSettlement: PersonSettlement | null;
@@ -176,10 +179,7 @@ export type SettlementPayload =
     }
   | {
       kind: 'payment_request';
-      vendorName: string;
-      vendorIban: string;
-      vendorBic: string | null;
-      timing: PaymentRequestTiming;
+      bankDetails: BankDetails;
     };
 
 export function getDirectionLabel(direction: SubmissionDirection): string {
@@ -197,10 +197,6 @@ export function getSettlementLabel(settlement: SettlementKind): string {
 
 export function getScopeLabel(scope: SubmissionScope): string {
   return scope === 'gewerblich' ? $localize`Gewerblich` : $localize`Hoheitlich`;
-}
-
-export function getPaymentRequestTimingLabel(timing: PaymentRequestTiming): string {
-  return timing === 'advance' ? $localize`Vorkasse` : $localize`Zahlung auf Rechnung`;
 }
 
 export function getCommitteePaymentAccountKindLabel(kind: CommitteePaymentAccountKind): string {

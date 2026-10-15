@@ -57,34 +57,8 @@ import { Permissions } from '../../../../lib/authz/permissions';
       <div layout-content class="flex flex-1 justify-center">
           <div class="w-full space-y-3">
             <div class="bg-white rounded-lg border border-gray-200 p-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+              <div class="space-y-3">
                 <div>
-                  <label i18n for="afterDate" class="block text-xs font-medium text-gray-700 mb-1">
-                    Von
-                  </label>
-                  <input
-                    id="afterDate"
-                    type="date"
-                    [(ngModel)]="filterAfterDate"
-                    (ngModelChange)="onFilterChange()"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label i18n for="beforeDate" class="block text-xs font-medium text-gray-700 mb-1">
-                    Bis
-                  </label>
-                  <input
-                    id="beforeDate"
-                    type="date"
-                    [(ngModel)]="filterBeforeDate"
-                    (ngModelChange)="onFilterChange()"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div class="xl:col-span-2">
                   <label i18n for="searchQuery" class="block text-xs font-medium text-gray-700 mb-1">
                     Allgemeine Suche
                   </label>
@@ -98,37 +72,63 @@ import { Permissions } from '../../../../lib/authz/permissions';
                   />
                 </div>
 
-                <div>
-                  <label i18n for="assignmentStatus" class="block text-xs font-medium text-gray-700 mb-1">
-                    Zuordnungsstatus
-                  </label>
-                  <select
-                    id="assignmentStatus"
-                    [(ngModel)]="filterAssignmentStatus"
-                    (ngModelChange)="onFilterChange()"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option i18n value="all">Alle</option>
-                    <option i18n value="ignored">Ignoriert</option>
-                    <option i18n value="assigned">Vollständig zugeordnet</option>
-                    <option i18n value="partial">Teilweise zugeordnet</option>
-                    <option i18n value="open">Offen</option>
-                  </select>
-                </div>
-              </div>
+                <div class="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label i18n for="afterDate" class="block text-xs font-medium text-gray-700 mb-1">
+                      Von
+                    </label>
+                    <input
+                      id="afterDate"
+                      type="date"
+                      [(ngModel)]="filterAfterDate"
+                      (ngModelChange)="onFilterChange()"
+                      class="px-2 py-1 text-xs border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-              <div class="mt-3 flex items-center justify-end">
-                <button
-                  type="button"
-                  i18n-title title="Filter zurücksetzen"
-                  (click)="resetFilters()"
-                  class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <ng-container i18n>Zurücksetzen</ng-container>
-                </button>
+                  <div>
+                    <label i18n for="beforeDate" class="block text-xs font-medium text-gray-700 mb-1">
+                      Bis
+                    </label>
+                    <input
+                      id="beforeDate"
+                      type="date"
+                      [(ngModel)]="filterBeforeDate"
+                      (ngModelChange)="onFilterChange()"
+                      class="px-2 py-1 text-xs border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label i18n for="assignmentStatus" class="block text-xs font-medium text-gray-700 mb-1">
+                      Zuordnungsstatus
+                    </label>
+                    <select
+                      id="assignmentStatus"
+                      [(ngModel)]="filterAssignmentStatus"
+                      (ngModelChange)="onFilterChange()"
+                      class="px-2 py-1 text-xs border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option i18n value="all">Alle</option>
+                      <option i18n value="ignored">Ignoriert</option>
+                      <option i18n value="assigned">Vollständig zugeordnet</option>
+                      <option i18n value="partial">Teilweise zugeordnet</option>
+                      <option i18n value="open">Offen</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    i18n-title title="Filter zurücksetzen"
+                    (click)="resetFilters()"
+                    class="ml-auto mb-0.5 text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <ng-container i18n>Zurücksetzen</ng-container>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -165,58 +165,58 @@ import { Permissions } from '../../../../lib/authz/permissions';
               } @else {
               <div class="bg-white rounded-lg border border-gray-200 overflow-hidden" [class.opacity-50]="loading()">
                 <div class="overflow-x-auto">
-                  <table class="w-full divide-y divide-gray-200 border-b-0">
+                  <table class="w-full table-fixed divide-y divide-gray-200 border-b-0">
                     <thead class="bg-gray-50">
                       <tr>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-[90px]"
                         >
                           <ng-container i18n>Belegdatum</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-[100px]"
                         >
                           <ng-container i18n>Belegnr.</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-[56px]"
                         >
                           <ng-container i18n>Soll</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-[56px]"
                         >
                           <ng-container i18n>Haben</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-right text-gray-500"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-right text-gray-500 w-[100px]"
                         >
                           <ng-container i18n>Betrag</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 max-w-[450px]"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-[300px]"
                         >
                           <ng-container i18n>Beschreibung</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 w-full"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                         >
                           <ng-container i18n>Haushaltskonten</ng-container>
                         </th>
                         <th
                           scope="col"
-                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 whitespace-nowrap"
+                          class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 whitespace-nowrap w-[130px]"
                         >
                           <ng-container i18n>Status</ng-container>
                         </th>
-                        <th scope="col" class="px-3 py-1 text-right whitespace-nowrap">
+                        <th scope="col" class="px-3 py-1 text-right whitespace-nowrap w-[90px]">
                           <span class="sr-only">Actions</span>
                         </th>
                       </tr>
@@ -225,7 +225,7 @@ import { Permissions } from '../../../../lib/authz/permissions';
                       @for (entry of entries(); track trackById(entry)) {
                         <tr class="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors">
                           <td class="px-3 py-1 text-xs text-gray-900">{{ formatDate(entry.documentDate) }}</td>
-                          <td class="px-3 py-1 text-xs text-gray-900">{{ entry.reference }}</td>
+                          <td class="px-3 py-1 text-xs text-gray-900 truncate" [title]="entry.reference">{{ entry.reference }}</td>
                           <td class="px-3 py-1 text-xs text-gray-900">
                             <span [title]="entry.debitAccountName">{{ entry.debitAccountCode }}</span>
                           </td>
@@ -233,12 +233,12 @@ import { Permissions } from '../../../../lib/authz/permissions';
                             <span [title]="entry.creditAccountName">{{ entry.creditAccountCode }}</span>
                           </td>
                           <td class="px-3 py-1 text-xs text-right text-gray-900">{{ formatAmount(entry.amount) }}</td>
-                          <td class="px-3 py-1 text-xs text-gray-900 max-w-[450px]">
+                          <td class="px-3 py-1 text-xs text-gray-900">
                             <div class="w-full truncate" [title]="entry.description">
                               {{ entry.description }}
                             </div>
                           </td>
-                          <td class="px-3 py-1 text-xs text-gray-900 w-full">
+                          <td class="px-3 py-1 text-xs text-gray-900">
                             @if (entry.accountAssignments.length > 0) {
                               <ul class="space-y-0.5">
                                 @for (assignment of entry.accountAssignments; track $index) {

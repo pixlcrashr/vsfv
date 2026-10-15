@@ -15,13 +15,9 @@ import { SubmissionServiceRequestFurtherInfoBody } from '../models/submission-se
 import { SubmissionServiceSubmitSubmissionBody } from '../models/submission-service-submit-submission-body';
 import { SubmissionServiceUndeleteSubmissionBody } from '../models/submission-service-undelete-submission-body';
 import { V1ListSubmissionsResponse } from '../models/v1list-submissions-response';
-import { V1Direction } from '../models/v1direction';
-import { V1Settlement } from '../models/v1settlement';
-import { V1Scope } from '../models/v1scope';
+import { V1SubmissionTypeIncomeExpenseDetails } from '../models/v1submission-type-income-expense-details';
+import { V1SubmissionTypeMiscDetails } from '../models/v1submission-type-misc-details';
 import { V1SubmissionStatus } from '../models/v1submission-status';
-import { V1PersonDetails } from '../models/v1person-details';
-import { V1CommitteeAccountDetails } from '../models/v1committee-account-details';
-import { V1PaymentRequestDetails } from '../models/v1payment-request-details';
 import { V1Decimal } from '../models/v1decimal';
 
 /**
@@ -31,8 +27,8 @@ import { V1Decimal } from '../models/v1decimal';
   providedIn: 'root',
 })
 class SubmissionServiceService extends __BaseService {
-  static readonly SubmissionServiceGetSubmissionPath = '/v1/{name_13}';
-  static readonly SubmissionServiceDeleteSubmissionPath = '/v1/{name_7}';
+  static readonly SubmissionServiceGetSubmissionPath = '/v1/{name_15}';
+  static readonly SubmissionServiceDeleteSubmissionPath = '/v1/{name_9}';
   static readonly SubmissionServiceApproveSubmissionPath = '/v1/{name}:approve';
   static readonly SubmissionServiceCompleteSubmissionPath = '/v1/{name}:complete';
   static readonly SubmissionServiceRejectSubmissionPath = '/v1/{name}:reject';
@@ -56,18 +52,18 @@ class SubmissionServiceService extends __BaseService {
    *   Scope: submissions:read
    *   Permission: submissions:read or submissions:read_own
    *   Domain: organization-scoped
-   * @param name_13 The resource name of the submission.
+   * @param name_15 The resource name of the submission.
    * Format: organizations/{organization}/submissions/{submission}
    * @return A successful response.
    */
-  SubmissionServiceGetSubmissionResponse(name13: string): __Observable<__StrictHttpResponse<V1Submission>> {
+  SubmissionServiceGetSubmissionResponse(name15: string): __Observable<__StrictHttpResponse<V1Submission>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name15))}`,
       __body,
       {
         headers: __headers,
@@ -88,12 +84,12 @@ class SubmissionServiceService extends __BaseService {
    *   Scope: submissions:read
    *   Permission: submissions:read or submissions:read_own
    *   Domain: organization-scoped
-   * @param name_13 The resource name of the submission.
+   * @param name_15 The resource name of the submission.
    * Format: organizations/{organization}/submissions/{submission}
    * @return A successful response.
    */
-  SubmissionServiceGetSubmission(name13: string): __Observable<V1Submission> {
-    return this.SubmissionServiceGetSubmissionResponse(name13).pipe(
+  SubmissionServiceGetSubmission(name15: string): __Observable<V1Submission> {
+    return this.SubmissionServiceGetSubmissionResponse(name15).pipe(
       __map(_r => _r.body as V1Submission)
     );
   }
@@ -105,18 +101,18 @@ class SubmissionServiceService extends __BaseService {
    *   Scope: submissions:write
    *   Permission: submissions:delete or submissions:update_own
    *   Domain: organization-scoped
-   * @param name_7 The resource name of the submission.
+   * @param name_9 The resource name of the submission.
    * Format: organizations/{organization}/submissions/{submission}
    * @return A successful response.
    */
-  SubmissionServiceDeleteSubmissionResponse(name7: string): __Observable<__StrictHttpResponse<V1Submission>> {
+  SubmissionServiceDeleteSubmissionResponse(name9: string): __Observable<__StrictHttpResponse<V1Submission>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name7))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
       __body,
       {
         headers: __headers,
@@ -138,12 +134,12 @@ class SubmissionServiceService extends __BaseService {
    *   Scope: submissions:write
    *   Permission: submissions:delete or submissions:update_own
    *   Domain: organization-scoped
-   * @param name_7 The resource name of the submission.
+   * @param name_9 The resource name of the submission.
    * Format: organizations/{organization}/submissions/{submission}
    * @return A successful response.
    */
-  SubmissionServiceDeleteSubmission(name7: string): __Observable<V1Submission> {
-    return this.SubmissionServiceDeleteSubmissionResponse(name7).pipe(
+  SubmissionServiceDeleteSubmission(name9: string): __Observable<V1Submission> {
+    return this.SubmissionServiceDeleteSubmissionResponse(name9).pipe(
       __map(_r => _r.body as V1Submission)
     );
   }
@@ -896,7 +892,7 @@ module SubmissionServiceService {
     /**
      * The submission to update.
      */
-    submission: {uid?: string, public_id?: string, created_by_user?: string, committee: string, direction: V1Direction, settlement?: V1Settlement, scope: V1Scope, status?: V1SubmissionStatus, notice?: string, person_details?: V1PersonDetails, committee_account_details?: V1CommitteeAccountDetails, payment_request_details?: V1PaymentRequestDetails, total_amount?: V1Decimal, etag?: string, delete_time?: string, purge_time?: string, update_time?: string, create_time?: string};
+    submission: {uid?: string, public_id?: string, created_by_user?: string, committee: string, income_expense?: V1SubmissionTypeIncomeExpenseDetails, misc?: V1SubmissionTypeMiscDetails, status?: V1SubmissionStatus, notice?: string, total_amount?: V1Decimal, etag?: string, delete_time?: string, purge_time?: string, update_time?: string, create_time?: string};
   }
 }
 

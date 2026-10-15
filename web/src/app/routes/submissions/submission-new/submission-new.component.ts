@@ -22,7 +22,6 @@ import {
   SettlementKind,
   SubmissionScope,
   PayoutMethod,
-  PaymentRequestTiming,
   DocumentForm,
 } from '../../../shared/models';
 import {
@@ -32,16 +31,16 @@ import {
 } from './submission-new.data-service';
 
 type ReceiptCategory =
-  | 'rechnung'
-  | 'quittung_kassenbon'
-  | 'eigenbeleg'
-  | 'fahrtkostennachweis'
-  | 'sonstige'
-  | 'lieferschein'
-  | 'bestellbestaetigung'
-  | 'spendenquittung'
-  | 'sponsoringvertrag'
-  | 'zustellungsbestaetigung';
+  | 'invoice'
+  | 'cash_receipt'
+  | 'self_written_receipt'
+  | 'travel_expense_proof'
+  | 'other'
+  | 'delivery_note'
+  | 'order_confirmation'
+  | 'donation_receipt'
+  | 'sponsorship_contract'
+  | 'delivery_confirmation';
 
 interface ItemForm {
   category: ReceiptCategory | '';
@@ -53,20 +52,20 @@ interface ItemForm {
 }
 
 const EXPENSE_CATEGORIES: { value: ReceiptCategory; label: string }[] = [
-  { value: 'rechnung', label: 'Rechnung' },
-  { value: 'quittung_kassenbon', label: 'Quittung / Kassenbon' },
-  { value: 'eigenbeleg', label: 'Eigenbeleg' },
-  { value: 'fahrtkostennachweis', label: 'Fahrtkostennachweis' },
-  { value: 'sonstige', label: 'Sonstige' },
-  { value: 'lieferschein', label: 'Lieferschein' },
-  { value: 'bestellbestaetigung', label: 'Bestellbestätigung' },
+  { value: 'invoice', label: 'Rechnung' },
+  { value: 'cash_receipt', label: 'Quittung / Kassenbon' },
+  { value: 'self_written_receipt', label: 'Eigenbeleg' },
+  { value: 'travel_expense_proof', label: 'Fahrtkostennachweis' },
+  { value: 'other', label: 'Sonstige' },
+  { value: 'delivery_note', label: 'Lieferschein' },
+  { value: 'order_confirmation', label: 'Bestellbestätigung' },
 ];
 
 const INCOME_CATEGORIES: { value: ReceiptCategory; label: string }[] = [
-  { value: 'spendenquittung', label: 'Spendenquittung' },
-  { value: 'sponsoringvertrag', label: 'Sponsoringvertrag' },
-  { value: 'zustellungsbestaetigung', label: 'Zustellungsbestätigung' },
-  { value: 'sonstige', label: 'Sonstige' },
+  { value: 'donation_receipt', label: 'Spendenquittung' },
+  { value: 'sponsorship_contract', label: 'Sponsoringvertrag' },
+  { value: 'delivery_confirmation', label: 'Zustellungsbestätigung' },
+  { value: 'other', label: 'Sonstige' },
 ];
 
 @Component({
@@ -253,23 +252,20 @@ const INCOME_CATEGORIES: { value: ReceiptCategory; label: string }[] = [
                       <div class="mt-4 space-y-4 rounded-md border border-gray-200 p-4 dark:border-gray-700" formGroupName="paymentRequestDetails">
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                           <div>
-                            <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Empfänger (Name) *</label>
-                            <input type="text" formControlName="vendorName" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                            <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Empfänger (Kontoinhaber) *</label>
+                            <input type="text" formControlName="accountHolder" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
                           </div>
                           <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>IBAN *</label>
-                            <input type="text" formControlName="vendorIban" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                            <input type="text" formControlName="iban" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
                           </div>
                           <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>BIC</label>
-                            <input type="text" formControlName="vendorBic" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
+                            <input type="text" formControlName="bic" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
                           </div>
                           <div>
-                            <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Zahlungsart *</label>
-                            <select formControlName="timing" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
-                              <option value="on_invoice" i18n>Zahlung auf Rechnung</option>
-                              <option value="advance" i18n>Vorkasse</option>
-                            </select>
+                            <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Kontonummer (optional)</label>
+                            <input type="text" formControlName="accountNumber" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
                           </div>
                         </div>
                       </div>
@@ -462,10 +458,10 @@ export class SubmissionNewComponent implements OnInit {
       paymentReference: [''],
     }),
     paymentRequestDetails: this.fb.group({
-      vendorName: [''],
-      vendorIban: [''],
-      vendorBic: [''],
-      timing: ['on_invoice' as PaymentRequestTiming],
+      accountHolder: [''],
+      iban: [''],
+      bic: [''],
+      accountNumber: [''],
     }),
     scope: ['hoheitlich' as SubmissionScope],
     notice: [''],
@@ -590,6 +586,7 @@ export class SubmissionNewComponent implements OnInit {
                 accountHolder: value.personDetails.bankDetails.accountHolder ?? '',
                 iban: value.personDetails.bankDetails.iban ?? '',
                 bic: value.personDetails.bankDetails.bic || null,
+                accountNumber: null,
               }
             : null,
       };
@@ -605,10 +602,12 @@ export class SubmissionNewComponent implements OnInit {
     } else if (settlementKind === 'payment_request') {
       settlement = {
         kind: 'payment_request',
-        vendorName: value.paymentRequestDetails.vendorName ?? '',
-        vendorIban: value.paymentRequestDetails.vendorIban ?? '',
-        vendorBic: value.paymentRequestDetails.vendorBic || null,
-        timing: (value.paymentRequestDetails.timing ?? 'on_invoice') as PaymentRequestTiming,
+        bankDetails: {
+          accountHolder: value.paymentRequestDetails.accountHolder ?? '',
+          iban: value.paymentRequestDetails.iban ?? '',
+          bic: value.paymentRequestDetails.bic || null,
+          accountNumber: value.paymentRequestDetails.accountNumber || null,
+        },
       };
     }
 
@@ -626,6 +625,7 @@ export class SubmissionNewComponent implements OnInit {
 
     return {
       committeeId: value.committeeId ?? '',
+      type: 'income_expense' as const,
       direction: direction ?? 'expense',
       settlement,
       scope,

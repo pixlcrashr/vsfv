@@ -4,7 +4,6 @@ import { AccountServiceService } from '../../api/services/account-service.servic
 import { Account, HierarchicalAccount } from '../../../app/shared/models';
 import { AccountListDataService } from '../../../app/routes/accounts/account-list/account-list.data-service';
 import { mapApiAccount, mapApiNestedAccount } from './_mappers';
-import { sortAccountTreeByCode } from '../../../app/shared/utils/account-sort.utils';
 
 @Injectable()
 export class HttpAccountListDataService extends AccountListDataService {
@@ -17,10 +16,12 @@ export class HttpAccountListDataService extends AccountListDataService {
     return `${this.orgParent(organizationId)}/accounts/${uid}`;
   }
 
+  // Ordering is applied by the shared AccountHierarchyService at the
+  // component, not here.
   listAccounts(organizationId: string): Observable<HierarchicalAccount[]> {
     const parent = this.orgParent(organizationId);
     return this.svc.AccountServiceListNestedAccounts({ parent }).pipe(
-      map((resp) => sortAccountTreeByCode((resp.accounts ?? []).map((n) => mapApiNestedAccount(n)))),
+      map((resp) => (resp.accounts ?? []).map((n) => mapApiNestedAccount(n))),
     );
   }
 
@@ -31,6 +32,7 @@ export class HttpAccountListDataService extends AccountListDataService {
     description: string,
     parentAccountId: string | null,
     isContainer: boolean,
+    invertSign: boolean,
   ): Observable<Account> {
     const parentAccount = parentAccountId ? this.accountName(organizationId, parentAccountId) : undefined;
     return this.svc.AccountServiceCreateAccount({
@@ -41,6 +43,7 @@ export class HttpAccountListDataService extends AccountListDataService {
         display_description: description,
         parent_account: parentAccount,
         is_container: isContainer,
+        invert_sign: invertSign,
       },
     }).pipe(map(mapApiAccount));
   }

@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { map } from 'rxjs';
+import { catchError, map, of } from 'rxjs';
 import { Permission } from './permissions';
 import { AuthorizationService } from './authorization.service';
 
@@ -36,6 +36,11 @@ export function requireAllPermissions(...requiredPermissions: Permission[]): Can
           ? router.createUrlTree(['/organizations', orgId, 'permission-denied'])
           : router.createUrlTree(['/permission-denied']);
       }),
+      // A failed permission check (e.g. a backend error) must not kill the
+      // navigation silently; treat it as denied so the user gets feedback.
+      catchError(() => of(orgId
+        ? router.createUrlTree(['/organizations', orgId, 'permission-denied'])
+        : router.createUrlTree(['/permission-denied']))),
     );
   };
 }
@@ -72,6 +77,9 @@ export function requireAnyPermission(...permissions: Permission[]): CanActivateF
           ? router.createUrlTree(['/organizations', orgId, 'permission-denied'])
           : router.createUrlTree(['/permission-denied']);
       }),
+      catchError(() => of(orgId
+        ? router.createUrlTree(['/organizations', orgId, 'permission-denied'])
+        : router.createUrlTree(['/permission-denied']))),
     );
   };
 }
@@ -100,6 +108,7 @@ export function requireAllGlobalPermissions(...requiredPermissions: Permission[]
         const allGranted = requiredPermissions.every((p) => result[p]);
         return allGranted || router.createUrlTree(['/permission-denied']);
       }),
+      catchError(() => of(router.createUrlTree(['/permission-denied']))),
     );
   };
 }
@@ -128,6 +137,7 @@ export function requireAnyGlobalPermission(...permissions: Permission[]): CanAct
         const anyGranted = permissions.some((p) => result[p]);
         return anyGranted || router.createUrlTree(['/permission-denied']);
       }),
+      catchError(() => of(router.createUrlTree(['/permission-denied']))),
     );
   };
 }

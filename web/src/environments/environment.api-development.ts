@@ -12,6 +12,9 @@ import { MockSubmissionNewDataService } from '../lib/data/mock/submission-new.da
 import { HttpSubmissionListDataService } from '../lib/data/http/submission-list.data-service.http';
 import { HttpSubmissionEditDataService } from '../lib/data/http/submission-edit.data-service.http';
 import { HttpSubmissionNewDataService } from '../lib/data/http/submission-new.data-service.http';
+import { HttpCommitteeListDataService } from '../lib/data/http/committee-list.data-service.http';
+import { HttpCommitteeEditDataService } from '../lib/data/http/committee-edit.data-service.http';
+import { HttpCommitteeNewDataService } from '../lib/data/http/committee-new.data-service.http';
 import { HttpReportTemplateListDataService } from '../lib/data/http/report-template-list.data-service.http';
 import { HttpReportTemplateEditDataService } from '../lib/data/http/report-template-edit.data-service.http';
 import { HttpReportTemplateNewDataService } from '../lib/data/http/report-template-new.data-service.http';
@@ -71,6 +74,9 @@ export const environment = {
     submissionList: HttpSubmissionListDataService,
     submissionEdit: HttpSubmissionEditDataService,
     submissionNew: HttpSubmissionNewDataService,
+    committeeList: HttpCommitteeListDataService,
+    committeeEdit: HttpCommitteeEditDataService,
+    committeeNew: HttpCommitteeNewDataService,
     reportTemplateList: HttpReportTemplateListDataService,
     reportTemplateEdit: HttpReportTemplateEditDataService,
     reportTemplateNew: HttpReportTemplateNewDataService,
@@ -103,6 +109,7 @@ export const environment = {
     organizationEdit: HttpOrganizationEditDataService,
     createOrganizationDialog: HttpCreateOrganizationDialogDataService,
     mainLayout: HttpMainLayoutDataService,
+    organizationStore: HttpOrganizationStoreDataService,
     authorizationData: HttpAuthorizationDataService,
     currentUser: HttpCurrentUserService,
     userProfile: HttpUserProfileDataService,
@@ -110,3 +117,4 @@ export const environment = {
     login: HttpLoginDataService,
   },
 };
+import { HttpOrganizationStoreDataService } from '../lib/data/http/organization-store.data-service.http';

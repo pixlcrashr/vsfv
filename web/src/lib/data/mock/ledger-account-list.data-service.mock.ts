@@ -7,32 +7,30 @@ import {
 import { faker } from '@faker-js/faker';
 import { naturalCompare } from '../../../app/shared/utils/account-sort.utils';
 
-const accountTypes = [
-  'ACCOUNT_TYPE_ASSET',
-  'ACCOUNT_TYPE_LIABILITY',
-  'ACCOUNT_TYPE_EQUITY',
-  'ACCOUNT_TYPE_REVENUE',
-  'ACCOUNT_TYPE_EXPENSE',
+const balanceRoles = [
+  'LEDGER_ACCOUNT_TYPE_UNSPECIFIED',
+  'LEDGER_ACCOUNT_TYPE_LIQUIDITY',
+  'LEDGER_ACCOUNT_TYPE_COUNTER',
+  'LEDGER_ACCOUNT_TYPE_START_ACCOUNT',
 ];
 
-const accountTypeCodes: Record<string, string[]> = {
-  ACCOUNT_TYPE_ASSET: ['1000', '1200', '1400', '1500', '1600'],
-  ACCOUNT_TYPE_LIABILITY: ['3000', '3200', '3300', '3400'],
-  ACCOUNT_TYPE_EQUITY: ['9000', '9100', '9200'],
-  ACCOUNT_TYPE_REVENUE: ['7000', '7100', '7200', '7300'],
-  ACCOUNT_TYPE_EXPENSE: ['6000', '6100', '6200', '6300'],
+const balanceRoleCodes: Record<string, string[]> = {
+  LEDGER_ACCOUNT_TYPE_UNSPECIFIED: ['4000', '4100', '6000', '6100', '6200'],
+  LEDGER_ACCOUNT_TYPE_LIQUIDITY: ['1000', '1200', '1400'],
+  LEDGER_ACCOUNT_TYPE_COUNTER: ['3300', '3400', '3600'],
+  LEDGER_ACCOUNT_TYPE_START_ACCOUNT: ['9000', '9100'],
 };
 
 function createMockLedgerAccount(): LedgerAccountListItem {
-  const type = faker.helpers.arrayElement(accountTypes);
-  const code = faker.helpers.arrayElement(accountTypeCodes[type] || ['1000']);
+  const type = faker.helpers.arrayElement(balanceRoles);
+  const code = faker.helpers.arrayElement(balanceRoleCodes[type] || ['1000']);
   
   return {
     id: faker.string.uuid(),
     code: code + faker.number.int({ min: 0, max: 99 }).toString().padStart(2, '0'),
     displayName: faker.finance.accountName(),
     displayDescription: faker.datatype.boolean() ? faker.lorem.sentence() : undefined,
-    accountType: type,
+    type,
     updateTime: faker.date.recent().toISOString(),
   };
 }
@@ -56,8 +54,8 @@ export class MockLedgerAccountListDataService implements LedgerAccountListDataSe
   ): Observable<{ accounts: LedgerAccountListItem[]; nextPageToken?: string; totalSize: number }> {
     let filtered = [...this.accounts];
 
-    if (filter?.accountType) {
-      filtered = filtered.filter(a => a.accountType === filter.accountType);
+    if (filter?.type) {
+      filtered = filtered.filter(a => a.type === filter.type);
     }
 
     if (filter?.search) {

@@ -16,6 +16,7 @@ import {
   StatusBadgeComponent,
   LoadingSpinnerComponent,
   EmptyStateComponent,
+  AccountCodeCellComponent,
   NotificationService,
 } from '../../../shared/components';
 import {
@@ -24,6 +25,7 @@ import {
   CreateAccountDialogOutput,
 } from '../../../shared/dialogs/create-account-dialog/create-account-dialog.component';
 import { HierarchicalAccount } from '../../../shared/models';
+import { AccountHierarchyService } from '../../../shared/services/account-hierarchy.service';
 import { AccountListDataService } from './account-list.data-service';
 
 @Component({
@@ -36,6 +38,7 @@ import { AccountListDataService } from './account-list.data-service';
     StatusBadgeComponent,
     LoadingSpinnerComponent,
     EmptyStateComponent,
+    AccountCodeCellComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
@@ -58,22 +61,22 @@ import { AccountListDataService } from './account-list.data-service';
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th scope="col" class="px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th scope="col" class="px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                         <ng-container i18n>Kontonummer</ng-container>
                       </th>
-                      <th scope="col" class="px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th scope="col" class="px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                         <ng-container i18n>Name</ng-container>
                       </th>
-                      <th scope="col" class="px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th scope="col" class="px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                         <ng-container i18n>Typ</ng-container>
                       </th>
-                      <th scope="col" class="px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th scope="col" class="px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                         <ng-container i18n>Beschreibung</ng-container>
                       </th>
-                      <th scope="col" class="px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th scope="col" class="px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                         <ng-container i18n>Status</ng-container>
                       </th>
-                      <th scope="col" class="px-2.5 py-1.5 text-right">
+                      <th scope="col" class="px-3 py-1 text-right">
                         <span class="sr-only">Aktionen</span>
                       </th>
                     </tr>
@@ -81,21 +84,13 @@ import { AccountListDataService } from './account-list.data-service';
                   <tbody class="divide-y divide-gray-200 bg-white">
                     @for (account of flatAccounts(); track account.id) {
                       <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-2.5 py-1.5 text-xs text-gray-900 whitespace-nowrap">
-                          <div
-                            class="flex items-center gap-1.5"
-                            [style.marginLeft.px]="account.depth > 0 ? account.depth * 20 : null"
-                          >
-                            @if (account.depth > 0) {
-                              <span class="text-gray-300 select-none">{{ '└─' }}</span>
-                            }
-                            <span>{{ account.code }}</span>
-                          </div>
+                        <td class="px-3 py-1 text-xs text-gray-900 whitespace-nowrap">
+                          <app-account-code-cell [code]="account.code" [depth]="account.depth" />
                         </td>
-                        <td class="px-2.5 py-1.5 text-xs text-gray-900">
+                        <td class="px-3 py-1 text-xs text-gray-900">
                           {{ account.name }}
                         </td>
-                        <td class="px-2.5 py-1.5 text-xs">
+                        <td class="px-3 py-1 text-xs">
                           <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
                                 [class.bg-blue-100]="account.isContainer"
                                 [class.text-blue-700]="account.isContainer"
@@ -104,17 +99,17 @@ import { AccountListDataService } from './account-list.data-service';
                             {{ account.isContainer ? 'Gruppe' : 'Konto' }}
                           </span>
                         </td>
-                        <td class="px-2.5 py-1.5 text-[11px] text-gray-500">
+                        <td class="px-3 py-1 text-[11px] text-gray-500">
                           <div class="max-w-xs truncate" [title]="account.description || ''">
                             {{ account.description || '-' }}
                           </div>
                         </td>
-                        <td class="px-2.5 py-1.5 text-xs">
+                        <td class="px-3 py-1 text-xs">
                           <app-status-badge size="sm" [variant]="account.isArchived ? 'neutral' : 'success'">
                             <ng-container i18n>{{ account.isArchived ? 'Archiviert' : 'Aktiv' }}</ng-container>
                           </app-status-badge>
                         </td>
-                        <td class="px-2.5 py-1.5 text-right text-xs">
+                        <td class="px-3 py-1 text-right text-xs">
                           <div class="flex items-center justify-end gap-2">
                             @if (account.isArchived && canRestore(account)) {
                               <button
@@ -160,6 +155,7 @@ export class AccountListComponent {
   private readonly dataService = inject(AccountListDataService);
   private readonly dialog = inject(Dialog);
   private readonly notifications = inject(NotificationService);
+  private readonly hierarchy = inject(AccountHierarchyService);
 
   orgId = '';
 
@@ -167,7 +163,19 @@ export class AccountListComponent {
   readonly archivingAccountId = signal<string | null>(null);
   readonly restoringAccountId = signal<string | null>(null);
   readonly accounts = signal<HierarchicalAccount[]>([]);
-  readonly flatAccounts = computed<HierarchicalAccount[]>(() => this.flatten(this.accounts()));
+  // The data services return a nested tree, while the hierarchy service
+  // expects a flat list: collect all nodes first, otherwise children are lost.
+  readonly flatAccounts = computed<HierarchicalAccount[]>(() => {
+    const flat: HierarchicalAccount[] = [];
+    const walk = (nodes: HierarchicalAccount[]): void => {
+      for (const node of nodes) {
+        flat.push(node);
+        walk(node.children);
+      }
+    };
+    walk(this.accounts());
+    return this.hierarchy.flatten(flat);
+  });
 
   readonly breadcrumbs: BreadcrumbItem[] = [{ label: $localize`Haushaltskonten` }];
 
@@ -196,18 +204,6 @@ export class AccountListComponent {
         this.notifications.error($localize`Fehler beim Laden der Konten`);
       },
     });
-  }
-
-  private flatten(accounts: HierarchicalAccount[]): HierarchicalAccount[] {
-    const result: HierarchicalAccount[] = [];
-    const walk = (nodes: HierarchicalAccount[]) => {
-      for (const node of nodes) {
-        result.push(node);
-        walk(node.children);
-      }
-    };
-    walk(accounts);
-    return result;
   }
 
   openCreateDialog(): void {

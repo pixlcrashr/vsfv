@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, of, map, expand, reduce, EMPTY, forkJoin, switchMap } from 'rxjs';
+import { Observable, of, map, expand, reduce, EMPTY, forkJoin, switchMap, toArray } from 'rxjs';
 import { AccountServiceService } from '../../api/services/account-service.service';
 import { BudgetServiceService } from '../../api/services/budget-service.service';
 import { TransactionServiceService } from '../../api/services/transaction-service.service';
@@ -34,9 +34,23 @@ export class HttpAccountCompareDataService extends AccountCompareDataService {
   }
 
   listAccounts(organizationId: string, _budgetId: string): Observable<CompareAccountOption[]> {
-    return this.accountSvc.AccountServiceListAccounts({ parent: `organizations/${organizationId}`, pageSize: 100, showDeleted: false }).pipe(
-      map((resp) =>
-        (resp.accounts ?? []).map((a) => ({
+    const parent = `organizations/${organizationId}`;
+    const pageSize = 200; // server maximum; anything larger is clamped
+
+    // show_deleted: archived accounts stay in the list so the parent chain of
+    // active accounts remains intact and the full hierarchy is selectable.
+    const fetchPage = (pageToken?: string) =>
+      this.accountSvc.AccountServiceListAccounts({ parent, pageSize, pageToken, showDeleted: true });
+
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = resp.next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map((resp) => resp.accounts ?? []),
+      toArray(),
+      map((pages) =>
+        pages.flat().map((a) => ({
           id: a.uid ?? '',
           code: a.display_code,
           name: a.display_name,

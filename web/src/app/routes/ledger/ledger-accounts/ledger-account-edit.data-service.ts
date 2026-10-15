@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { V1AccountType } from '../../../../lib/api/models/v1account-type';
+import { V1LedgerAccountType } from '../../../../lib/api/models/v1ledger-account-type';
 
 export interface LedgerAccountDetail {
   id: string;
@@ -7,7 +7,7 @@ export interface LedgerAccountDetail {
   code: string;
   displayName?: string;
   displayDescription?: string;
-  accountType: V1AccountType;
+  type?: V1LedgerAccountType;
   updateTime?: string;
   createTime?: string;
   etag?: string;
@@ -17,7 +17,7 @@ export interface UpdateLedgerAccountRequest {
   id: string;
   displayName?: string;
   displayDescription?: string;
-  accountType?: V1AccountType;
+  type?: V1LedgerAccountType;
   etag?: string;
 }
 

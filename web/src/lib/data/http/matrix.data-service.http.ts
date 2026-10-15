@@ -5,10 +5,10 @@ import { Decimal } from 'decimal.js';
 import { AccountServiceService } from '../../api/services/account-service.service';
 import { BudgetServiceService } from '../../api/services/budget-service.service';
 import { BudgetRevisionServiceService } from '../../api/services/budget-revision-service.service';
-import { BudgetRevisionAccountValueServiceService } from '../../api/services/budget-revision-account-value-service.service';
 import { BudgetAccountValueServiceService } from '../../api/services/budget-account-value-service.service';
 import { BudgetActualAccountValueServiceService } from '../../api/services/budget-actual-account-value-service.service';
 import { V1ListBudgetActualAccountValuesResponse } from '../../api/models/v1list-budget-actual-account-values-response';
+import { V1BudgetRevision } from '../../api/models/v1budget-revision';
 import { Account, Budget } from '../../../app/routes/matrix/matrix-data-provider.service';
 import {
   MatrixDataService,
@@ -17,7 +17,7 @@ import {
   MatrixEditableValuesByBudget,
   MatrixBudgetValueUpdate,
 } from '../../../app/routes/matrix/matrix.data-service';
-import { extractUidFromResourceName } from './_mappers';
+import { extractUidFromResourceName, typeDateToDate } from './_mappers';
 
 @Injectable()
 export class HttpMatrixDataService extends MatrixDataService {
@@ -25,7 +25,6 @@ export class HttpMatrixDataService extends MatrixDataService {
   private readonly accountSvc = inject(AccountServiceService);
   private readonly budgetSvc = inject(BudgetServiceService);
   private readonly revisionSvc = inject(BudgetRevisionServiceService);
-  private readonly revisionValueSvc = inject(BudgetRevisionAccountValueServiceService);
   private readonly budgetValueSvc = inject(BudgetAccountValueServiceService);
   private readonly actualValueSvc = inject(BudgetActualAccountValueServiceService);
 
@@ -34,35 +33,63 @@ export class HttpMatrixDataService extends MatrixDataService {
   }
 
   listBudgets(organizationId: string): Observable<Budget[]> {
-    return this.budgetSvc.BudgetServiceListBudgets({ parent: `organizations/${organizationId}`, pageSize: 100 }).pipe(
-      switchMap((resp) => {
-        const budgets = resp.budgets ?? [];
-        if (budgets.length === 0) {
-          return of([]);
+    // Budgets and their revisions are fetched in parallel: a single
+    // wildcard-parent request covers the revisions of every budget.
+    return forkJoin([
+      this.budgetSvc.BudgetServiceListBudgets({ parent: `organizations/${organizationId}`, pageSize: 100 }),
+      this.listAllRevisions(organizationId),
+    ]).pipe(
+      map(([budgetsResp, revisions]) => {
+        const revisionsByBudgetId = new Map<string, V1BudgetRevision[]>();
+        for (const r of revisions) {
+          const budgetId = extractUidFromResourceName(r.budget ?? '');
+          if (!budgetId) {
+            continue;
+          }
+          const list = revisionsByBudgetId.get(budgetId) ?? [];
+          list.push(r);
+          revisionsByBudgetId.set(budgetId, list);
         }
-        return forkJoin(
-          budgets.map((b) =>
-            this.revisionSvc.BudgetRevisionServiceListBudgetRevisions({
-              parent: this.budgetName(organizationId, b.uid ?? ''),
-              pageSize: 100,
-              orderBy: 'create_time asc',
-            }).pipe(
-              map((revResp) => ({
-                id: b.uid ?? '',
-                displayName: b.display_name,
-                displayDescription: b.display_description ?? '',
-                isClosed: b.is_closed ?? false,
-                tags: (revResp.revisions ?? []).map((r) => ({
-                  id: r.uid ?? '',
-                  displayName: r.display_name ?? '',
-                  displayDescription: r.display_description ?? '',
-                  createdAt: new Date(r.create_time ?? ''),
-                })),
-              })),
-            ),
-          ),
-        );
+
+        return (budgetsResp.budgets ?? []).map((b) => ({
+          id: b.uid ?? '',
+          displayName: b.display_name,
+          displayDescription: b.display_description ?? '',
+          isClosed: b.is_closed ?? false,
+          periodStart: typeDateToDate(b.period_start),
+          tags: (revisionsByBudgetId.get(b.uid ?? '') ?? []).map((r) => ({
+            id: r.uid ?? '',
+            name: r.name ?? '',
+            displayName: r.display_name ?? '',
+            displayDescription: r.display_description ?? '',
+            date: r.date ? typeDateToDate(r.date) : new Date(r.create_time ?? ''),
+            createdAt: new Date(r.create_time ?? ''),
+          })),
+        }));
       }),
+    );
+  }
+
+  /**
+   * Lists the revisions of every budget of the organization in one (paged)
+   * request, ordered by revision date descending (newest first). The matrix
+   * relies on this order for the selection menu and the "latest" revision.
+   */
+  private listAllRevisions(organizationId: string) {
+    const parent = `organizations/${organizationId}/budgets/-`;
+    const pageSize = 100; // server maximum; anything larger is clamped
+
+    const fetchPage = (pageToken?: string) =>
+      this.revisionSvc.BudgetRevisionServiceListBudgetRevisions({ parent, pageSize, pageToken, orderBy: 'date desc' });
+
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = resp.next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map((resp) => resp.revisions ?? []),
+      toArray(),
+      map((pages) => pages.flat()),
     );
   }
 
@@ -87,101 +114,92 @@ export class HttpMatrixDataService extends MatrixDataService {
       toArray(),
       map((pages) => {
         const flat = pages.flat();
-        const accountMap = new Map<string, Account>();
-        flat.forEach((a) => {
-          accountMap.set(a.uid ?? '', {
-            id: a.uid ?? '',
-            name: a.display_name,
-            displayCode: a.display_code,
-            displayDescription: a.display_description ?? '',
-            depth: 0,
-            parentAccountId: a.parent_account ? a.parent_account.split('/').pop() ?? null : null,
-            isArchived: a.is_archived ?? false,
-          });
-        });
-
-        const computeDepth = (id: string, visited = new Set<string>()): number => {
-          if (visited.has(id)) return 0;
-          visited.add(id);
-          const acc = accountMap.get(id);
-          if (!acc || !acc.parentAccountId) return 0;
-          return 1 + computeDepth(acc.parentAccountId, visited);
-        };
-
-        accountMap.forEach((acc) => {
-          acc.depth = computeDepth(acc.id);
-        });
-
-        return Array.from(accountMap.values());
+        return flat.map((a) => ({
+          id: a.uid ?? '',
+          code: a.display_code ?? '',
+          name: a.display_name,
+          displayCode: a.display_code,
+          displayDescription: a.display_description ?? '',
+          // Depth and ordering are computed by the shared account hierarchy
+          // service in the data provider.
+          depth: 0,
+          parentAccountId: a.parent_account ? a.parent_account.split('/').pop() ?? null : null,
+          isArchived: a.is_archived ?? false,
+        }));
       }),
     );
   }
 
-  listMatrixTargetValues(organizationId: string): Observable<MatrixTargetValues> {
-    return this.budgetSvc.BudgetServiceListBudgets({ parent: `organizations/${organizationId}`, pageSize: 100 }).pipe(
-      switchMap((resp) => {
-        const budgets = resp.budgets ?? [];
-        if (budgets.length === 0) {
-          return of({} as MatrixTargetValues);
+  /**
+   * Fetches the target values of all given revisions with a single (paged)
+   * request against the wildcard parent organizations/{org}/budgets/-/revisions/-,
+   * selecting the revisions via the `revision` filter.
+   */
+  listMatrixTargetValues(organizationId: string, revisionNames: string[]): Observable<MatrixTargetValues> {
+    if (revisionNames.length === 0) {
+      return of({} as MatrixTargetValues);
+    }
+
+    // The URL is built manually because the generated client URL-encodes the
+    // slashes in the resource name, which breaks the grpc-gateway routing.
+    const parent = `organizations/${organizationId}/budgets/-/revisions/-`;
+    const pageSize = 500; // server maximum
+    const filter = revisionNames.map((name) => `revision="${name}"`).join(' OR ');
+    const baseUrl = this.budgetValueSvc.rootUrl;
+
+    const fetchPage = (pageToken?: string) => {
+      let params = new HttpParams()
+        .set('page_size', pageSize.toString())
+        .set('filter', filter);
+      if (pageToken) {
+        params = params.set('page_token', pageToken);
+      }
+      return this.http.get<{ account_values?: Array<{ revision?: string; account?: string; value?: { value?: string } }>; next_page_token?: string }>(
+        `${baseUrl}/v1/${parent}/accountValues`,
+        { params },
+      );
+    };
+
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = resp.next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map((resp) => resp.account_values ?? []),
+      toArray(),
+      map((pages) => {
+        const result: MatrixTargetValues = {};
+        for (const value of pages.flat()) {
+          const tagId = extractUidFromResourceName(value.revision ?? '');
+          const accountId = extractUidFromResourceName(value.account ?? '');
+          if (!tagId || !accountId) {
+            continue;
+          }
+          result[tagId] ??= {};
+          result[tagId][accountId] = { targetValue: new Decimal(value.value?.value ?? '0') };
         }
-        return forkJoin(
-          budgets.map((b) =>
-            this.revisionSvc.BudgetRevisionServiceListBudgetRevisions({
-              parent: this.budgetName(organizationId, b.uid ?? ''),
-              pageSize: 100,
-              orderBy: 'create_time asc',
-            }).pipe(
-              switchMap((revResp) => {
-                const revisions = revResp.revisions ?? [];
-                if (revisions.length === 0) {
-                  return of([] as Array<{ tagId: string; accountId: string; value: Decimal }>);
-                }
-                return forkJoin(
-                  revisions.map((r) =>
-                    this.revisionValueSvc
-                      .BudgetRevisionAccountValueServiceListBudgetRevisionAccountValues({
-                        parent1: `${this.budgetName(organizationId, b.uid ?? '')}/revisions/${r.uid ?? ''}`,
-                        pageSize: 500,
-                      })
-                      .pipe(
-                        map((valResp) =>
-                          (valResp.account_values ?? []).map((v) => ({
-                            tagId: r.uid ?? '',
-                            accountId: extractUidFromResourceName(v.account ?? ''),
-                            value: new Decimal(v.value?.value ?? '0'),
-                          })),
-                        ),
-                      ),
-                  ),
-                ).pipe(map((arrays) => arrays.flat()));
-              }),
-            ),
-          ),
-        ).pipe(
-          map((perBudget) => {
-            const result: MatrixTargetValues = {};
-            perBudget.flat().forEach(({ tagId, accountId, value }) => {
-              if (!result[tagId]) result[tagId] = {};
-              result[tagId][accountId] = { targetValue: value };
-            });
-            return result;
-          }),
-        );
+        return result;
       }),
     );
   }
 
-  listMatrixActualValues(organizationId: string): Observable<MatrixActualValues> {
+  listMatrixActualValues(organizationId: string, budgetIds: string[]): Observable<MatrixActualValues> {
     // Use a wildcard budget parent so a single request can return actual values
-    // for every budget in the organization. The URL is built manually because
-    // the generated client URL-encodes the slashes in the resource name, which
+    // for the requested budgets. The URL is built manually because the
+    // generated client URL-encodes the slashes in the resource name, which
     // breaks the grpc-gateway routing.
     const parent = `organizations/${organizationId}/budgets/-`;
-    const pageSize = 200;
+    const pageSize = 500; // server maximum
     const baseUrl = this.actualValueSvc.rootUrl;
 
     const fetchPage = (pageToken?: string): Observable<V1ListBudgetActualAccountValuesResponse> => {
       let params = new HttpParams().set('page_size', pageSize.toString());
+      if (budgetIds.length > 0) {
+        params = params.set(
+          'filter',
+          budgetIds.map((id) => `budget="${this.budgetName(organizationId, id)}"`).join(' OR '),
+        );
+      }
       if (pageToken) {
         params = params.set('page_token', pageToken);
       }
@@ -214,33 +232,45 @@ export class HttpMatrixDataService extends MatrixDataService {
     );
   }
 
-  listMatrixEditableValues(organizationId: string): Observable<MatrixEditableValuesByBudget[]> {
-    return this.budgetSvc.BudgetServiceListBudgets({ parent: `organizations/${organizationId}`, pageSize: 100 }).pipe(
-      switchMap((resp) => {
-        const budgets = resp.budgets ?? [];
-        if (budgets.length === 0) {
-          return of([] as MatrixEditableValuesByBudget[]);
+  listMatrixEditableValues(organizationId: string, budgetIds: string[]): Observable<MatrixEditableValuesByBudget[]> {
+    if (budgetIds.length === 0) {
+      return of([] as MatrixEditableValuesByBudget[]);
+    }
+
+    // A single wildcard-parent request covers every selected budget.
+    const parent = `organizations/${organizationId}/budgets/-`;
+    const pageSize = 500; // server maximum
+    const filter = budgetIds.map((id) => `budget="${this.budgetName(organizationId, id)}"`).join(' OR ');
+
+    const fetchPage = (pageToken?: string) =>
+      this.budgetValueSvc.BudgetAccountValueServiceListBudgetAccountValues({ parent, pageSize, pageToken, filter });
+
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = resp.next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map((resp) => resp.account_values ?? []),
+      toArray(),
+      map((pages) => {
+        const byBudget = new Map<string, Map<string, Decimal>>();
+        for (const value of pages.flat()) {
+          const budgetId = extractUidFromResourceName(value.budget ?? '');
+          const accountId = extractUidFromResourceName(value.account ?? '');
+          if (!budgetId || !accountId) {
+            continue;
+          }
+          let perAccount = byBudget.get(budgetId);
+          if (!perAccount) {
+            perAccount = new Map();
+            byBudget.set(budgetId, perAccount);
+          }
+          perAccount.set(accountId, new Decimal(value.value?.value ?? '0'));
         }
-        return forkJoin(
-          budgets.map((b) =>
-            this.budgetValueSvc
-              .BudgetAccountValueServiceListBudgetAccountValues({
-                parent: this.budgetName(organizationId, b.uid ?? ''),
-                pageSize: 500,
-              })
-              .pipe(
-                map((valResp) => ({
-                  budgetId: b.uid ?? '',
-                  editableValues: Object.fromEntries(
-                    (valResp.account_values ?? []).map((v) => [
-                      extractUidFromResourceName(v.account),
-                      new Decimal(v.value?.value ?? '0'),
-                    ]),
-                  ),
-                })),
-              ),
-          ),
-        );
+        return Array.from(byBudget.entries()).map(([budgetId, values]) => ({
+          budgetId,
+          editableValues: Object.fromEntries(values),
+        }));
       }),
     );
   }

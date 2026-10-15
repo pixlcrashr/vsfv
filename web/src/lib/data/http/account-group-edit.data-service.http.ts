@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, combineLatest, map, of, switchMap } from 'rxjs';
+import { Observable, combineLatest, EMPTY, expand, map, of, switchMap, toArray } from 'rxjs';
 import { AccountGroupServiceService } from '../../api/services/account-group-service.service';
 import { AccountGroupAssignmentServiceService } from '../../api/services/account-group-assignment-service.service';
 import { AccountServiceService } from '../../api/services/account-service.service';
@@ -27,18 +27,51 @@ export class HttpAccountGroupEditDataService extends AccountGroupEditDataService
     return `${this.groupName(organizationId, groupId)}/assignments/${assignmentId}`;
   }
 
+  /** Fetches every assignment of the group, following pagination. */
+  private listAllAssignments(groupName: string) {
+    const pageSize = 200; // server maximum; anything larger is clamped
+    const fetchPage = (pageToken?: string) =>
+      this.assignmentSvc.AccountGroupAssignmentServiceListAccountGroupAssignments({ parent: groupName, pageSize, pageToken });
+
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = resp.next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map((resp) => resp.assignments ?? []),
+      toArray(),
+      map((pages) => pages.flat()),
+    );
+  }
+
+  /** Fetches every account of the organization, following pagination. */
+  private listAllAccounts(organizationId: string, showDeleted: boolean) {
+    const parent = `organizations/${organizationId}`;
+    const pageSize = 200; // server maximum; anything larger is clamped
+    const fetchPage = (pageToken?: string) =>
+      this.accountSvc.AccountServiceListAccounts({ parent, pageSize, pageToken, showDeleted });
+
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = resp.next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map((resp) => resp.accounts ?? []),
+      toArray(),
+      map((pages) => pages.flat()),
+    );
+  }
+
   getGroup(organizationId: string, id: string): Observable<AccountGroupDetails> {
     const groupName = this.groupName(organizationId, id);
     return combineLatest([
       this.groupSvc.AccountGroupServiceGetAccountGroup(groupName),
-      this.assignmentSvc.AccountGroupAssignmentServiceListAccountGroupAssignments({ parent: groupName, pageSize: 100 }),
-      this.accountSvc.AccountServiceListAccounts({ parent: `organizations/${organizationId}`, pageSize: 100, showDeleted: false }),
+      this.listAllAssignments(groupName),
+      this.listAllAccounts(organizationId, false),
     ]).pipe(
-      map(([group, assignmentsResp, accountsResp]) => {
-        const accountsMap = new Map(
-          (accountsResp.accounts ?? []).map((a) => [a.uid ?? '', a]),
-        );
-        const assignments = (assignmentsResp.assignments ?? []).map((a) => {
+      map(([group, assignments, apiAccounts]) => {
+        const accountsMap = new Map(apiAccounts.map((a) => [a.uid ?? '', a]));
+        const mappedAssignments = assignments.map((a) => {
           const acct = accountsMap.get(a.account_id);
           return mapApiAccountGroupAssignment(
             a,
@@ -50,8 +83,8 @@ export class HttpAccountGroupEditDataService extends AccountGroupEditDataService
           id: group.uid ?? '',
           name: group.display_name,
           description: group.display_description ?? '',
-          assignmentCount: assignments.length,
-          assignments,
+          assignmentCount: mappedAssignments.length,
+          assignments: mappedAssignments,
         };
       }),
     );
@@ -67,13 +100,13 @@ export class HttpAccountGroupEditDataService extends AccountGroupEditDataService
   getAllAccountsWithOperations(organizationId: string, groupId: string): Observable<AccountWithOperation[]> {
     const groupName = this.groupName(organizationId, groupId);
     return combineLatest([
-      this.accountSvc.AccountServiceListAccounts({ parent: `organizations/${organizationId}`, pageSize: 1000, showDeleted: true }),
-      this.assignmentSvc.AccountGroupAssignmentServiceListAccountGroupAssignments({ parent: groupName, pageSize: 1000 }),
+      this.listAllAccounts(organizationId, true),
+      this.listAllAssignments(groupName),
     ]).pipe(
-      map(([accountsResp, assignmentsResp]) => {
-        const accounts = (accountsResp.accounts ?? []).map(mapApiAccount);
+      map(([apiAccounts, assignments]) => {
+        const accounts = apiAccounts.map(mapApiAccount);
         const assignmentsMap = new Map(
-          (assignmentsResp.assignments ?? []).map((a) => [a.account_id, a]),
+          assignments.map((a) => [a.account_id, a]),
         );
 
         return accounts.map((account) => {
@@ -97,8 +130,8 @@ export class HttpAccountGroupEditDataService extends AccountGroupEditDataService
   }
 
   private getAvailableAccounts(organizationId: string): Observable<Account[]> {
-    return this.accountSvc.AccountServiceListAccounts({ parent: `organizations/${organizationId}`, pageSize: 100, showDeleted: false }).pipe(
-      map((resp) => (resp.accounts ?? []).map(mapApiAccount)),
+    return this.listAllAccounts(organizationId, false).pipe(
+      map((apiAccounts) => apiAccounts.map(mapApiAccount)),
     );
   }
 

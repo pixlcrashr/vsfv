@@ -22,7 +22,7 @@ const PREVIEW_KEY_PREFIX = 'rt-preview-';
         <p class="text-sm text-red-600">{{ error() }}</p>
       </div>
     } @else if (previewHtml()) {
-      <div class="w-full h-screen overflow-auto" [innerHTML]="previewHtml()"></div>
+      <div [class]="printMode() ? 'w-full' : 'w-full h-screen overflow-auto'" [innerHTML]="previewHtml()"></div>
     }
   `,
 })
@@ -34,12 +34,14 @@ export class ReportTemplatePreviewComponent implements OnInit, OnDestroy {
 
   readonly error = signal<string | null>(null);
   readonly previewHtml = signal<SafeHtml | null>(null);
+  readonly printMode = signal(false);
 
   private previewId = '';
   private storageListener: ((e: StorageEvent) => void) | null = null;
   private originalTitle = '';
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private renderSubscription: { unsubscribe: () => void } | null = null;
+  private hasPrinted = false;
 
   ngOnInit(): void {
     this.previewId = this.route.snapshot.paramMap.get('previewId') || '';
@@ -48,6 +50,7 @@ export class ReportTemplatePreviewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.printMode.set(this.route.snapshot.queryParamMap.get('print') === '1');
     this.originalTitle = document.title;
 
     this.renderPreview();
@@ -83,9 +86,15 @@ export class ReportTemplatePreviewComponent implements OnInit, OnDestroy {
     }, 300);
   }
 
-  private renderPreview(): void {
+  private renderPreview(attempt = 0): void {
     const templateContent = localStorage.getItem(PREVIEW_KEY_PREFIX + this.previewId);
     if (!templateContent) {
+      // Freshly opened popups may briefly not yet see the opener's
+      // localStorage write — retry for a few seconds before failing.
+      if (attempt < 12) {
+        this.debounceTimer = setTimeout(() => this.renderPreview(attempt + 1), 250);
+        return;
+      }
       this.error.set('Template content not found in localStorage');
       return;
     }
@@ -99,6 +108,12 @@ export class ReportTemplatePreviewComponent implements OnInit, OnDestroy {
       next: (html) => {
         this.previewHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
         this.stopTabSpinner();
+        // In PDF mode open the browser print dialog once after the first
+        // render; the user saves the output as a PDF file there.
+        if (this.printMode() && !this.hasPrinted) {
+          this.hasPrinted = true;
+          setTimeout(() => window.print(), 500);
+        }
       },
       error: () => {
         this.error.set('Fehler beim Generieren der Vorschau');

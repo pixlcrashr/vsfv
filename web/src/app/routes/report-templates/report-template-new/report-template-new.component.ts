@@ -13,6 +13,7 @@ import {
   NotificationService,
 } from '../../../shared/components';
 import { ReportTemplateNewDataService } from './report-template-new.data-service';
+import { ReportTemplateEditorComponent } from '../report-template-editor/report-template-editor.component';
 
 @Component({
   selector: 'app-report-template-new',
@@ -21,6 +22,7 @@ import { ReportTemplateNewDataService } from './report-template-new.data-service
     FormsModule,
     PageContentLayoutComponent,
     ButtonComponent,
+    ReportTemplateEditorComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
@@ -79,34 +81,7 @@ import { ReportTemplateNewDataService } from './report-template-new.data-service
           </div>
 
           <!-- Template Editor -->
-          <div class="bg-white rounded-lg border border-gray-200 p-4">
-            <div class="flex items-center justify-between mb-4">
-              <h2 i18n class="text-sm font-semibold text-gray-900">
-                Vorlage (Go HTML Template)
-              </h2>
-              <span i18n class="text-xs text-gray-500">
-                Verwenden Sie Go-Template-Syntax für dynamische Inhalte
-              </span>
-            </div>
-            <textarea
-              [(ngModel)]="templateContent"
-              rows="20"
-              [placeholder]="placeholderText"
-              class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            ></textarea>
-          </div>
-
-          <!-- Help Section -->
-          <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
-            <h3 i18n class="text-xs font-medium text-gray-900 mb-2">
-              Verfügbare Variablen
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
-              @for (variable of variables; track variable.code) {
-                <div><code class="bg-gray-100 px-1 rounded">{{ variable.code }}</code> - {{ variable.label }}</div>
-              }
-            </div>
-          </div>
+          <app-report-template-editor [(templateContent)]="templateContent" />
         </div>
       </div>
     </app-page-content-layout>
@@ -133,30 +108,6 @@ export class ReportTemplateNewComponent {
   name = '';
   description = '';
   templateContent = '';
-
-  readonly placeholderText = `<div>
-  <h1>{{ .Budget.Name }}</h1>
-  <table>
-    {{ range .Accounts }}
-    <tr>
-      <td>{{ .Code }}</td>
-      <td>{{ .Name }}</td>
-      <td>{{ .Balance }}</td>
-    </tr>
-    {{ end }}
-  </table>
-</div>`;
-
-  readonly variables = [
-    { code: '{{ .Budget.Name }}', label: $localize`Budgetname` },
-    { code: '{{ .Budget.StartDate }}', label: $localize`Startdatum` },
-    { code: '{{ .Budget.EndDate }}', label: $localize`Enddatum` },
-    { code: '{{ range .Accounts }}...{{ end }}', label: $localize`Kontenliste` },
-    { code: '{{ .Code }}', label: $localize`Kontonummer` },
-    { code: '{{ .Name }}', label: $localize`Kontoname` },
-    { code: '{{ .Balance }}', label: $localize`Kontosaldo` },
-    { code: '{{ .Date | formatDate }}', label: $localize`Datum formatieren` },
-  ];
 
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: $localize`Berichtsvorlagen`, path: '' },

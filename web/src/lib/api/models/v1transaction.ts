@@ -24,7 +24,8 @@ export interface V1Transaction {
   debit_ledger_account: string;
 
   /**
-   * Human-readable transaction description.
+   * Human-readable transaction description. Immutable after creation;
+   * UpdateTransaction rejects update masks that include this field.
    */
   description?: string;
 

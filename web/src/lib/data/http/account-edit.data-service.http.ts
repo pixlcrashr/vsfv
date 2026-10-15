@@ -71,10 +71,11 @@ export class HttpAccountEditDataService extends AccountEditDataService {
     name: string,
     code: string,
     description: string,
+    invertSign: boolean,
   ): Observable<AccountDetails> {
     return this.svc.AccountServiceUpdateAccount({
       accountName: this.accountName(organizationId, id),
-      account: { display_name: name, display_code: code, display_description: description },
+      account: { display_name: name, display_code: code, display_description: description, invert_sign: invertSign },
     }).pipe(
       switchMap((a) =>
         this.listAllAccounts(organizationId).pipe(

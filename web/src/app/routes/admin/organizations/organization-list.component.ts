@@ -2,7 +2,7 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
-  signal,
+  computed,
   OnInit,
 } from '@angular/core';
 import { Router } from '@angular/router';
@@ -16,7 +16,7 @@ import {
   AdminContentComponent,
 } from '../../../shared/components';
 import { Organization } from '../../../shared/models';
-import { OrganizationListDataService } from './organization-list.data-service';
+import { OrganizationStoreService } from '../../../shared/services/organization-store.service';
 import {
   CreateOrganizationDialogComponent,
   CreateOrganizationDialogOutput,
@@ -101,27 +101,17 @@ import {
   `,
 })
 export class OrganizationListComponent implements OnInit {
-  private readonly organizationListDataService = inject(OrganizationListDataService);
+  private readonly organizationStore = inject(OrganizationStoreService);
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly dialog = inject(Dialog);
 
-  readonly loading = signal(true);
-  readonly organizations = signal<Organization[]>([]);
+  readonly loading = computed(() => this.organizationStore.loading());
+  readonly organizations = computed<Organization[]>(() => this.organizationStore.organizations() ?? []);
 
   ngOnInit(): void {
-    this.loadOrganizations();
-  }
-
-  private loadOrganizations(): void {
-    this.loading.set(true);
-    this.organizationListDataService.getOrganizations().subscribe({
-      next: (orgs) => {
-        this.organizations.set(orgs);
-        this.loading.set(false);
-      },
+    this.organizationStore.load().subscribe({
       error: () => {
-        this.loading.set(false);
         this.notificationService.error($localize`Fehler beim Laden der Organisationen`);
       },
     });
@@ -138,10 +128,9 @@ export class OrganizationListComponent implements OnInit {
 
     dialogRef.closed.subscribe((result) => {
       if (result?.created && result.organization) {
-        this.organizations.update((orgs) => [
-          { id: result.organization!.id, name: result.organization!.name, description: result.organization!.description },
-          ...orgs,
-        ]);
+        // Refresh the shared store so the admin list and the sidebar
+        // switcher both show the new organization.
+        this.organizationStore.refresh().subscribe();
         this.notificationService.success($localize`Organisation erstellt`);
       }
     });

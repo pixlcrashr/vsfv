@@ -3,8 +3,10 @@ import { ButtonComponent } from '../../../shared/components';
 import { formatCurrency } from '../../../shared/models';
 import {
   BankDetailsSnapshot,
+  ReceiptDirection,
   ReceiptSnapshot,
   StepId,
+  SubmissionKind,
   getDocumentFormLabel,
   getReceiptCategoryLabel,
 } from './assistant.types';
@@ -48,15 +50,23 @@ import {
 
       <div class="flex items-start justify-between gap-4 p-4">
         <div>
-          <dt class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" i18n>Zahlungsart</dt>
+          <dt class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            @if (kind() === 'single_receipt') {
+              <ng-container i18n>Zahlungsart</ng-container>
+            } @else {
+              <ng-container i18n>Art</ng-container>
+            }
+          </dt>
           <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ paymentMethodLabel() }}</dd>
         </div>
-        <app-button variant="ghost" size="sm" (clicked)="editStep.emit('payment')">
-          <ng-container i18n>Ändern</ng-container>
-        </app-button>
+        @if (kind() === 'single_receipt') {
+          <app-button variant="ghost" size="sm" (clicked)="editStep.emit('payment')">
+            <ng-container i18n>Ändern</ng-container>
+          </app-button>
+        }
       </div>
 
-      @if (requiresBankDetails()) {
+      @if (kind() === 'single_receipt' && requiresBankDetails()) {
         <div class="flex items-start justify-between gap-4 p-4">
           <div>
             <dt class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" i18n>Bankverbindung</dt>
@@ -92,7 +102,13 @@ import {
 
     <!-- Receipts -->
     <div class="mt-6">
-      <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100" i18n>Belege ({{ snapshots().length }})</h3>
+      <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+        @if (kind() === 'single_receipt') {
+          <ng-container i18n>Belege ({{ snapshots().length }})</ng-container>
+        } @else {
+          <ng-container i18n>Dokumente ({{ snapshots().length }})</ng-container>
+        }
+      </h3>
 
       <div class="mt-3 space-y-3">
         @for (snapshot of snapshots(); track $index; let i = $index) {
@@ -100,11 +116,18 @@ import {
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  <ng-container i18n>Beleg {{ i + 1 }}:</ng-container>
+                  @if (kind() === 'single_receipt') {
+                    <ng-container i18n>Beleg {{ i + 1 }}:</ng-container>
+                  } @else {
+                    <ng-container i18n>Dokument {{ i + 1 }}:</ng-container>
+                  }
                   {{ getReceiptCategoryLabel(snapshot.receiptCategory) || '—' }}
                 </p>
                 <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                  {{ getDocumentFormLabel(snapshot.documentForm) }} · {{ formatCurrency(snapshot.amountCents) }}
+                  {{ getDocumentFormLabel(snapshot.documentForm) }}
+                  @if (showAmounts()) {
+                    <span> · {{ formatCurrency(snapshot.amountCents) }}</span>
+                  }
                 </p>
                 @if (snapshot.description) {
                   <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ snapshot.description }}</p>
@@ -141,10 +164,12 @@ import {
         </app-button>
       </div>
 
-      <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-        <p class="text-sm text-gray-500 dark:text-gray-400" i18n>Gesamtbetrag</p>
-        <p class="text-xl font-semibold text-slate-800 dark:text-slate-100">{{ formatCurrency(totalAmountCents()) }}</p>
-      </div>
+      @if (showAmounts()) {
+        <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+          <p class="text-sm text-gray-500 dark:text-gray-400" i18n>Gesamtbetrag</p>
+          <p class="text-xl font-semibold text-slate-800 dark:text-slate-100">{{ formatCurrency(totalAmountCents()) }}</p>
+        </div>
+      }
     </div>
 
     <!-- Next steps -->
@@ -186,16 +211,33 @@ import {
     }
 
     @if (!hasSubmittableBillType()) {
-      <p class="my-6 text-sm text-amber-800 dark:text-amber-200" i18n>
-        Mindestens ein Beleg mit Belegart „Rechnung“, „Quittung / Kassenbon“, „Eigenbeleg“,
-        „Fahrtkostennachweis“ oder „Sonstige“ ist für die Einreichung erforderlich.
-      </p>
+      @if (kind() === 'statement') {
+        <p class="my-6 text-sm text-amber-800 dark:text-amber-200" i18n>
+          Mindestens ein Abrechnungsdokument ist für die Einreichung erforderlich.
+        </p>
+      } @else if (kind() === 'other') {
+        <p class="my-6 text-sm text-amber-800 dark:text-amber-200" i18n>
+          Mindestens ein Dokument ist für die Einreichung erforderlich.
+        </p>
+      } @else if (direction() === 'income') {
+        <p class="my-6 text-sm text-amber-800 dark:text-amber-200" i18n>
+          Mindestens ein Beleg mit Belegart „Quittung“, „Kassenbericht“, „Rechnung“,
+          „Eigen-/Hilfsbeleg“ oder „Sonstiges“ ist für die Einreichung erforderlich.
+        </p>
+      } @else {
+        <p class="my-6 text-sm text-amber-800 dark:text-amber-200" i18n>
+          Mindestens ein Beleg mit Belegart „Rechnung“, „Quittung / Kassenbon“, „Eigenbeleg“,
+          „Fahrtkostennachweis“ oder „Sonstige“ ist für die Einreichung erforderlich.
+        </p>
+      }
     }
   `,
 })
 export class AssistantReviewComponent {
   readonly scopeLabel = input.required<string>();
   readonly committeeName = input.required<string>();
+  readonly kind = input.required<SubmissionKind>();
+  readonly direction = input.required<ReceiptDirection>();
   readonly paymentMethodLabel = input.required<string>();
   readonly requiresBankDetails = input.required<boolean>();
   readonly bank = input.required<BankDetailsSnapshot>();
@@ -205,6 +247,10 @@ export class AssistantReviewComponent {
   readonly paperOriginalWarning = input(false);
   readonly commercialReceiptWarning = input(false);
   readonly hasSubmittableBillType = input.required<boolean>();
+
+  // Abrechnung/Sonstiges documents carry no per-item amounts in the wizard,
+  // so the money summary is hidden instead of showing a misleading 0,00 €.
+  readonly showAmounts = computed(() => this.kind() === 'single_receipt');
 
   readonly hasSubmissionWarnings = computed(
     () => this.paperOriginalWarning() || this.commercialReceiptWarning()

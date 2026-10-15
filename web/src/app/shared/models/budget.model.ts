@@ -8,6 +8,7 @@ export interface Budget {
   isPublished: boolean;
   publishActualValues: boolean;
   publishActualValuesUntil?: Date | null;
+  order: number;
 }
 
 export interface BudgetRevision {

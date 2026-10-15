@@ -1,7 +1,7 @@
 import { Component, computed, input, output, signal, model } from '@angular/core';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { faFileArrowDown, faPen, faSave, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
+import { faFileArrowDown, faPen, faSave, faAngleDown, faAngleUp, faRotate } from '@fortawesome/free-solid-svg-icons';
 import { Account, Budget } from '../matrix-data-provider.service';
 
 
@@ -129,7 +129,7 @@ export interface ExportButtonClickArgs {
                           />
                         </td>
                       </tr>
-                      @for (tag of budgetTagsNewestFirst(budget); track tag.id) {
+                      @for (tag of budget.tags; track tag.id) {
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" (click)="toggleTag(tag.id, budget.id)">
                           <td class="py-1 pr-2.5 text-gray-600 dark:text-gray-400" style="padding-left: 20px">└─ {{ tag.displayName }}</td>
                           <td class="px-2.5 py-1 w-8 text-center">
@@ -340,6 +340,27 @@ export interface ExportButtonClickArgs {
           </button>
         }
 
+        <!-- Refresh Button -->
+        <button
+          type="button"
+          class="px-2 py-1 text-xs rounded border border-gray-400 dark:border-gray-500
+                 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
+                 enabled:hover:bg-gray-100 dark:enabled:hover:bg-gray-700
+                 cursor-pointer flex items-center gap-1 transition-colors
+                 disabled:opacity-50 disabled:cursor-not-allowed"
+          (click)="refreshClick.emit()"
+          [disabled]="isLoading() || isSaving()"
+          i18n-title
+          title="Ausgewählte Werte aktualisieren"
+        >
+          @if (isLoading()) {
+            <span class="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></span>
+          } @else {
+            <fa-icon [icon]="faRotate"></fa-icon>
+          }
+          <span i18n>Aktualisieren</span>
+        </button>
+
         <!-- Export Button -->
         <button
           type="button"
@@ -365,6 +386,7 @@ export class MatrixHeader {
   faSave = faSave;
   faAngleDown = faAngleDown;
   faAngleUp = faAngleUp;
+  faRotate = faRotate;
 
   isEditMode = model<boolean>(false);
   isTargetButtonSelected = model<boolean>(true);
@@ -383,6 +405,7 @@ export class MatrixHeader {
 
   exportButtonClick = output<ExportButtonClickArgs>();
   saveClick = output<void>();
+  refreshClick = output<void>();
 
   budgets = input<Budget[]>([]);
   accounts = input<Account[]>([]);
@@ -414,10 +437,6 @@ export class MatrixHeader {
     this.showOptionsDropdown.update((v: boolean) => !v);
     this.showBudgetsDropdown.set(false);
     this.showAccountsDropdown.set(false);
-  }
-
-  budgetTagsNewestFirst(budget: Budget): Budget['tags'] {
-    return [...budget.tags].reverse();
   }
 
   isBudgetFullySelected(budget: Budget): boolean {

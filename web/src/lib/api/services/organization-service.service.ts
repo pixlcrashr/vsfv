@@ -12,7 +12,7 @@ import { V1Organization } from '../models/v1organization';
 import { V1CheckOrganizationIdResponse } from '../models/v1check-organization-id-response';
 import { V1CheckOrganizationIdRequest } from '../models/v1check-organization-id-request';
 import { V1Month } from '../models/v1month';
-import { V1SubmissionSettings } from '../models/v1submission-settings';
+import { V1OrganizationSubmissionSettings } from '../models/v1organization-submission-settings';
 
 /**
  * OrganizationService manages organizations.
@@ -24,8 +24,8 @@ class OrganizationServiceService extends __BaseService {
   static readonly OrganizationServiceListOrganizationsPath = '/v1/organizations';
   static readonly OrganizationServiceCreateOrganizationPath = '/v1/organizations';
   static readonly OrganizationServiceCheckOrganizationIdPath = '/v1/organizations:checkId';
-  static readonly OrganizationServiceGetOrganizationPath = '/v1/{name_15}';
-  static readonly OrganizationServiceDeleteOrganizationPath = '/v1/{name_9}';
+  static readonly OrganizationServiceDeleteOrganizationPath = '/v1/{name_10}';
+  static readonly OrganizationServiceGetOrganizationPath = '/v1/{name_16}';
   static readonly OrganizationServiceUpdateOrganizationPath = '/v1/{organization.name}';
 
   constructor(
@@ -214,71 +214,23 @@ class OrganizationServiceService extends __BaseService {
   }
 
   /**
-   * Gets a single organization by resource name.
-   * Authorization:
-   *   Scope: organizations:read
-   *   Permission: organizations:read
-   *   Domain: global
-   * @param name_15 The resource name of the organization.
-   * Format: organizations/{organization}
-   * @return A successful response.
-   */
-  OrganizationServiceGetOrganizationResponse(name15: string): __Observable<__StrictHttpResponse<V1Organization>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name15))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<V1Organization>;
-      })
-    );
-  }
-  /**
-   * Gets a single organization by resource name.
-   * Authorization:
-   *   Scope: organizations:read
-   *   Permission: organizations:read
-   *   Domain: global
-   * @param name_15 The resource name of the organization.
-   * Format: organizations/{organization}
-   * @return A successful response.
-   */
-  OrganizationServiceGetOrganization(name15: string): __Observable<V1Organization> {
-    return this.OrganizationServiceGetOrganizationResponse(name15).pipe(
-      __map(_r => _r.body as V1Organization)
-    );
-  }
-
-  /**
    * Permanently deletes an organization.
    * Authorization:
    *   Scope: organizations:write
    *   Permission: organizations:delete
    *   Domain: global
-   * @param name_9 The resource name of the organization.
+   * @param name_10 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceDeleteOrganizationResponse(name9: string): __Observable<__StrictHttpResponse<{}>> {
+  OrganizationServiceDeleteOrganizationResponse(name10: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name9))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
       __body,
       {
         headers: __headers,
@@ -299,13 +251,61 @@ class OrganizationServiceService extends __BaseService {
    *   Scope: organizations:write
    *   Permission: organizations:delete
    *   Domain: global
-   * @param name_9 The resource name of the organization.
+   * @param name_10 The resource name of the organization.
    * Format: organizations/{organization}
    * @return A successful response.
    */
-  OrganizationServiceDeleteOrganization(name9: string): __Observable<{}> {
-    return this.OrganizationServiceDeleteOrganizationResponse(name9).pipe(
+  OrganizationServiceDeleteOrganization(name10: string): __Observable<{}> {
+    return this.OrganizationServiceDeleteOrganizationResponse(name10).pipe(
       __map(_r => _r.body as {})
+    );
+  }
+
+  /**
+   * Gets a single organization by resource name.
+   * Authorization:
+   *   Scope: organizations:read
+   *   Permission: organizations:read
+   *   Domain: global
+   * @param name_16 The resource name of the organization.
+   * Format: organizations/{organization}
+   * @return A successful response.
+   */
+  OrganizationServiceGetOrganizationResponse(name16: string): __Observable<__StrictHttpResponse<V1Organization>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name16))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1Organization>;
+      })
+    );
+  }
+  /**
+   * Gets a single organization by resource name.
+   * Authorization:
+   *   Scope: organizations:read
+   *   Permission: organizations:read
+   *   Domain: global
+   * @param name_16 The resource name of the organization.
+   * Format: organizations/{organization}
+   * @return A successful response.
+   */
+  OrganizationServiceGetOrganization(name16: string): __Observable<V1Organization> {
+    return this.OrganizationServiceGetOrganizationResponse(name16).pipe(
+      __map(_r => _r.body as V1Organization)
     );
   }
 
@@ -431,7 +431,7 @@ module OrganizationServiceService {
     /**
      * The organization to update.
      */
-    organization: {uid?: string, display_name: string, display_description?: string, start_month: V1Month, submission_settings?: V1SubmissionSettings, update_time?: string, create_time?: string, etag?: string};
+    organization: {uid?: string, display_name: string, display_description?: string, start_month: V1Month, submission_settings?: V1OrganizationSubmissionSettings, update_time?: string, create_time?: string, etag?: string};
   }
 }
 

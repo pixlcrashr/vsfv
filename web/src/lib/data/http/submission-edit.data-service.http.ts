@@ -1,12 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, throwError } from 'rxjs';
+import { Observable, map, switchMap, throwError } from 'rxjs';
 import {
   CommitteeServiceService,
   SubmissionCommentServiceService,
   SubmissionItemServiceService,
   SubmissionServiceService,
 } from '../../api/services';
+import { V1Submission } from '../../api/models/v1submission';
+import { V1SubmissionItem } from '../../api/models/v1submission-item';
 import { environment } from '../../../environments/environment';
 import { CurrentOrganizationService } from '../../../app/shared/services/current-organization.service';
 import {
@@ -59,21 +61,34 @@ export class HttpSubmissionEditDataService extends SubmissionEditDataService {
   }
 
   updateSubmission(id: string, params: UpdateSubmissionParams): Observable<Submission> {
-    return this.submissionSvc.SubmissionServiceGetSubmission(this.submissionName(id)).pipe(
+    const name = this.submissionName(id);
+    // The generated client cannot transmit a field mask, so the update is a
+    // full replace: load the current state, apply the editable changes and
+    // send it back with an empty mask (the etag guards concurrency).
+    return this.submissionSvc.SubmissionServiceGetSubmission(name).pipe(
       map((current) => {
-        const submission: Record<string, unknown> = {
-          name: this.submissionName(id),
+        const submission: V1Submission = {
+          ...current,
           notice: params.notice ?? current.notice ?? '',
         };
-        const mask: string[] = ['notice'];
-        if (params.scope !== undefined) {
-          submission['scope'] = `SCOPE_${params.scope === 'gewerblich' ? 'COMMERCIAL' : 'NONPROFIT'}`;
-          mask.push('scope');
+        if (params.scope !== undefined && submission.income_expense) {
+          submission.income_expense = {
+            ...submission.income_expense,
+            scope:
+              params.scope === 'gewerblich'
+                ? 'SUBMISSION_SCOPE_COMMERCIAL'
+                : 'SUBMISSION_SCOPE_NONPROFIT',
+          };
         }
-        return { submission, updateMask: mask };
+        return submission;
       }),
-      map((body) => this.submissionSvc.SubmissionServiceUpdateSubmission(body as never)),
-      map((result) => mapApiSubmission(result as never))
+      switchMap((submission) =>
+        this.submissionSvc.SubmissionServiceUpdateSubmission({
+          submissionName: name,
+          submission,
+        })
+      ),
+      map(mapApiSubmission)
     );
   }
 
@@ -126,34 +141,32 @@ export class HttpSubmissionEditDataService extends SubmissionEditDataService {
   }
 
   updateItem(submissionId: string, itemId: string, params: UpdateItemParams): Observable<SubmissionItem> {
-    const mask: string[] = [];
-    const item: Record<string, unknown> = {
-      name: `${this.submissionName(submissionId)}/items/${itemId}`,
-      amount: { value: '0' },
-    };
-    if (params.category !== undefined) {
-      item['category'] = params.category;
-      mask.push('category');
-    }
-    if (params.description !== undefined) {
-      item['description'] = params.description ?? '';
-      mask.push('description');
-    }
-    if (params.source !== undefined) {
-      item['source'] = params.source ?? '';
-      mask.push('source');
-    }
-    if (params.amount !== undefined) {
-      item['amount'] = { value: (params.amount / 100).toFixed(2) };
-      mask.push('amount');
-    }
-    return this.itemSvc
-      .SubmissionItemServiceUpdateSubmissionItem({
-        itemName: `${this.submissionName(submissionId)}/items/${itemId}`,
-        item: item as never,
-        update_mask: mask,
-      } as never)
-      .pipe(map(mapApiSubmissionItem));
+    const itemName = `${this.submissionName(submissionId)}/items/${itemId}`;
+    // The generated client cannot transmit a field mask, so the update is a
+    // full replace: load the item, apply the changes and send it back.
+    return this.itemSvc.SubmissionItemServiceGetSubmissionItem(itemName).pipe(
+      map((current) => ({
+        ...current,
+        category: params.category ?? current.category ?? '',
+        document_form: params.documentForm
+          ? (`DOCUMENT_FORM_${params.documentForm.toUpperCase()}` as V1SubmissionItem['document_form'])
+          : current.document_form,
+        source: params.source !== undefined ? params.source ?? '' : current.source ?? '',
+        description:
+          params.description !== undefined ? params.description ?? '' : current.description ?? '',
+        amount:
+          params.amount !== undefined
+            ? { value: (params.amount / 100).toFixed(2) }
+            : current.amount ?? { value: '0' },
+      })),
+      switchMap((item) =>
+        this.itemSvc.SubmissionItemServiceUpdateSubmissionItem({ itemName, item })
+      ),
+      map((item) => {
+        const mapped = mapApiSubmissionItem(item);
+        return { ...mapped, submissionId };
+      })
+    );
   }
 
   deleteItem(submissionId: string, itemId: string): Observable<void> {
@@ -215,7 +228,7 @@ export class HttpSubmissionEditDataService extends SubmissionEditDataService {
 
   getCommittees(): Observable<Committee[]> {
     return this.committeeSvc
-      .CommitteeServiceListCommittees({ parent: this.parent, pageSize: 100 })
+      .CommitteeServiceListUserCommittees({ parent: this.parent, pageSize: 100 })
       .pipe(map((resp) => (resp.committees ?? []).map(mapApiCommittee)));
   }
 }

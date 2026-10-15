@@ -7,8 +7,9 @@ import {
   computed,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { switchMap } from 'rxjs';
+import { forkJoin, map, of, switchMap, tap } from 'rxjs';
 import {
+  AbstractControl,
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
@@ -28,6 +29,7 @@ import {
   SettlementPayload,
 } from '../../../shared/models';
 import { SubmissionNewDataService } from '../submission-new/submission-new.data-service';
+import type { CreateItemParams, CreateSubmissionParams } from '../submission-new/submission-new.data-service';
 import { AssistantInfoBoxComponent } from './assistant-info-box.component';
 import {
   AssistantReceiptStepComponent,
@@ -38,12 +40,16 @@ import {
   Belegform,
   InvoiceItemForm,
   ReceiptCategory,
+  ReceiptDirection,
   ReceiptSnapshot,
+  SubmissionKind,
   SubmissionScope,
   StepId,
   WizardStep,
   getDocumentFormLabel,
   getReceiptCategoryLabel,
+  selectableReceiptCategories,
+  submittableReceiptCategories,
 } from './assistant.types';
 
 @Component({
@@ -131,10 +137,65 @@ import {
                       </div>
                     }
 
+                    <!-- ================================ KIND ================================ -->
+                    @case ('kind') {
+                      <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
+                        Was möchtest du einreichen?
+                      </h2>
+
+                      <app-assistant-info-box>
+                        <li i18n>
+                          <strong>Einnahme- oder Ausgabebeleg</strong>: ein einzelner Beleg über eine
+                          Ausgabe oder Einnahme, z. B. eine Rechnung, ein Kassenbon oder ein Fahrtticket.
+                        </li>
+                        <li i18n>
+                          <strong>Abrechnung</strong>: eine zusammenfassende Abrechnung mit mehreren
+                          Einnahmen und/oder Ausgaben, z. B. ein Kassenbuch oder eine Veranstaltungsabrechnung.
+                        </li>
+                        <li i18n>
+                          <strong>Sonstiges</strong>: alles, was weder Beleg noch Abrechnung ist und nur
+                          zu Dokumentationszwecken eingereicht wird.
+                        </li>
+                      </app-assistant-info-box>
+
+                      <div class="mt-5 grid grid-cols-1 gap-3">
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="kind" value="single_receipt" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Einnahme- oder Ausgabebeleg</span>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>
+                              Ein einzelner Beleg über eine Ausgabe oder Einnahme – es findet ggf. eine Auszahlung statt.
+                            </p>
+                          </div>
+                        </label>
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="kind" value="statement" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Abrechnung</span>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>
+                              Zusammenfassende Abrechnung mit mehreren Positionen – nur Dokumentation, keine Auszahlung.
+                            </p>
+                          </div>
+                        </label>
+                        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                          <input type="radio" formControlName="kind" value="other" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                          <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100" i18n>Sonstiges</span>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" i18n>
+                              Nur Dokumentation – keine Auszahlung.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                      @if (showError('kind')) {
+                        <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" i18n>Bitte wähle aus, was du einreichen möchtest.</p>
+                      }
+                    }
+
                     <!-- ================================ DIRECTION ================================ -->
                     @case ('direction') {
                       <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-100" i18n>
-                        Was moechtest du einreichen?
+                        Ist es eine Ausgabe oder eine Einnahme?
                       </h2>
 
                       <app-assistant-info-box>
@@ -282,13 +343,6 @@ import {
                         <div>
                           <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>BIC (optional)</label>
                           <input type="text" formControlName="vendorBic" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
-                        </div>
-                        <div>
-                          <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300" i18n>Zahlungsart *</label>
-                          <select formControlName="timing" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
-                            <option value="on_invoice" i18n>Zahlung auf Rechnung</option>
-                            <option value="advance" i18n>Vorkasse</option>
-                          </select>
                         </div>
                       </div>
                     }
@@ -545,6 +599,7 @@ import {
                       <app-assistant-receipt-step
                         [section]="currentReceiptSection()"
                         [itemGroup]="currentItemGroup()"
+                        [direction]="selectedDirection()"
                         [receiptNumber]="currentReceiptNumber()"
                         [receiptCount]="receiptCount()"
                         [attachmentName]="currentReceiptAttachmentName()"
@@ -634,6 +689,8 @@ import {
                       <app-assistant-review
                         [scopeLabel]="scopeLabel()"
                         [committeeName]="committeeName()"
+                        [kind]="selectedKind()"
+                        [direction]="selectedDirection()"
                         [paymentMethodLabel]="settlementLabel()"
                         [requiresBankDetails]="requiresBankDetails()"
                         [bank]="bankSnapshot()"
@@ -728,6 +785,11 @@ export class SubmissionAssistantComponent implements OnInit {
   readonly saving = signal(false);
   readonly committees = signal<Committee[]>([]);
   readonly orgId = signal('');
+  // The server-side draft (SUBMISSION_STATUS_DRAFT). It is created at the
+  // earliest point the API allows — committee and type structure known — and
+  // every following wizard answer is written into it, so a dead SPA loses
+  // nothing. `:submit` at the end validates completeness → PENDING.
+  readonly draftId = signal('');
   readonly cursor = signal(0);
   readonly receiptCount = signal(0);
   readonly selectedPaymentMethod = signal<PayoutMethod>('bank_transfer');
@@ -748,18 +810,18 @@ export class SubmissionAssistantComponent implements OnInit {
   readonly form = this.fb.group({
     submissionScope: ['hoheitlich' as SubmissionScope],
     committeeId: ['', Validators.required],
-    direction: ['expense' as 'expense' | 'income', Validators.required],
+    kind: ['single_receipt' as SubmissionKind, Validators.required],
+    direction: ['expense' as ReceiptDirection, Validators.required],
     settlement: ['person' as 'person' | 'committee_account' | 'payment_request'],
     committeeAccountDetails: this.fb.group({
-      paymentAccountUid: [''],
-      paidDate: [''],
+      paymentAccountUid: ['', Validators.required],
+      paidDate: ['', Validators.required],
       paymentReference: [''],
     }),
     paymentRequestDetails: this.fb.group({
       vendorName: [''],
       vendorIban: [''],
       vendorBic: [''],
-      timing: ['on_invoice' as 'on_invoice' | 'advance'],
     }),
     paymentMethod: ['bank_transfer' as PayoutMethod],
     bankDetails: this.fb.group({
@@ -792,34 +854,44 @@ export class SubmissionAssistantComponent implements OnInit {
     const steps: WizardStep[] = [
       { id: 'intro' },
       { id: 'committee' },
-      { id: 'direction' },
+      { id: 'kind' },
     ];
-    if (this.scopeSelectable()) {
-      steps.push({ id: 'scope' });
-    }
-    if (this.selectedDirection() === 'expense') {
-      steps.push({ id: 'settlement' });
-      switch (this.selectedSettlement()) {
-        case 'committee_account':
-          steps.push({ id: 'accountPaid' });
-          break;
-        case 'payment_request':
-          steps.push({ id: 'vendorDetails' });
-          break;
-        default:
-          steps.push({ id: 'payment' });
-          if (this.selectedPaymentMethod() === 'bank_transfer') {
-            steps.push({ id: 'bankDetails' });
-          }
+    if (this.selectedKind() === 'single_receipt') {
+      steps.push({ id: 'direction' });
+      if (this.scopeSelectable()) {
+        steps.push({ id: 'scope' });
+      }
+      if (this.selectedDirection() === 'expense') {
+        steps.push({ id: 'settlement' });
+        switch (this.selectedSettlement()) {
+          case 'committee_account':
+            steps.push({ id: 'accountPaid' });
+            break;
+          case 'payment_request':
+            steps.push({ id: 'vendorDetails' });
+            break;
+          default:
+            steps.push({ id: 'payment' });
+            if (this.selectedPaymentMethod() === 'bank_transfer') {
+              steps.push({ id: 'bankDetails' });
+            }
+        }
       }
     }
+    // Abrechnung/Sonstiges (misc) carry neither direction, scope nor
+    // settlement, so no further questions precede the receipts.
     for (let i = 0; i < this.receiptCount(); i++) {
-      steps.push(
-        { id: 'receiptCategory', receiptIndex: i },
-        { id: 'receiptForm', receiptIndex: i },
-        { id: 'receiptAmount', receiptIndex: i },
-        { id: 'receiptExtras', receiptIndex: i },
-      );
+      // Abrechnung/Sonstiges documents skip the category question (the kind
+      // already fixes it) and the amount question (the numbers live in the
+      // document itself).
+      if (this.selectedKind() === 'single_receipt') {
+        steps.push({ id: 'receiptCategory', receiptIndex: i });
+      }
+      steps.push({ id: 'receiptForm', receiptIndex: i });
+      if (this.selectedKind() === 'single_receipt') {
+        steps.push({ id: 'receiptAmount', receiptIndex: i });
+      }
+      steps.push({ id: 'receiptExtras', receiptIndex: i });
     }
     steps.push({ id: 'receiptMore' }, { id: 'notice' }, { id: 'declarations' }, { id: 'review' });
     return steps;
@@ -874,10 +946,21 @@ export class SubmissionAssistantComponent implements OnInit {
     () => this.selectedPaymentMethod() === 'bank_transfer'
   );
   readonly isCommercial = computed(() => this.selectedSubmissionScope() === 'gewerblich');
-  readonly scopeLabel = computed(() =>
-    this.selectedSubmissionScope() === 'gewerblich' ? $localize`Gewerblich` : $localize`Hoheitlich`
-  );
-  readonly selectedDirection = signal<'expense' | 'income'>('expense');
+  readonly scopeLabel = computed(() => {
+    // Misc document collections carry no scope.
+    if (this.selectedKind() !== 'single_receipt') return $localize`Nicht zutreffend`;
+    return this.selectedSubmissionScope() === 'gewerblich' ? $localize`Gewerblich` : $localize`Hoheitlich`;
+  });
+  readonly selectedKind = signal<SubmissionKind>('single_receipt');
+  readonly selectedDirection = signal<ReceiptDirection>('expense');
+  // Whether the scope question has been answered (and persisted). Until then
+  // the draft keeps an unspecified scope — the server locks the scope once a
+  // concrete value is stored, so writing the form default early would block
+  // the actual answer later.
+  readonly scopeAnswered = signal(false);
+  // Whether the settlement question has been answered; until then the draft's
+  // expense branch stays empty ("settlement not picked yet").
+  readonly settlementAnswered = signal(false);
   readonly selectedSettlement = signal<'person' | 'committee_account' | 'payment_request'>('person');
   readonly selectedCommittee = computed(
     () => this.committees().find((c) => c.id === this.selectedCommitteeId()) ?? null
@@ -885,6 +968,8 @@ export class SubmissionAssistantComponent implements OnInit {
   readonly scopeSelectable = computed(() => this.selectedCommittee()?.allowScopeSelection === true);
   readonly isExpense = computed(() => this.selectedDirection() === 'expense');
   readonly settlementLabel = computed(() => {
+    if (this.selectedKind() === 'statement') return $localize`Abrechnung (nur Dokumentation)`;
+    if (this.selectedKind() === 'other') return $localize`Sonstiges (nur Dokumentation)`;
     if (this.selectedDirection() === 'income') return $localize`Einnahme (keine Auszahlung)`;
     switch (this.selectedSettlement()) {
       case 'committee_account':
@@ -914,7 +999,7 @@ export class SubmissionAssistantComponent implements OnInit {
     if (this.selectedSubmissionScope() !== 'gewerblich') return false;
     const snapshot = this.receiptSnapshots()[this.currentReceiptIndex()];
     return (
-      snapshot?.receiptCategory === 'quittung_kassenbon' && (snapshot?.amountCents || 0) > 25000
+      snapshot?.receiptCategory === 'cash_receipt' && (snapshot?.amountCents || 0) > 25000
     );
   });
 
@@ -923,7 +1008,7 @@ export class SubmissionAssistantComponent implements OnInit {
     this.orgId.set(orgId);
     this.breadcrumbs[0].path = `/organizations/${orgId}/submissions`;
     this.loadData();
-    this.setupBankValidation();
+    this.setupConditionalValidation();
     this.setupFormWatchers();
     this.addInvoiceItem();
   }
@@ -938,33 +1023,61 @@ export class SubmissionAssistantComponent implements OnInit {
     });
   }
 
-  private setupBankValidation(): void {
+  private setupConditionalValidation(): void {
     const paymentControl = this.form.get('paymentMethod');
-    const bankDetails = this.form.get('bankDetails');
-    const bankDetailsConfirmed = this.form.get('bankDetailsConfirmed');
+    const currentMethod = (paymentControl?.value ?? 'bank_transfer') as PayoutMethod;
+    this.selectedPaymentMethod.set(currentMethod);
+    // The radios pre-select their defaults, so the watchers below only fire
+    // on real changes — the initial path state must be applied here too.
+    this.applyConditionalValidators();
+    paymentControl?.valueChanges.subscribe((method) => {
+      this.selectedPaymentMethod.set((method ?? 'bank_transfer') as PayoutMethod);
+      this.applyConditionalValidators();
+    });
+  }
 
-    const applyValidation = (method: PayoutMethod | null | undefined) => {
-      const currentMethod = (method ?? 'bank_transfer') as PayoutMethod;
-      this.selectedPaymentMethod.set(currentMethod);
+  // The wizard only asks the detail questions of the settlement branch the
+  // user picked, but all branches share one form. Each branch's required
+  // validators are therefore only applied while its question is part of the
+  // current wizard path — a dormant branch (e.g. bank details for a
+  // committee-account settlement) must not contribute invalidity, or
+  // form.valid never becomes true and the review step's submit button stays
+  // disabled forever.
+  private applyConditionalValidators(): void {
+    // Only the expense path of a single receipt asks settlement details.
+    const settlement =
+      this.selectedKind() === 'single_receipt' && this.selectedDirection() === 'expense'
+        ? this.selectedSettlement()
+        : null;
 
-      if (currentMethod === 'bank_transfer') {
-        bankDetails?.get('accountHolder')?.setValidators(Validators.required);
-        bankDetails?.get('iban')?.setValidators(Validators.required);
-        bankDetailsConfirmed?.setValidators(Validators.requiredTrue);
-      } else {
-        bankDetails?.get('accountHolder')?.clearValidators();
-        bankDetails?.get('iban')?.clearValidators();
-        bankDetailsConfirmed?.clearValidators();
-        bankDetailsConfirmed?.setValue(false, { emitEvent: false });
-      }
-
-      bankDetails?.get('accountHolder')?.updateValueAndValidity();
-      bankDetails?.get('iban')?.updateValueAndValidity();
-      bankDetailsConfirmed?.updateValueAndValidity();
+    const setRequired = (control: AbstractControl | null, required: boolean) => {
+      control?.setValidators(required ? [Validators.required] : []);
+      control?.updateValueAndValidity({ emitEvent: false });
     };
 
-    applyValidation(paymentControl?.value as PayoutMethod);
-    paymentControl?.valueChanges.subscribe((method) => applyValidation(method as PayoutMethod));
+    const committeeAccountDetails = this.form.get('committeeAccountDetails');
+    setRequired(
+      committeeAccountDetails?.get('paymentAccountUid') ?? null,
+      settlement === 'committee_account'
+    );
+    setRequired(committeeAccountDetails?.get('paidDate') ?? null, settlement === 'committee_account');
+
+    const paymentRequestDetails = this.form.get('paymentRequestDetails');
+    setRequired(paymentRequestDetails?.get('vendorName') ?? null, settlement === 'payment_request');
+    setRequired(paymentRequestDetails?.get('vendorIban') ?? null, settlement === 'payment_request');
+
+    const bankDetails = this.form.get('bankDetails');
+    const bankDetailsConfirmed = this.form.get('bankDetailsConfirmed');
+    const bankRequired =
+      settlement === 'person'
+      && ((this.form.get('paymentMethod')?.value ?? 'bank_transfer') as PayoutMethod) === 'bank_transfer';
+    setRequired(bankDetails?.get('accountHolder') ?? null, bankRequired);
+    setRequired(bankDetails?.get('iban') ?? null, bankRequired);
+    bankDetailsConfirmed?.setValidators(bankRequired ? [Validators.requiredTrue] : []);
+    bankDetailsConfirmed?.updateValueAndValidity({ emitEvent: false });
+    if (!bankRequired && bankDetailsConfirmed?.value) {
+      bankDetailsConfirmed.setValue(false, { emitEvent: false });
+    }
   }
 
   private setupFormWatchers(): void {
@@ -975,16 +1088,73 @@ export class SubmissionAssistantComponent implements OnInit {
 
     this.form.get('committeeId')?.valueChanges.subscribe((id) => {
       this.selectedCommitteeId.set(id ?? '');
+
+      // The committee gates two answers: a committee-account settlement
+      // references one of its payment accounts, and the scope question is
+      // only offered when the committee allows it. Drop both when the newly
+      // chosen committee cannot support them (the server forces NONPROFIT
+      // for income_expense without allow_scope_selection anyway).
+      const committee = this.committees().find((c) => c.id === (id ?? ''));
+      if (!committee) return;
+
+      const accountUid = this.form.get('committeeAccountDetails.paymentAccountUid')?.value;
+      if (accountUid && !committee.paymentAccounts.some((pa) => pa.uid === accountUid)) {
+        this.form.get('settlement')?.setValue('person', { emitEvent: false });
+        this.form.get('committeeAccountDetails.paymentAccountUid')?.setValue('', {
+          emitEvent: false,
+        });
+        this.selectedSettlement.set('person');
+        this.applyConditionalValidators();
+      }
+
+      if (!committee.allowScopeSelection && this.selectedSubmissionScope() !== 'hoheitlich') {
+        this.form.get('submissionScope')?.setValue('hoheitlich', { emitEvent: false });
+        this.selectedSubmissionScope.set('hoheitlich');
+        this.updateSubmissionWarnings();
+      }
+    });
+
+    this.form.get('kind')?.valueChanges.subscribe((kindValue) => {
+      const kind = (kindValue as SubmissionKind) ?? 'single_receipt';
+      this.selectedKind.set(kind);
+
+      // For Abrechnung/Sonstiges the kind itself is the item category and the
+      // amount lives in the document, so no per-item amount is asked for.
+      const category = kind === 'single_receipt' ? '' : kind;
+      const amountValidators = kind === 'single_receipt' ? [Validators.required, Validators.min(0.01)] : [];
+      this.invoiceItems.controls.forEach((group) => {
+        group.get('receiptCategory')?.setValue(category, { emitEvent: false });
+        const amount = group.get('amount');
+        amount?.setValidators(amountValidators);
+        amount?.setValue(0, { emitEvent: false });
+        amount?.updateValueAndValidity({ emitEvent: false });
+      });
+      this.updateInvoiceDerivedState();
+      this.applyConditionalValidators();
     });
 
     this.form.get('direction')?.valueChanges.subscribe((direction) => {
-      this.selectedDirection.set((direction as 'expense' | 'income') ?? 'expense');
+      const nextDirection = (direction as ReceiptDirection) ?? 'expense';
+      this.selectedDirection.set(nextDirection);
+
+      // Reset categories that are no longer selectable for the new
+      // direction (e.g. "Rechnung" from an expense after switching to income).
+      const allowedCategories = selectableReceiptCategories(this.selectedKind(), nextDirection);
+      this.invoiceItems.controls.forEach((group) => {
+        const category = group.get('receiptCategory');
+        if (category?.value && !allowedCategories.includes(category.value as ReceiptCategory)) {
+          category.setValue('', { emitEvent: false });
+        }
+      });
+      this.updateInvoiceDerivedState();
+      this.applyConditionalValidators();
     });
 
     this.form.get('settlement')?.valueChanges.subscribe((settlement) => {
       this.selectedSettlement.set(
         (settlement as 'person' | 'committee_account' | 'payment_request') ?? 'person'
       );
+      this.applyConditionalValidators();
     });
 
     this.form.get('notice')?.valueChanges.subscribe((notice) => {
@@ -1022,14 +1192,14 @@ export class SubmissionAssistantComponent implements OnInit {
 
   private updateSubmissionWarnings(): void {
     const items = (this.invoiceItems.value as InvoiceItemForm[] | null) ?? [];
+    const submittableCategories = submittableReceiptCategories(
+      this.selectedKind(),
+      this.selectedDirection()
+    );
 
     this.hasSubmittableBillType.set(
-      items.some(
-        (item) => item.receiptCategory === 'rechnung'
-          || item.receiptCategory === 'quittung_kassenbon'
-          || item.receiptCategory === 'eigenbeleg'
-          || item.receiptCategory === 'fahrtkostennachweis'
-          || item.receiptCategory === 'sonstige',
+      items.some((item) =>
+        submittableCategories.includes(item.receiptCategory as ReceiptCategory),
       ),
     );
 
@@ -1039,19 +1209,107 @@ export class SubmissionAssistantComponent implements OnInit {
 
     this.hasCommercialReceiptSubmissionWarning.set(
       this.selectedSubmissionScope() === 'gewerblich'
-        && items.some((item) => item.receiptCategory === 'quittung_kassenbon'),
+        && items.some((item) => item.receiptCategory === 'cash_receipt'),
     );
   }
 
   // --- Navigation ---------------------------------------------------------
 
+  // Steps whose answer lives in one of the submission-level proto fields
+  // (committee, type oneof with scope/direction/settlement details, notice).
+  private static readonly draftAnswerSteps: ReadonlyArray<StepId> = [
+    'committee',
+    'kind',
+    'direction',
+    'scope',
+    'settlement',
+    'payment',
+    'bankDetails',
+    'accountPaid',
+    'vendorDetails',
+    'notice',
+  ];
+
   next(): void {
+    if (this.saving()) return; // a blocking draft operation is in flight
     if (!this.validateCurrentStep()) return;
-    this.cursor.set(Math.min(this.cursor() + 1, this.steps().length - 1));
+    const step = this.currentStep();
+
+    // The server requires the committee and the type structure (for
+    // income_expense also the direction) at CreateSubmission, so the draft is
+    // created the moment the last of those questions is answered. Creation
+    // blocks the navigation until it succeeds.
+    if (!this.draftId() && this.draftCreationReady(step)) {
+      this.createDraftThenProceed();
+      return;
+    }
+
+    this.advance();
+    if (step.id === 'scope') {
+      this.scopeAnswered.set(true);
+    }
+    if (step.id === 'settlement') {
+      this.settlementAnswered.set(true);
+    }
+    this.persistAnswerFor(step);
+    if (step.id === 'receiptExtras') {
+      // The receipt's questions are all answered — persist it as a
+      // submission item (with its attachment) on the draft.
+      this.persistReceiptInBackground(step.receiptIndex ?? 0);
+    }
   }
 
   back(): void {
     this.cursor.set(Math.max(this.cursor() - 1, 0));
+  }
+
+  private advance(): void {
+    this.cursor.set(Math.min(this.cursor() + 1, this.steps().length - 1));
+  }
+
+  private draftCreationReady(step: WizardStep): boolean {
+    if (this.draftId()) return false;
+    // misc (Abrechnung/Sonstiges) carries no direction, so the type is
+    // complete right after the kind question.
+    if (step.id === 'kind' && this.selectedKind() !== 'single_receipt') return true;
+    // single_receipt: the direction step completes the type structure.
+    return step.id === 'direction';
+  }
+
+  private createDraftThenProceed(): void {
+    this.saving.set(true);
+    this.dataService.createDraft(this.buildSubmissionParams()).subscribe({
+      next: (draft) => {
+        this.saving.set(false);
+        this.draftId.set(draft.id);
+        this.advance();
+      },
+      error: () => {
+        this.saving.set(false);
+        this.notifications.error(
+          $localize`Der Entwurf konnte nicht erstellt werden. Bitte prüfe deine Verbindung und versuche es erneut.`
+        );
+      },
+    });
+  }
+
+  // Writes the submission-level answers of the given step into the draft
+  // (full replace of the mutable fields). Steps that only prepare a later
+  // answer (intro, receiptMore, declarations, review) persist nothing.
+  private persistAnswerFor(step: WizardStep): void {
+    if (!this.draftId() || !SubmissionAssistantComponent.draftAnswerSteps.includes(step.id)) {
+      return;
+    }
+    this.persistDraftAnswers().subscribe({
+      error: () =>
+        this.notifications.error(
+          $localize`Die Antwort konnte nicht gespeichert werden - deine Angaben bleiben im Formular erhalten.`
+        ),
+    });
+  }
+
+  private persistDraftAnswers() {
+    return this.dataService.updateDraft(this.draftId(), this.buildSubmissionParams());
   }
 
   goToStep(id: StepId): void {
@@ -1062,9 +1320,10 @@ export class SubmissionAssistantComponent implements OnInit {
   }
 
   goToReceipt(receiptIndex: number): void {
-    const index = this.steps().findIndex(
-      (step) => step.id === 'receiptCategory' && step.receiptIndex === receiptIndex,
-    );
+    // The first question of the receipt — receiptCategory for single
+    // receipts, receiptForm for Abrechnung/Sonstiges (their category is
+    // fixed by the kind, so no category question exists).
+    const index = this.steps().findIndex((step) => step.receiptIndex === receiptIndex);
     if (index >= 0) {
       this.cursor.set(index);
     }
@@ -1090,6 +1349,9 @@ export class SubmissionAssistantComponent implements OnInit {
       case 'committee':
         paths.push('committeeId');
         break;
+      case 'kind':
+        paths.push('kind');
+        break;
       case 'direction':
         paths.push('direction');
         break;
@@ -1102,8 +1364,7 @@ export class SubmissionAssistantComponent implements OnInit {
       case 'vendorDetails':
         paths.push(
           'paymentRequestDetails.vendorName',
-          'paymentRequestDetails.vendorIban',
-          'paymentRequestDetails.timing'
+          'paymentRequestDetails.vendorIban'
         );
         break;
       case 'bankDetails':
@@ -1149,12 +1410,19 @@ export class SubmissionAssistantComponent implements OnInit {
   // --- Receipts -----------------------------------------------------------
 
   addInvoiceItem(): void {
+    const kind = this.selectedKind();
     const itemGroup = this.fb.group({
       documentForm: ['paper_original' as Belegform, Validators.required],
-      receiptCategory: ['', Validators.required],
+      receiptCategory: [kind === 'single_receipt' ? '' : (kind as ReceiptCategory), Validators.required],
       description: [''],
-      amount: [0, [Validators.required, Validators.min(0.01)]],
+      amount: [0, kind === 'single_receipt' ? [Validators.required, Validators.min(0.01)] : []],
       attachment: [null as File | null],
+      // Draft bookkeeping (not user-facing): the server-side submission item
+      // id ('' = not persisted yet), the id of the uploaded attachment and the
+      // File object the upload came from.
+      uid: [''],
+      attachmentId: [''],
+      uploadedFile: [null as File | null],
     });
     this.invoiceItems.push(itemGroup);
     this.receiptCount.set(this.invoiceItems.length);
@@ -1163,10 +1431,93 @@ export class SubmissionAssistantComponent implements OnInit {
 
   removeReceipt(index: number): void {
     if (this.invoiceItems.length <= 1) return;
-    this.invoiceItems.removeAt(index);
-    this.receiptCount.set(this.invoiceItems.length);
-    this.updateInvoiceDerivedState();
-    this.cursor.set(this.steps().length - 1);
+    const group = this.invoiceItems.at(index) as FormGroup | undefined;
+    const uid = (group?.get('uid')?.value as string) || '';
+    const draftId = this.draftId();
+
+    const finishRemoval = () => {
+      this.invoiceItems.removeAt(index);
+      this.receiptCount.set(this.invoiceItems.length);
+      this.updateInvoiceDerivedState();
+      this.cursor.set(this.steps().length - 1);
+    };
+
+    // A receipt that already exists on the draft must be removed there too,
+    // otherwise :submit would pick up the stale item again.
+    if (uid && draftId) {
+      this.saving.set(true);
+      this.dataService.removeDraftItem(draftId, uid).subscribe({
+        next: () => {
+          this.saving.set(false);
+          finishRemoval();
+        },
+        error: () => {
+          this.saving.set(false);
+          this.notifications.error($localize`Der Beleg konnte nicht gelöscht werden. Bitte versuche es erneut.`);
+        },
+      });
+    } else {
+      finishRemoval();
+    }
+  }
+
+  // Creates or updates the submission item of a receipt on the draft and
+  // syncs its attachment (upload new, replace or remove). Safe to call
+  // repeatedly — the local bookkeeping controls make it idempotent.
+  private persistReceipt(index: number) {
+    const draftId = this.draftId();
+    const group = this.invoiceItems.at(index) as FormGroup | undefined;
+    if (!draftId || !group) return of(undefined);
+
+    const params = this.buildItemParams(index);
+    const uid = (group.get('uid')?.value as string) || '';
+    const file = (group.get('attachment')?.value as File | null) ?? null;
+    const uploadedFile = (group.get('uploadedFile')?.value as File | null) ?? null;
+    const attachmentId = (group.get('attachmentId')?.value as string) || '';
+
+    const item$ = uid
+      ? this.dataService.updateDraftItem(draftId, uid, params)
+      : this.dataService.createDraftItem(draftId, params).pipe(
+          tap((item) => group.get('uid')?.setValue(item.id, { emitEvent: false })),
+        );
+
+    return item$.pipe(
+      switchMap((item) => {
+        const itemUid = uid || item.id;
+        if (file === uploadedFile) return of(undefined);
+        if (file) {
+          const clearPrevious$ = attachmentId
+            ? this.dataService.removeDraftAttachment(draftId, itemUid, attachmentId)
+            : of(undefined);
+          return clearPrevious$.pipe(
+            switchMap(() => this.dataService.uploadDraftAttachment(draftId, itemUid, file)),
+            tap((attachment) => {
+              group.get('attachmentId')?.setValue(attachment.id, { emitEvent: false });
+              group.get('uploadedFile')?.setValue(file, { emitEvent: false });
+            }),
+          );
+        }
+        if (attachmentId) {
+          return this.dataService.removeDraftAttachment(draftId, itemUid, attachmentId).pipe(
+            tap(() => {
+              group.get('attachmentId')?.setValue('', { emitEvent: false });
+              group.get('uploadedFile')?.setValue(null, { emitEvent: false });
+            }),
+          );
+        }
+        return of(undefined);
+      }),
+      map(() => undefined),
+    );
+  }
+
+  private persistReceiptInBackground(index: number): void {
+    this.persistReceipt(index).subscribe({
+      error: () =>
+        this.notifications.error(
+          $localize`Der Beleg konnte nicht gespeichert werden - deine Angaben bleiben im Formular erhalten.`
+        ),
+    });
   }
 
   // --- Submission ---------------------------------------------------------
@@ -1179,68 +1530,142 @@ export class SubmissionAssistantComponent implements OnInit {
     }
   }
 
+  // Maps the current wizard answers onto the submission-level payload of the
+  // protobuf API: the type oneof (income_expense with scope, direction oneof
+  // and the settlement oneof inside the expense details — or misc) plus
+  // committee and notice. Receipts are not part of it; they live on as
+  // submission item sub-resources (see persistReceipt).
+  private buildSubmissionParams(): CreateSubmissionParams {
+    const formValue = this.form.value;
+
+    // Abrechnung/Sonstiges map to misc submissions (documentation only, no
+    // direction, scope or settlement); the kind itself becomes the item
+    // category.
+    const kind = (formValue.kind ?? 'single_receipt') as SubmissionKind;
+    const isSingleReceipt = kind === 'single_receipt';
+    const isExpense = isSingleReceipt && this.selectedDirection() === 'expense';
+
+    // The settlement oneof (inside the expense direction details) is only
+    // written once the settlement question AND its detail questions are
+    // answered: intermediate states either carry invalid payloads (a
+    // committee account settlement without an account resource name) or
+    // would prematurely pin details the user has not confirmed yet. Until
+    // then the draft keeps an empty expense branch ("settlement not picked
+    // yet"), which the API explicitly supports for drafts.
+    let settlement: SettlementPayload | null = null;
+    if (isExpense && this.settlementAnswered()) {
+      switch (this.selectedSettlement()) {
+        case 'committee_account': {
+          const accountUid = formValue.committeeAccountDetails?.paymentAccountUid || '';
+          const paidDate = formValue.committeeAccountDetails?.paidDate;
+          if (accountUid && paidDate) {
+            settlement = {
+              kind: 'committee_account',
+              paymentAccountUid: accountUid,
+              paidDate: new Date(paidDate),
+              paymentReference: formValue.committeeAccountDetails?.paymentReference || null,
+            };
+          }
+          break;
+        }
+        case 'payment_request': {
+          const vendorName = formValue.paymentRequestDetails?.vendorName || '';
+          const vendorIban = formValue.paymentRequestDetails?.vendorIban || '';
+          if (vendorName && vendorIban) {
+            settlement = {
+              kind: 'payment_request',
+              bankDetails: {
+                accountHolder: vendorName,
+                iban: vendorIban,
+                bic: formValue.paymentRequestDetails?.vendorBic || null,
+                accountNumber: null,
+              },
+            };
+          }
+          break;
+        }
+        default: {
+          if (formValue.paymentMethod === 'cash') {
+            settlement = { kind: 'person', payoutMethod: 'cash', bankDetails: null };
+          } else {
+            const accountHolder = formValue.bankDetails?.accountHolder || '';
+            const iban = formValue.bankDetails?.iban || '';
+            if (accountHolder && iban) {
+              settlement = {
+                kind: 'person',
+                payoutMethod: 'bank_transfer',
+                bankDetails: {
+                  accountHolder,
+                  iban,
+                  bic: formValue.bankDetails?.bic || null,
+                  accountNumber: null,
+                },
+              };
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      committeeId: formValue.committeeId!,
+      type: isSingleReceipt ? 'income_expense' : 'misc',
+      direction: isSingleReceipt ? ((formValue.direction ?? 'expense') as ReceiptDirection) : null,
+      settlement,
+      // The scope is only sent once its question has been answered; before
+      // that it stays unspecified (the server forces NONPROFIT for committees
+      // without allow_scope_selection anyway).
+      scope:
+        isSingleReceipt && this.scopeAnswered()
+          ? this.scopeSelectable()
+            ? ((formValue.submissionScope ?? 'hoheitlich') as SubmissionScope)
+            : 'hoheitlich'
+          : null,
+      notice: (formValue.notice || '').trim() || null,
+      items: [],
+    };
+  }
+
+  private buildItemParams(index: number): CreateItemParams {
+    const group = this.invoiceItems.at(index) as FormGroup;
+    const value = group.value as InvoiceItemForm;
+    const kind = this.selectedKind();
+    return {
+      // For Abrechnung/Sonstiges the kind itself is the item category.
+      category: kind === 'single_receipt' ? (value.receiptCategory as string) : kind,
+      documentForm: value.documentForm,
+      source: null,
+      description: value.description?.trim() || null,
+      amount: Math.round((Number(value.amount) || 0) * 100),
+    };
+  }
+
   submit(): void {
+    if (this.saving()) return;
     if (!this.form.valid || this.invoiceItems.length === 0 || !this.hasSubmittableBillType()) return;
 
     this.saving.set(true);
-    const formValue = this.form.value;
 
-    const direction = (formValue.direction ?? 'expense') as 'expense' | 'income';
-    const scope: SubmissionScope = this.scopeSelectable()
-      ? ((formValue.submissionScope ?? 'hoheitlich') as SubmissionScope)
-      : 'hoheitlich';
+    // Write every answer through to the draft (covers answers whose
+    // background persist failed or was skipped), then hand the draft to the
+    // treasury review — :submit validates completeness (DRAFT → PENDING).
+    const ensureDraft$ = this.draftId()
+      ? of(this.draftId())
+      : this.dataService
+          .createDraft(this.buildSubmissionParams())
+          .pipe(map((draft) => draft.id));
 
-    const settlement: SettlementPayload | null =
-      direction === 'income'
-        ? null
-        : this.selectedSettlement() === 'committee_account'
-          ? {
-              kind: 'committee_account',
-              paymentAccountUid: formValue.committeeAccountDetails?.paymentAccountUid || '',
-              paidDate: formValue.committeeAccountDetails?.paidDate
-                ? new Date(formValue.committeeAccountDetails.paidDate)
-                : null,
-              paymentReference: formValue.committeeAccountDetails?.paymentReference || null,
-            }
-          : this.selectedSettlement() === 'payment_request'
-            ? {
-                kind: 'payment_request',
-                vendorName: formValue.paymentRequestDetails?.vendorName || '',
-                vendorIban: formValue.paymentRequestDetails?.vendorIban || '',
-                vendorBic: formValue.paymentRequestDetails?.vendorBic || null,
-                timing: (formValue.paymentRequestDetails?.timing || 'on_invoice') as 'on_invoice' | 'advance',
-              }
-            : {
-                kind: 'person',
-                payoutMethod: (formValue.paymentMethod as 'bank_transfer' | 'cash') ?? 'bank_transfer',
-                bankDetails:
-                  formValue.paymentMethod === 'bank_transfer'
-                    ? {
-                        accountHolder: formValue.bankDetails?.accountHolder || '',
-                        iban: formValue.bankDetails?.iban || '',
-                        bic: formValue.bankDetails?.bic || null,
-                      }
-                    : null,
-              };
-
-    const items = (formValue.invoiceItems as InvoiceItemForm[] || []).map((item) => ({
-      category: item.receiptCategory,
-      documentForm: item.documentForm,
-      source: null,
-      description: item.description?.trim() || null,
-      amount: Math.round((Number(item.amount) || 0) * 100),
-    }));
-
-    this.dataService
-      .createSubmissionDraft({
-        committeeId: formValue.committeeId!,
-        direction,
-        settlement,
-        scope,
-        notice: (formValue.notice || '').trim() || null,
-        items,
-      })
-      .pipe(switchMap((draft) => this.dataService.submitSubmission(draft.id)))
+    ensureDraft$
+      .pipe(
+        tap((draftId) => this.draftId.set(draftId)),
+        switchMap((draftId) =>
+          forkJoin([
+            this.dataService.updateDraft(draftId, this.buildSubmissionParams()),
+            forkJoin(this.invoiceItems.controls.map((_, index) => this.persistReceipt(index))),
+          ]),
+        ),
+        switchMap(() => this.dataService.submitSubmission(this.draftId())),
+      )
       .subscribe({
         next: (submission) => {
           this.saving.set(false);

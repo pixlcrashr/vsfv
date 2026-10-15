@@ -14,6 +14,9 @@ export interface Committee {
   // Payment accounts held by the committee (bank account / cash box). Empty
   // means the committee cannot settle from its own account.
   paymentAccounts: CommitteePaymentAccount[];
+  // Whether the committee is referenced by other resources (currently
+  // submissions). A referenced committee cannot be deleted.
+  isReferenced: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

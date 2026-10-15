@@ -1,12 +1,13 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideAppInitializer, inject } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { provideOAuthClient, OAuthService } from 'angular-oauth2-oidc';
+import { debounceTime, filter, firstValueFrom } from 'rxjs';
+import { provideOAuthClient, OAuthService, OAuthInfoEvent } from 'angular-oauth2-oidc';
 import { provideApiConfiguration } from './provide-api-configuration';
 import { environment } from '../environments/environment';
 import { authConfig } from './auth/auth.config';
 import { authInterceptor } from './auth/auth.interceptor';
+import { isSessionUnrecoverable, refreshAccessToken } from './auth/token-refresh';
 
 import { routes } from './app.routes';
 
@@ -19,16 +20,43 @@ import { CreateAccountDialogDataService } from './shared/dialogs/create-account-
 import { CreateReportDialogDataService } from './shared/dialogs/create-report-dialog/create-report-dialog.data-service';
 import { AddReceiptDialogDataService } from './shared/dialogs/add-receipt-dialog/add-receipt-dialog.data-service';
 import { CreateOrganizationDialogDataService } from './shared/dialogs/create-organization-dialog/create-organization-dialog.data-service';
+import { OrganizationStoreDataService } from './shared/services/organization-store.data-service';
 import { AuthorizationDataService } from '../lib/authz/authorization.service';
 import { CurrentUserService, CurrentUserInitializer, CurrentUserInfo } from '../lib/authz/current-user.service';
 
 async function initializeAuthAndUser(): Promise<void> {
   const oauthService = inject(OAuthService);
+  const router = inject(Router);
   const currentUserInitializer = inject(CurrentUserInitializer);
 
   if (environment.requireLogin) {
     oauthService.configure(authConfig);
     await oauthService.loadDiscoveryDocumentAndTryLogin();
+
+    // Background token refresh: shortly before the access token expires the
+    // library fires `token_expires` (default: at 75% of the token lifetime);
+    // refresh it via the refresh token grant (requested through the offline
+    // scope) so a session outlives the token TTL without repeating the
+    // authorization flow.
+    oauthService.events
+      .pipe(
+        filter((e) => e.type === 'token_expires' && (e as OAuthInfoEvent).info === 'access_token'),
+        debounceTime(1000),
+      )
+      .subscribe(() => {
+        if (!oauthService.getRefreshToken()) {
+          return;
+        }
+        void refreshAccessToken(oauthService).catch((err: unknown) => {
+          // Only drop the session when the server definitively rejected the
+          // refresh token; transient failures are retried on demand by the
+          // auth interceptor's 401 handling.
+          if (isSessionUnrecoverable(err) && !oauthService.hasValidAccessToken()) {
+            oauthService.logOut();
+            void router.navigate(['/login']);
+          }
+        });
+      });
   }
 
   await firstValueFrom(currentUserInitializer.initialize());
@@ -50,6 +78,8 @@ export const appConfig: ApplicationConfig = {
     { provide: CreateReportDialogDataService, useClass: environment.dataServices.createReportDialog },
     { provide: AddReceiptDialogDataService, useClass: environment.dataServices.addReceiptDialog },
     { provide: CreateOrganizationDialogDataService, useClass: environment.dataServices.createOrganizationDialog },
+    // Shared organization store (sidebar switcher, admin routes, import/export)
+    { provide: OrganizationStoreDataService, useClass: environment.dataServices.organizationStore },
     { provide: AuthorizationDataService, useClass: environment.dataServices.authorizationData },
     { provide: CurrentUserService, useClass: environment.dataServices.currentUser },
     provideAppInitializer(initializeAuthAndUser),

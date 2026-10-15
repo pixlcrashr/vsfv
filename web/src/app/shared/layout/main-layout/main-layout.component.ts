@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, OnInit, computed, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, OnInit, computed, OnDestroy, effect } from '@angular/core';
 import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, filter } from 'rxjs';
@@ -7,7 +7,7 @@ import { faSun, faMoon, faGear, faRightFromBracket, faCircleUser } from '@fortaw
 import { MenuItem, Organization } from '../../models';
 import { getMostRecentOrganization } from '../../utils/organization.utils';
 import { CurrentOrganizationService } from '../../services/current-organization.service';
-import { MainLayoutDataService } from './main-layout.data-service';
+import { OrganizationStoreService } from '../../services/organization-store.service';
 import { CurrentUserService, CurrentUserInfo } from '../../../../lib/authz/current-user.service';
 import { AuthorizationService } from '../../../../lib/authz/authorization.service';
 import { Permissions } from '../../../../lib/authz/permissions';
@@ -216,9 +216,9 @@ import { Permissions } from '../../../../lib/authz/permissions';
 export class MainLayoutComponent implements OnInit {
   protected readonly router = inject(Router);
   private readonly currentOrganizationService = inject(CurrentOrganizationService);
-  private readonly dataService = inject(MainLayoutDataService);
   private readonly currentUserService = inject(CurrentUserService);
   private readonly authorizationService = inject(AuthorizationService);
+  private readonly organizationStore = inject(OrganizationStoreService);
 
   readonly faSun = faSun;
   readonly faMoon = faMoon;
@@ -227,7 +227,8 @@ export class MainLayoutComponent implements OnInit {
   readonly faCircleUser = faCircleUser;
 
   readonly isDarkMode = signal(false);
-  readonly organizations = signal<Organization[]>([]);
+  /** Shared organization list — updated in place on create/import/rename/delete. */
+  readonly organizations = computed<Organization[]>(() => this.organizationStore.organizations() ?? []);
   readonly loading = signal(true);
   readonly currentUser = signal<CurrentUserInfo | null>(null);
   readonly hasAdminAccess = signal(false);
@@ -259,6 +260,7 @@ export class MainLayoutComponent implements OnInit {
       { name: $localize`Dashboard`, path: `/organizations/${orgId}/dashboard` },
       { name: $localize`Einstellungen`, path: `/organizations/${orgId}/settings` },
       { name: $localize`Audit-Log`, path: `/organizations/${orgId}/auditLog` },
+      { name: $localize`Gremien`, path: `/organizations/${orgId}/committees` },
     ];
   });
 
@@ -294,6 +296,16 @@ export class MainLayoutComponent implements OnInit {
 
   constructor() {
     this.initializeTheme();
+
+    // React to every organization list change — the initial load as well as
+    // refreshes triggered by admin routes after create/import/rename/delete.
+    effect(() => {
+      const orgs = this.organizationStore.organizations();
+      if (orgs !== null) {
+        this.applyOrganizations(orgs);
+      }
+    });
+
     // Setup organization change handler
     this.orgChangeSubject.pipe(
       takeUntil(this.destroy$)
@@ -378,45 +390,83 @@ export class MainLayoutComponent implements OnInit {
     }
   }
 
-  private loadOrganizations(): void {
-    this.loading.set(true);
-    this.dataService.getOrganizations().subscribe({
-      next: (orgs) => {
-        this.organizations.set(orgs);
-        this.loading.set(false);
+  /**
+   * Syncs the UI with a (possibly updated) organization list: refreshes the
+   * current organization object on renames, reselects a default when the
+   * current organization was deleted, and applies the URL/default selection.
+   */
+  private applyOrganizations(orgs: Organization[]): void {
+    this.loading.set(false);
 
-        const currentOrg = this.currentOrganizationService.currentOrganization();
-        const urlOrgId = this.orgIdFromUrl();
+    const currentOrg = this.currentOrganizationService.currentOrganization();
+    const urlOrgId = this.orgIdFromUrl();
 
-        if (urlOrgId) {
-          const org = orgs.find((o) => o.id === urlOrgId);
-          if (org) {
-            if (!currentOrg || currentOrg.id !== org.id) {
-              this.selectOrganization(org.id);
-            } else {
-              this.currentOrganizationId.set(org.id);
-            }
-          } else if (!currentOrg && orgs.length > 0) {
-            const defaultOrg = getMostRecentOrganization(orgs);
-            if (defaultOrg) {
-              this.selectOrganization(defaultOrg.id);
-            }
-          }
-        } else if (currentOrg) {
-          this.currentOrganizationId.set(currentOrg.id);
-          if (this.router.url === '/' || this.router.url === '') {
-            this.router.navigate(['/organizations', currentOrg.id, 'dashboard']);
-          }
-        } else if (orgs.length > 0) {
-          const defaultOrg = getMostRecentOrganization(orgs);
-          if (defaultOrg) {
-            this.selectOrganization(defaultOrg.id);
-            if (this.router.url === '/' || this.router.url === '') {
-              this.router.navigate(['/organizations', defaultOrg.id, 'dashboard']);
-            }
+    const selectDefault = (): void => {
+      const defaultOrg = getMostRecentOrganization(orgs);
+      if (defaultOrg) {
+        this.selectOrganization(defaultOrg.id);
+      } else {
+        this.selectOrganization('');
+      }
+    };
+
+    if (urlOrgId) {
+      const org = orgs.find((o) => o.id === urlOrgId);
+      if (org) {
+        if (!currentOrg || currentOrg.id !== org.id) {
+          this.selectOrganization(org.id);
+        } else if (currentOrg.name !== org.name) {
+          // The organization was renamed elsewhere (e.g. admin edit route).
+          this.currentOrganizationService.setOrganization(org);
+        } else {
+          this.currentOrganizationId.set(org.id);
+        }
+      } else if (!currentOrg && orgs.length > 0) {
+        selectDefault();
+      } else if (currentOrg && !orgs.some((o) => o.id === currentOrg.id)) {
+        // The current organization was deleted elsewhere.
+        selectDefault();
+        const urlOrgMatch = this.router.url.match(/^\/organizations\/([^/?#]+)/);
+        if (urlOrgMatch && urlOrgMatch[1] === currentOrg.id) {
+          const target = this.currentOrganizationService.currentOrganization();
+          if (target) {
+            this.router.navigate(['/organizations', target.id, 'dashboard']);
+          } else {
+            this.router.navigate(['/']);
           }
         }
-      },
+      }
+    } else if (currentOrg) {
+      const fresh = orgs.find((o) => o.id === currentOrg.id);
+      if (fresh) {
+        if (currentOrg.name !== fresh.name) {
+          this.currentOrganizationService.setOrganization(fresh);
+        }
+        this.currentOrganizationId.set(fresh.id);
+        if (this.router.url === '/' || this.router.url === '') {
+          this.router.navigate(['/organizations', fresh.id, 'dashboard']);
+        }
+      } else if (!orgs.some((o) => o.id === currentOrg.id)) {
+        selectDefault();
+        const defaultOrg = this.currentOrganizationService.currentOrganization();
+        if (defaultOrg && (this.router.url === '/' || this.router.url === '')) {
+          this.router.navigate(['/organizations', defaultOrg.id, 'dashboard']);
+        }
+      }
+    } else if (orgs.length > 0) {
+      selectDefault();
+      if (this.router.url === '/' || this.router.url === '') {
+        const defaultOrg = this.currentOrganizationService.currentOrganization();
+        if (defaultOrg) {
+          this.router.navigate(['/organizations', defaultOrg.id, 'dashboard']);
+        }
+      }
+    }
+  }
+
+  private loadOrganizations(): void {
+    this.loading.set(true);
+    this.organizationStore.load().subscribe({
       error: () => {
         this.loading.set(false);
       },

@@ -78,6 +78,11 @@ export const Permissions = {
   SUBMISSIONS_COMMENT_OWN: 'submissions:comment_own',
   SUBMISSIONS_UPDATE_OWN: 'submissions:update_own',
 
+  COMMITTEES_READ: 'committees:read',
+  COMMITTEES_CREATE: 'committees:create',
+  COMMITTEES_UPDATE: 'committees:update',
+  COMMITTEES_DELETE: 'committees:delete',
+
   AUDIT_LOGS_READ: 'auditLogs:read',
 } as const;
 

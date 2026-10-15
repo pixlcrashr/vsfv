@@ -55,7 +55,7 @@ import {
                         scope="col"
                         class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500 dark:text-gray-400"
                       >
-                        <ng-container i18n>Typ</ng-container>
+                        <ng-container i18n>Bilanzrolle</ng-container>
                       </th>
                       <th
                         scope="col"
@@ -73,7 +73,13 @@ import {
                       <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <td class="px-3 py-2 text-xs text-gray-900 dark:text-gray-100 font-mono">{{ account.code }}</td>
                         <td class="px-3 py-2 text-xs text-gray-900 dark:text-gray-100">{{ account.displayName || '-' }}</td>
-                        <td class="px-3 py-2 text-xs text-gray-900 dark:text-gray-100">{{ formatAccountType(account.accountType) }}</td>
+                        <td class="px-3 py-2 text-xs text-gray-900 dark:text-gray-100">
+                          @if (account.type === 'LEDGER_ACCOUNT_TYPE_UNSPECIFIED') {
+                            <i i18n>&lt;keine&gt;</i>
+                          } @else {
+                            {{ formatLedgerAccountType(account.type) }}
+                          }
+                        </td>
                         <td class="px-3 py-2 text-xs text-gray-900 dark:text-gray-100">{{ account.displayDescription || '-' }}</td>
                         <td class="px-3 py-2 text-right text-xs">
                           <a
@@ -135,14 +141,11 @@ export class LedgerAccountListComponent implements OnInit {
     });
   }
 
-  formatAccountType(type: string): string {
+  formatLedgerAccountType(type: string): string {
     const typeMap: Record<string, string> = {
-      ACCOUNT_TYPE_ASSET: 'Aktiv',
-      ACCOUNT_TYPE_LIABILITY: 'Passiv',
-      ACCOUNT_TYPE_EQUITY: 'Eigenkapital',
-      ACCOUNT_TYPE_REVENUE: 'Ertrag',
-      ACCOUNT_TYPE_EXPENSE: 'Aufwand',
-      ACCOUNT_TYPE_SYSTEM: 'System',
+      LEDGER_ACCOUNT_TYPE_LIQUIDITY: 'Zahlungsverkehr',
+      LEDGER_ACCOUNT_TYPE_COUNTER: 'Kontokorrent',
+      LEDGER_ACCOUNT_TYPE_START_ACCOUNT: 'Eröffnungskonto',
     };
     return typeMap[type] || type;
   }

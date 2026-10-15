@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
+import { Observable, EMPTY, expand, forkJoin, map, of, switchMap, toArray } from 'rxjs';
 import { Decimal } from 'decimal.js';
 import { BudgetServiceService } from '../../api/services/budget-service.service';
 import { BudgetRevisionServiceService } from '../../api/services/budget-revision-service.service';
@@ -36,19 +36,43 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
     return `organizations/${organizationId}/budgets/${uid}`;
   }
 
+  /** Fetches every page of a list endpoint so no entries are silently dropped. */
+  private listAllPages<T, R>(
+    fetchPage: (pageToken?: string) => Observable<R>,
+    select: (resp: R) => T[],
+  ): Observable<T[]> {
+    return fetchPage(undefined).pipe(
+      expand((resp) => {
+        const next = (resp as { next_page_token?: string }).next_page_token;
+        return next ? fetchPage(next) : EMPTY;
+      }),
+      map(select),
+      toArray(),
+      map((pages) => pages.flat()),
+    );
+  }
+
   override getBudget(organizationId: string, budgetId: string): Observable<BudgetDetails> {
     const name = this.budgetName(organizationId, budgetId);
 
     const budget$ = this.svc.BudgetServiceGetBudget(name);
-    const revisions$ = this.revisionSvc.BudgetRevisionServiceListBudgetRevisions({
-      parent: name,
-      pageSize: 100,
-      orderBy: 'create_time desc',
-    });
-    const currentValues$ = this.accountValueSvc.BudgetAccountValueServiceListBudgetAccountValues({
-      parent: name,
-      pageSize: 100,
-    });
+    const revisions$ = this.listAllPages(
+      (pageToken) => this.revisionSvc.BudgetRevisionServiceListBudgetRevisions({
+        parent: name,
+        pageSize: 100,
+        pageToken,
+        orderBy: 'create_time desc',
+      }),
+      (resp) => resp.revisions ?? [],
+    );
+    const currentValues$ = this.listAllPages(
+      (pageToken) => this.accountValueSvc.BudgetAccountValueServiceListBudgetAccountValues({
+        parent: name,
+        pageSize: 500,
+        pageToken,
+      }),
+      (resp) => resp.account_values ?? [],
+    );
 
     return forkJoin({
       budget: budget$,
@@ -56,15 +80,15 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
       currentValues: currentValues$,
     }).pipe(
       switchMap(({ budget, revisions, currentValues }) => {
-        const tags: BudgetTag[] = (revisions.revisions ?? []).map(mapApiBudgetTag);
+        const tags: BudgetTag[] = revisions.map(mapApiBudgetTag);
 
         const currentMap = new Map<string, Decimal>();
-        for (const av of currentValues.account_values ?? []) {
+        for (const av of currentValues) {
           const accountId = extractUidFromResourceName(av.account);
           currentMap.set(accountId, new Decimal(av.value?.value ?? '0'));
         }
 
-        const latestRevision = revisions.revisions?.[0];
+        const latestRevision = revisions[0];
 
         if (!latestRevision?.name) {
           return of({
@@ -75,81 +99,90 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
           });
         }
 
-        return this.revisionAccountValueSvc
-          .BudgetRevisionAccountValueServiceListBudgetRevisionAccountValues({
-            parent1: latestRevision.name,
-            pageSize: 200,
-          })
-          .pipe(
-            switchMap((revisionValues) => {
-              const revisionMap = new Map<string, Decimal>();
-              for (const rav of revisionValues.account_values ?? []) {
-                const accountId = extractUidFromResourceName(rav.account ?? '');
-                revisionMap.set(accountId, new Decimal(rav.value?.value ?? '0'));
-              }
+        const revisionName = latestRevision.name;
 
-              const changes: BudgetChange[] = [];
-              const allAccountIds = new Set<string>([
-                ...currentMap.keys(),
-                ...revisionMap.keys(),
-              ]);
+        return this.listAllPages(
+          (pageToken) => this.revisionAccountValueSvc
+            .BudgetRevisionAccountValueServiceListBudgetRevisionAccountValues({
+              parent1: revisionName,
+              pageSize: 500,
+              pageToken,
+            }),
+          (resp) => resp.account_values ?? [],
+        ).pipe(
+          switchMap((revisionValues) => {
+            const revisionMap = new Map<string, Decimal>();
+            for (const rav of revisionValues) {
+              const accountId = extractUidFromResourceName(rav.account ?? '');
+              revisionMap.set(accountId, new Decimal(rav.value?.value ?? '0'));
+            }
 
-              for (const accountId of allAccountIds) {
-                const current = currentMap.get(accountId) ?? new Decimal(0);
-                const revision = revisionMap.get(accountId) ?? new Decimal(0);
-                const diff = current.minus(revision);
-                if (!diff.equals(0)) {
-                  changes.push({
-                    accountId,
-                    accountFullCode: '',
-                    accountName: '',
-                    previousValue: revision,
-                    newValue: current,
-                    diff,
-                  });
-                }
-              }
+            const changes: BudgetChange[] = [];
+            const allAccountIds = new Set<string>([
+              ...currentMap.keys(),
+              ...revisionMap.keys(),
+            ]);
 
-              if (changes.length === 0) {
-                return of({
-                  ...mapApiBudget(budget),
-                  tags,
-                  hasUntaggedChanges: false,
-                  changes,
+            for (const accountId of allAccountIds) {
+              const current = currentMap.get(accountId) ?? new Decimal(0);
+              const revision = revisionMap.get(accountId) ?? new Decimal(0);
+              const diff = current.minus(revision);
+              if (!diff.equals(0)) {
+                changes.push({
+                  accountId,
+                  accountFullCode: '',
+                  accountName: '',
+                  previousValue: revision,
+                  newValue: current,
+                  diff,
                 });
               }
+            }
 
-              const orgParent = `organizations/${organizationId}`;
-              return this.accountSvc.AccountServiceListAccounts({
+            if (changes.length === 0) {
+              return of({
+                ...mapApiBudget(budget),
+                tags,
+                hasUntaggedChanges: false,
+                changes,
+              });
+            }
+
+            const orgParent = `organizations/${organizationId}`;
+            return this.listAllPages(
+              (pageToken) => this.accountSvc.AccountServiceListAccounts({
                 parent: orgParent,
                 pageSize: 100,
-              }).pipe(
-                map((accountsResp) => {
-                  const accountMap = new Map<string, { code: string; name: string }>();
-                  for (const a of accountsResp.accounts ?? []) {
-                    accountMap.set(a.uid ?? '', {
-                      code: a.display_code ?? '',
-                      name: a.display_name ?? '',
-                    });
+                pageToken,
+              }),
+              (resp) => resp.accounts ?? [],
+            ).pipe(
+              map((accounts) => {
+                const accountMap = new Map<string, { code: string; name: string }>();
+                for (const a of accounts) {
+                  accountMap.set(a.uid ?? '', {
+                    code: a.display_code ?? '',
+                    name: a.display_name ?? '',
+                  });
+                }
+                for (const c of changes) {
+                  const info = accountMap.get(c.accountId);
+                  if (info) {
+                    c.accountFullCode = info.code;
+                    c.accountName = info.name;
                   }
-                  for (const c of changes) {
-                    const info = accountMap.get(c.accountId);
-                    if (info) {
-                      c.accountFullCode = info.code;
-                      c.accountName = info.name;
-                    }
-                  }
-                  changes.sort((a, b) => naturalCompare(a.accountFullCode, b.accountFullCode));
-                  return {
-                    ...mapApiBudget(budget),
-                    tags,
-                    hasUntaggedChanges: true,
-                    changes,
-                  };
-                }),
-              );
-            }),
-          );
+                }
+                changes.sort((a, b) => naturalCompare(a.accountFullCode, b.accountFullCode));
+                return {
+                  ...mapApiBudget(budget),
+                  tags,
+                  hasUntaggedChanges: true,
+                  changes,
+                };
+              }),
+            );
+          }),
+        );
       }),
     );
   }
@@ -233,20 +266,22 @@ export class HttpBudgetEditDataService extends BudgetEditDataService {
   }
 
   override listAccountLabels(organizationId: string): Observable<ReadonlyMap<string, string>> {
-    return this.accountSvc
-      .AccountServiceListAccounts({
+    return this.listAllPages(
+      (pageToken) => this.accountSvc.AccountServiceListAccounts({
         parent: `organizations/${organizationId}`,
         pageSize: 100,
-      })
-      .pipe(
-        map((resp) => {
-          const map = new Map<string, string>();
-          for (const a of resp.accounts ?? []) {
-            const label = `${a.display_code ?? ''} ${a.display_name ?? ''}`.trim();
-            map.set(a.uid ?? '', label);
-          }
-          return map;
-        }),
-      );
+        pageToken,
+      }),
+      (resp) => resp.accounts ?? [],
+    ).pipe(
+      map((accounts) => {
+        const map = new Map<string, string>();
+        for (const a of accounts) {
+          const label = `${a.display_code ?? ''} ${a.display_name ?? ''}`.trim();
+          map.set(a.uid ?? '', label);
+        }
+        return map;
+      }),
+    );
   }
 }

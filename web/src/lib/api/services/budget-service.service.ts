@@ -11,6 +11,7 @@ import { V1Budget } from '../models/v1budget';
 import { TypeDate } from '../models/type-date';
 import { BudgetServiceCloseBudgetBody } from '../models/budget-service-close-budget-body';
 import { V1ListBudgetsResponse } from '../models/v1list-budgets-response';
+import { BudgetServiceReorderBudgetsBody } from '../models/budget-service-reorder-budgets-body';
 
 /**
  * BudgetService manages financial budgets.
@@ -25,6 +26,7 @@ class BudgetServiceService extends __BaseService {
   static readonly BudgetServiceCloseBudgetPath = '/v1/{name}:close';
   static readonly BudgetServiceListBudgetsPath = '/v1/{parent}/budgets';
   static readonly BudgetServiceCreateBudgetPath = '/v1/{parent}/budgets';
+  static readonly BudgetServiceReorderBudgetsPath = '/v1/{parent}/budgets:reorder';
 
   constructor(
     config: __Configuration,
@@ -266,6 +268,7 @@ class BudgetServiceService extends __BaseService {
    *   If unspecified, at most 20 are returned. Maximum value is 100.
    *
    * - `order_by`: Order by expression (e.g. "display_name", "period_start desc").
+   *   If unspecified, budgets are returned in their custom order.
    *
    * - `filter`: Filter expression conforming to AIP-160.
    *   Supported fields: display_name, is_closed.
@@ -319,6 +322,7 @@ class BudgetServiceService extends __BaseService {
    *   If unspecified, at most 20 are returned. Maximum value is 100.
    *
    * - `order_by`: Order by expression (e.g. "display_name", "period_start desc").
+   *   If unspecified, budgets are returned in their custom order.
    *
    * - `filter`: Filter expression conforming to AIP-160.
    *   Supported fields: display_name, is_closed.
@@ -397,6 +401,69 @@ class BudgetServiceService extends __BaseService {
       __map(_r => _r.body as V1Budget)
     );
   }
+
+  /**
+   * Reorders the budgets of an organization. The custom order determines the
+   * position of budgets in lists: the first budget in the request is listed
+   * first, the last one last. Newly created budgets are appended at the end.
+   * Authorization:
+   *   Scope: budgets:write
+   *   Permission: budgets:update
+   *   Domain: organization-scoped
+   * @param params The `BudgetServiceService.BudgetServiceReorderBudgetsParams` containing the following parameters:
+   *
+   * - `parent`: The parent organization resource name.
+   *   Format: organizations/{organization}
+   *
+   * - `body`:
+   *
+   * @return A successful response.
+   */
+  BudgetServiceReorderBudgetsResponse(params: BudgetServiceService.BudgetServiceReorderBudgetsParams): __Observable<__StrictHttpResponse<{}>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    __body = params.body;
+    let req = new HttpRequest<any>(
+      'POST',
+      this.rootUrl + `/v1/${encodeURIComponent(String(params.parent))}/budgets:reorder`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<{}>;
+      })
+    );
+  }
+  /**
+   * Reorders the budgets of an organization. The custom order determines the
+   * position of budgets in lists: the first budget in the request is listed
+   * first, the last one last. Newly created budgets are appended at the end.
+   * Authorization:
+   *   Scope: budgets:write
+   *   Permission: budgets:update
+   *   Domain: organization-scoped
+   * @param params The `BudgetServiceService.BudgetServiceReorderBudgetsParams` containing the following parameters:
+   *
+   * - `parent`: The parent organization resource name.
+   *   Format: organizations/{organization}
+   *
+   * - `body`:
+   *
+   * @return A successful response.
+   */
+  BudgetServiceReorderBudgets(params: BudgetServiceService.BudgetServiceReorderBudgetsParams): __Observable<{}> {
+    return this.BudgetServiceReorderBudgetsResponse(params).pipe(
+      __map(_r => _r.body as {})
+    );
+  }
 }
 
 module BudgetServiceService {
@@ -415,7 +482,7 @@ module BudgetServiceService {
     /**
      * The budget to update.
      */
-    budget: {uid?: string, display_name: string, display_description?: string, is_closed?: boolean, period_start: TypeDate, period_end: TypeDate, update_time?: string, create_time?: string, etag?: string, is_published?: boolean, publish_actual_values?: boolean, publish_actual_values_until?: TypeDate};
+    budget: {uid?: string, display_name: string, display_description?: string, is_closed?: boolean, period_start: TypeDate, period_end: TypeDate, update_time?: string, create_time?: string, etag?: string, is_published?: boolean, publish_actual_values?: boolean, publish_actual_values_until?: TypeDate, order?: number};
   }
 
   /**
@@ -460,6 +527,7 @@ module BudgetServiceService {
 
     /**
      * Order by expression (e.g. "display_name", "period_start desc").
+     * If unspecified, budgets are returned in their custom order.
      */
     orderBy?: string;
 
@@ -492,6 +560,19 @@ module BudgetServiceService {
      * will be used. Must be unique within the parent organization.
      */
     budgetId?: string;
+  }
+
+  /**
+   * Parameters for BudgetServiceReorderBudgets
+   */
+  export interface BudgetServiceReorderBudgetsParams {
+
+    /**
+     * The parent organization resource name.
+     * Format: organizations/{organization}
+     */
+    parent: string;
+    body: BudgetServiceReorderBudgetsBody;
   }
 }
 

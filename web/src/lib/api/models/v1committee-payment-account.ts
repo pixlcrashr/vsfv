@@ -8,6 +8,12 @@ import { V1PaymentAccountKind } from './v1payment-account-kind';
  * these accounts and submit the bills for documentation.
  */
 export interface V1CommitteePaymentAccount {
+  committee?: string;
+
+  /**
+   * Creation timestamp.
+   */
+  create_time?: string;
 
   /**
    * Human-readable label of the payment account (e.g. "Gremiumskonto").
@@ -18,6 +24,7 @@ export interface V1CommitteePaymentAccount {
    * The kind of payment account.
    */
   kind: V1PaymentAccountKind;
+  name?: string;
 
   /**
    * The UUID of the payment account. Used by submissions to reference the

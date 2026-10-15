@@ -132,7 +132,7 @@ import { SubmissionListDataService } from './submission-list.data-service';
                           {{ submission.committeeName }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-500">
-                          {{ getDirectionLabel(submission.direction) }}
+                          {{ directionLabel(submission) }}
                         </td>
                         <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
                           {{ formatCurrency(submission.totalAmount) }}
@@ -169,6 +169,13 @@ export class SubmissionListComponent implements OnInit {
   // exposed for the template
   readonly getDirectionLabel = getDirectionLabel;
   readonly getSettlementLabel = getSettlementLabel;
+
+  // Misc document collections carry no direction and are shown with their
+  // own label.
+  readonly directionLabel = (submission: Submission): string =>
+    submission.direction
+      ? getDirectionLabel(submission.direction)
+      : $localize`Sonstige Dokumente`;
 
   private readonly dataService = inject(SubmissionListDataService);
   private readonly notifications = inject(NotificationService);

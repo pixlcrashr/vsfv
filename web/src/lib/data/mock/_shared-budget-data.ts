@@ -44,6 +44,7 @@ export class SharedBudgetMockData {
         isPublished: i > 1,
         publishActualValues: false,
         publishActualValuesUntil: null,
+        order: i,
         tags: this.generateTags(startDate, i > 1 ? 3 : 1),
         hasUntaggedChanges: i === 0,
         changes: [],
@@ -118,17 +119,49 @@ export class SharedBudgetMockData {
   }
 
   getAllBudgets(): Budget[] {
-    return Array.from(this.budgets.values()).map(data => ({
-      id: data.budget.id,
-      displayName: data.budget.displayName,
-      displayDescription: data.budget.displayDescription,
-      periodStart: data.budget.periodStart,
-      periodEnd: data.budget.periodEnd,
-      isClosed: data.budget.isClosed,
-      isPublished: data.budget.isPublished,
-      publishActualValues: data.budget.publishActualValues,
-      publishActualValuesUntil: data.budget.publishActualValuesUntil,
-    }));
+    return Array.from(this.budgets.values())
+      .sort((a, b) => a.budget.order - b.budget.order)
+      .map(data => ({
+        id: data.budget.id,
+        displayName: data.budget.displayName,
+        displayDescription: data.budget.displayDescription,
+        periodStart: data.budget.periodStart,
+        periodEnd: data.budget.periodEnd,
+        isClosed: data.budget.isClosed,
+        isPublished: data.budget.isPublished,
+        publishActualValues: data.budget.publishActualValues,
+        publishActualValuesUntil: data.budget.publishActualValuesUntil,
+        order: data.budget.order,
+      }));
+  }
+
+  getNextOrder(): number {
+    let max = -1;
+    for (const data of this.budgets.values()) {
+      if (data.budget.order > max) {
+        max = data.budget.order;
+      }
+    }
+    return max + 1;
+  }
+
+  reorderBudgets(ids: string[]): void {
+    const reordered = new Map<string, BudgetMockData>();
+    let order = 0;
+    for (const id of ids) {
+      const data = this.budgets.get(id);
+      if (data) {
+        data.budget.order = order++;
+        reordered.set(id, data);
+      }
+    }
+    for (const [id, data] of this.budgets) {
+      if (!reordered.has(id)) {
+        data.budget.order = order++;
+        reordered.set(id, data);
+      }
+    }
+    this.budgets = reordered;
   }
 
   getBudgetDetails(id: string): BudgetMockData | undefined {
@@ -152,6 +185,7 @@ export class SharedBudgetMockData {
         isPublished: false,
         publishActualValues: false,
         publishActualValuesUntil: null,
+        order: this.getNextOrder(),
         tags: this.generateTags(startDate, 1),
         hasUntaggedChanges: true,
         changes: [

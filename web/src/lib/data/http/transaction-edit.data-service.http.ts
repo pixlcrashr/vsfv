@@ -80,27 +80,6 @@ export class HttpTransactionEditDataService extends TransactionEditDataService {
     );
   }
 
-  updateTransaction(organizationId: string, id: string, description: string): Observable<Transaction> {
-    const name = this.txnName(organizationId, id);
-    return this.txnSvc.TransactionServiceGetTransaction(name).pipe(
-      switchMap((existing) =>
-        this.txnSvc.TransactionServiceUpdateTransaction({
-          transactionName: name,
-          transaction: {
-            ...existing,
-            credit_ledger_account: existing.credit_ledger_account,
-            debit_ledger_account: existing.debit_ledger_account,
-            amount: existing.amount,
-            booked_at: existing.booked_at,
-            document_date: existing.document_date,
-            description,
-          },
-        }),
-      ),
-      map((txn) => mapApiTransaction(txn, '', '', '', '', [])),
-    );
-  }
-
   listAvailableAccounts(organizationId: string): Observable<Account[]> {
     return this.loadAllAccounts(`organizations/${organizationId}`).pipe(
       map((accounts) => accounts.map(mapApiAccount)),

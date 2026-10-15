@@ -82,15 +82,20 @@ class BudgetRevisionServiceService extends __BaseService {
   }
 
   /**
-   * Lists revisions for a budget in reverse chronological order.
+   * Lists revisions for a budget in reverse chronological order. The
+   * wildcard parent form (organizations/{organization}/budgets/-) lists the
+   * revisions of every budget of the organization in a single request.
    * Authorization:
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
    * @param params The `BudgetRevisionServiceService.BudgetRevisionServiceListBudgetRevisionsParams` containing the following parameters:
    *
-   * - `parent`: The parent budget resource name.
-   *   Format: organizations/{organization}/budgets/{budget}
+   * - `parent`: The parent budget resource name. Two forms are accepted:
+   *    - A single budget: organizations/{organization}/budgets/{budget}
+   *    - The wildcard form organizations/{organization}/budgets/- to list the
+   *      revisions of every budget of the organization in one request.
+   *   The dash "-" is the only wildcard marker; "*" is not supported.
    *
    * - `page_token`: A page token from a previous ListBudgetRevisions call.
    *
@@ -128,15 +133,20 @@ class BudgetRevisionServiceService extends __BaseService {
     );
   }
   /**
-   * Lists revisions for a budget in reverse chronological order.
+   * Lists revisions for a budget in reverse chronological order. The
+   * wildcard parent form (organizations/{organization}/budgets/-) lists the
+   * revisions of every budget of the organization in a single request.
    * Authorization:
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
    * @param params The `BudgetRevisionServiceService.BudgetRevisionServiceListBudgetRevisionsParams` containing the following parameters:
    *
-   * - `parent`: The parent budget resource name.
-   *   Format: organizations/{organization}/budgets/{budget}
+   * - `parent`: The parent budget resource name. Two forms are accepted:
+   *    - A single budget: organizations/{organization}/budgets/{budget}
+   *    - The wildcard form organizations/{organization}/budgets/- to list the
+   *      revisions of every budget of the organization in one request.
+   *   The dash "-" is the only wildcard marker; "*" is not supported.
    *
    * - `page_token`: A page token from a previous ListBudgetRevisions call.
    *
@@ -348,8 +358,11 @@ module BudgetRevisionServiceService {
   export interface BudgetRevisionServiceListBudgetRevisionsParams {
 
     /**
-     * The parent budget resource name.
-     * Format: organizations/{organization}/budgets/{budget}
+     * The parent budget resource name. Two forms are accepted:
+     *  - A single budget: organizations/{organization}/budgets/{budget}
+     *  - The wildcard form organizations/{organization}/budgets/- to list the
+     *    revisions of every budget of the organization in one request.
+     * The dash "-" is the only wildcard marker; "*" is not supported.
      */
     parent: string;
 

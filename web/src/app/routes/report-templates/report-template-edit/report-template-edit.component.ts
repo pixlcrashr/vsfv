@@ -4,7 +4,6 @@ import {
   inject,
   signal,
   OnInit,
-  OnDestroy,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -18,6 +17,7 @@ import {
 import { formatDateShort } from '../../../shared/utils';
 import { ReportTemplate } from '../../../shared/models';
 import { ReportTemplateEditDataService } from './report-template-edit.data-service';
+import { ReportTemplateEditorComponent } from '../report-template-editor/report-template-editor.component';
 
 @Component({
   selector: 'app-report-template-edit',
@@ -27,16 +27,11 @@ import { ReportTemplateEditDataService } from './report-template-edit.data-servi
     PageContentLayoutComponent,
     ButtonComponent,
     LoadingSpinnerComponent,
+    ReportTemplateEditorComponent,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
       <div layout-header-actions class="flex gap-2">
-          <app-button
-            variant="secondary"
-            (clicked)="previewHtml()"
-          >
-            <ng-container i18n>HTML-Vorschau</ng-container>
-          </app-button>
           <app-button variant="secondary" (clicked)="cancel()">
             <ng-container i18n>Abbrechen</ng-container>
           </app-button>
@@ -92,34 +87,7 @@ import { ReportTemplateEditDataService } from './report-template-edit.data-servi
             </div>
 
             <!-- Template Editor -->
-            <div class="bg-white rounded-lg border border-gray-200 p-4">
-              <div class="flex items-center justify-between mb-4">
-                <h2 i18n class="text-sm font-semibold text-gray-900">
-                  Vorlage (Go Template HTML)
-                </h2>
-                <span i18n class="text-xs text-gray-500">
-                  Verwenden Sie Go-Template-Syntax für dynamische Inhalte
-                </span>
-              </div>
-              <textarea
-                [(ngModel)]="templateContent"
-                (ngModelChange)="onTemplateContentChange()"
-                rows="20"
-                class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              ></textarea>
-            </div>
-
-            <!-- Help Section -->
-            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
-              <h3 i18n class="text-xs font-medium text-gray-900 mb-2">
-                Verfügbare Variablen
-              </h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
-                @for (variable of variables; track variable.code) {
-                  <div><code class="bg-gray-100 px-1 rounded">{{ variable.code }}</code> - {{ variable.label }}</div>
-                }
-              </div>
-            </div>
+            <app-report-template-editor [(templateContent)]="templateContent" />
 
             <!-- Metadata -->
             <div i18n class="text-xs text-gray-500">
@@ -132,7 +100,7 @@ import { ReportTemplateEditDataService } from './report-template-edit.data-servi
     </app-page-content-layout>
   `,
 })
-export class ReportTemplateEditComponent implements OnInit, OnDestroy {
+export class ReportTemplateEditComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dataService = inject(ReportTemplateEditDataService);
@@ -146,24 +114,10 @@ export class ReportTemplateEditComponent implements OnInit, OnDestroy {
   description = '';
   templateContent = '';
 
-  readonly variables = [
-    { code: '{{ .Budget.Name }}', label: $localize`Budgetname` },
-    { code: '{{ .Budget.StartDate }}', label: $localize`Startdatum` },
-    { code: '{{ .Budget.EndDate }}', label: $localize`Enddatum` },
-    { code: '{{ range .Accounts }}...{{ end }}', label: $localize`Kontenliste` },
-    { code: '{{ .Code }}', label: $localize`Kontonummer` },
-    { code: '{{ .Name }}', label: $localize`Kontoname` },
-    { code: '{{ .Balance }}', label: $localize`Kontosaldo` },
-    { code: '{{ .Date | formatDate }}', label: $localize`Datum formatieren` },
-  ];
-
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: $localize`Berichtsvorlagen`, path: '' },
     { label: $localize`Bearbeiten` },
   ];
-
-  private previewId = '';
-  private static readonly PREVIEW_KEY_PREFIX = 'rt-preview-';
 
   private templateId = '';
   private orgId = '';
@@ -182,14 +136,9 @@ export class ReportTemplateEditComponent implements OnInit, OnDestroy {
     this.orgId = this.getOrgId();
     this.breadcrumbs[0].path = `/organizations/${this.orgId}/reportTemplates`;
     this.templateId = this.route.snapshot.paramMap.get('id') || '';
-    this.previewId = crypto.randomUUID();
     if (this.templateId) {
       this.loadTemplate();
     }
-  }
-
-  ngOnDestroy(): void {
-    localStorage.removeItem(ReportTemplateEditComponent.PREVIEW_KEY_PREFIX + this.previewId);
   }
 
   private loadTemplate(): void {
@@ -234,20 +183,6 @@ export class ReportTemplateEditComponent implements OnInit, OnDestroy {
 
   cancel(): void {
     this.router.navigate(['/organizations', this.orgId, 'reportTemplates']);
-  }
-
-  previewHtml(): void {
-    this.updatePreviewStorage();
-    const url = `/preview/report-template/${this.previewId}`;
-    window.open(url, '_blank');
-  }
-
-  onTemplateContentChange(): void {
-    this.updatePreviewStorage();
-  }
-
-  private updatePreviewStorage(): void {
-    localStorage.setItem(ReportTemplateEditComponent.PREVIEW_KEY_PREFIX + this.previewId, this.templateContent);
   }
 
   formatDate(date: Date): string {

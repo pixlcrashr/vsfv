@@ -40,4 +40,13 @@ export class HttpBudgetListDataService extends BudgetListDataService {
   deleteBudget(organizationId: string, budgetId: string): Observable<void> {
     return this.svc.BudgetServiceDeleteBudget(this.budgetName(organizationId, budgetId)).pipe(map(() => undefined));
   }
+
+  reorderBudgets(organizationId: string, budgetIds: string[]): Observable<void> {
+    return this.svc.BudgetServiceReorderBudgets({
+      parent: `organizations/${organizationId}`,
+      body: {
+        budgets: budgetIds.map((id) => this.budgetName(organizationId, id)),
+      },
+    }).pipe(map(() => undefined));
+  }
 }

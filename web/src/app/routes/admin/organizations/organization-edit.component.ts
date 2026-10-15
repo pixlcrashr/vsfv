@@ -19,6 +19,7 @@ import {
   AuditLogHistoryComponent,
 } from '../../../shared/components';
 import { AuditLogHistoryEntry, Organization } from '../../../shared/models';
+import { OrganizationStoreService } from '../../../shared/services/organization-store.service';
 import { OrganizationEditDataService } from './organization-edit.data-service';
 
 @Component({
@@ -143,6 +144,7 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly dataService = inject(OrganizationEditDataService);
+  private readonly organizationStore = inject(OrganizationStoreService);
   private readonly notifications = inject(NotificationService);
 
   private readonly destroy$ = new Subject<void>();
@@ -233,6 +235,8 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
       next: () => {
         this.saving.set(false);
         this.organizationForm.markAsPristine();
+        // Make the rename visible in the sidebar switcher and admin list.
+        this.organizationStore.refresh().subscribe();
         this.loadAuditLog();
       },
       error: () => {
@@ -251,6 +255,7 @@ export class OrganizationEditComponent implements OnInit, OnDestroy {
     this.dataService.deleteOrganization(this.organizationId).subscribe({
       next: () => {
         this.notifications.success($localize`Organisation gelöscht`);
+        this.organizationStore.refresh().subscribe();
         this.router.navigate(['/admin/organizations']);
       },
       error: () => {

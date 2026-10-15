@@ -11,4 +11,5 @@ export abstract class BudgetListDataService {
     endDate: Date
   ): Observable<Budget>;
   abstract deleteBudget(organizationId: string, budgetId: string): Observable<void>;
+  abstract reorderBudgets(organizationId: string, budgetIds: string[]): Observable<void>;
 }

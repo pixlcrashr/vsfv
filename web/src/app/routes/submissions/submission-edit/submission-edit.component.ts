@@ -24,7 +24,6 @@ import {
   getSubmissionStatusLabel,
   getSubmissionStatusVariant,
   getSettlementLabel,
-  getPaymentRequestTimingLabel,
   formatCurrency,
 } from '../../../shared/models';
 import { SubmissionEditDataService } from './submission-edit.data-service';
@@ -444,7 +443,6 @@ export class SubmissionEditComponent implements OnInit {
   readonly selectedStatusChange = signal<SubmissionStatus | ''>('');
   // exposed for the template
   readonly getSettlementLabel = getSettlementLabel;
-  readonly getPaymentRequestTimingLabel = getPaymentRequestTimingLabel;
 
   readonly canEdit = computed(() => {
     const r = this.submission();

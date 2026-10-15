@@ -1,19 +1,26 @@
 import { computed, inject, Injectable, Signal, signal, WritableSignal } from '@angular/core';
+import { forkJoin, map, Observable, of } from 'rxjs';
+import { Decimal } from 'decimal.js';
 import {
   MatrixDataService,
   MatrixEditableValuesByBudget
 } from './matrix.data-service';
 import { MatrixValueStoreService } from './matrix-value-store.service';
-import { forkJoin, map, Observable } from 'rxjs';
-import { Decimal } from 'decimal.js';
-import { naturalCompare } from '../../shared/utils/account-sort.utils';
-
-
+import { MatrixValuesCacheService } from './matrix-values-cache.service';
+import {
+  AccountHierarchyIndex,
+  AccountHierarchyService,
+  AccountWithDepth,
+} from '../../shared/services/account-hierarchy.service';
 
 export interface BudgetTag {
   id: string;
+  /** Full resource name of the revision, e.g. organizations/{org}/budgets/{budget}/revisions/{revision}. */
+  name: string;
   displayName: string;
   displayDescription: string;
+  /** Revision date; revisions are ordered and defaulted by this date. */
+  date: Date;
   createdAt: Date;
 }
 
@@ -22,11 +29,16 @@ export interface Budget {
   displayName: string;
   displayDescription: string;
   isClosed: boolean;
+  /** Budget period start; the latest budget is the default selection. */
+  periodStart: Date;
+  /** Revisions ordered by revision date descending (newest first). */
   tags: BudgetTag[];
 }
 
 export interface Account {
   id: string;
+  /** Sort key for the hierarchy; equals displayCode. */
+  code: string;
   name: string;
   displayCode: string;
   displayDescription: string;
@@ -79,312 +91,319 @@ export interface MatrixRow {
       /** Target minus actual; recomputed when the target signal changes. */
       diffValue: Signal<Decimal>;
     }[]
-  }[]
+  }[];
 }
 
 export interface MatrixData {
   columns: MatrixColumn[];
   rows: MatrixRow[];
-  accounts: Account[];
+  accounts: AccountWithDepth<Account>[];
   budgets: Budget[];
+}
+
+/** Structure of the matrix, loaded once per organization. */
+export interface MatrixStructure {
+  budgets: Budget[];
+  /** Accounts in canonical hierarchy order, depth annotated. */
+  accounts: AccountWithDepth<Account>[];
+  index: AccountHierarchyIndex<Account>;
 }
 
 @Injectable()
 export class MatrixDataProviderService {
   private matrixDataService = inject(MatrixDataService);
   private valueStore = inject(MatrixValueStoreService);
+  private valuesCache = inject(MatrixValuesCacheService);
+  private hierarchy = inject(AccountHierarchyService);
 
-  private getBudgetAccountTagKey(budgetId: string, accountId: string, tagId: string): string {
-    return `${budgetId}-${accountId}-${tagId}`;
+  /** Budgets whose editable values were already seeded into the value store. */
+  private initializedBudgets = new Set<string>();
+
+  /** Drops per-organization state (call when the organization changes). */
+  reset(): void {
+    this.initializedBudgets.clear();
   }
 
-  private getBudgetAccountKey(budgetId: string, accountId: string): string {
-    return `${budgetId}-${accountId}`;
-  }
-
-  private isLeafAccount(account: Account, accounts: Account[]): boolean {
-    return !accounts.some(a => a.parentAccountId === account.id);
-  }
-
-  private getTargetRevisionValue(
-    targetValuesByBudgetAccountTag: Map<string, Decimal>,
-    budgetId: string,
-    accountId: string,
-    tagId: string
-  ): Decimal {
-    return targetValuesByBudgetAccountTag.get(this.getBudgetAccountTagKey(budgetId, accountId, tagId)) ?? new Decimal(0);
-  }
-
-  private getActualBudgetValue(
-    actualValuesByBudgetAccount: Map<string, Decimal>,
-    budgetId: string,
-    accountId: string
-  ): Decimal {
-    return actualValuesByBudgetAccount.get(this.getBudgetAccountKey(budgetId, accountId)) ?? new Decimal(0);
-  }
-
-  getMatrixData(organizationId: string): Observable<MatrixData> {
+  /**
+   * Loads the selection-independent structure: budgets with their revisions
+   * and the account hierarchy in canonical order.
+   */
+  getStructure(organizationId: string): Observable<MatrixStructure> {
     return forkJoin([
       this.matrixDataService.listBudgets(organizationId),
       this.matrixDataService.listAccounts(organizationId),
-      this.matrixDataService.listMatrixTargetValues(organizationId),
-      this.matrixDataService.listMatrixActualValues(organizationId),
-      this.matrixDataService.listMatrixEditableValues(organizationId)
     ]).pipe(
-      map(([budgets, accounts, targetValues, actualValues, editableValuesByBudget]) => {
-        const accountById = new Map(accounts.map(account => [account.id, account]));
-        const childrenByParentId = new Map<string | null, Account[]>();
-        const leafAccounts = accounts.filter(account => this.isLeafAccount(account, accounts));
-        const depthSortedAccounts = [...accounts].sort((a, b) => b.depth - a.depth);
+      map(([budgets, accounts]) => {
+        const index = this.hierarchy.index(accounts);
+        return { budgets, accounts: index.ordered, index };
+      }),
+    );
+  }
 
-        accounts.forEach(account => {
-          const siblings = childrenByParentId.get(account.parentAccountId) ?? [];
-          siblings.push(account);
-          childrenByParentId.set(account.parentAccountId, siblings);
-        });
+  /**
+   * Fetches the values for the given budgets and revisions (resource names
+   * included) and puts them into the route-scoped cache. Callers pass only
+   * what is missing; already cached budgets/revisions are not requested
+   * again.
+   */
+  loadValues(
+    organizationId: string,
+    budgetIds: string[],
+    revisions: BudgetTag[],
+  ): Observable<void> {
+    const editable$: Observable<void> = budgetIds.length > 0
+      ? this.matrixDataService.listMatrixEditableValues(organizationId, budgetIds).pipe(
+          map((rows: MatrixEditableValuesByBudget[]) => {
+            for (const row of rows) {
+              this.valuesCache.putEditable(row.budgetId, new Map(Object.entries(row.editableValues)));
+            }
+          }),
+        )
+      : of(void 0);
 
-        // Sort siblings naturally by display code (1, 2, 10 — not 1, 10, 2) and
-        // flatten depth-first, so the flat order drives both the matrix row tree
-        // and the header account list.
-        const compareByDisplayCode = (a: Account, b: Account) => naturalCompare(a.displayCode, b.displayCode);
+    const target$: Observable<void> = revisions.length > 0
+      ? this.matrixDataService.listMatrixTargetValues(organizationId, revisions.map(r => r.name)).pipe(
+          map((values) => {
+            for (const revision of revisions) {
+              const perAccount = values[revision.id] ?? {};
+              const mapped = new Map<string, Decimal>();
+              for (const [accountId, value] of Object.entries(perAccount)) {
+                mapped.set(accountId, value.targetValue);
+              }
+              this.valuesCache.putTarget(revision.id, mapped);
+            }
+          }),
+        )
+      : of(void 0);
 
-        for (const siblings of childrenByParentId.values()) {
-          siblings.sort(compareByDisplayCode);
+    const actual$: Observable<void> = budgetIds.length > 0
+      ? this.matrixDataService.listMatrixActualValues(organizationId, budgetIds).pipe(
+          map((values) => {
+            for (const budgetId of budgetIds) {
+              const perAccount = values[budgetId] ?? {};
+              const mapped = new Map<string, Decimal>();
+              for (const [accountId, value] of Object.entries(perAccount)) {
+                mapped.set(accountId, value.actualValue);
+              }
+              this.valuesCache.putActual(budgetId, mapped);
+            }
+          }),
+        )
+      : of(void 0);
+
+    return forkJoin([editable$, target$, actual$]).pipe(map(() => void 0));
+  }
+
+  /**
+   * Builds the matrix for the current selection. Rows carry values for the
+   * selected budgets and revisions only; everything comes from the values
+   * cache.
+   */
+  buildMatrixData(
+    structure: MatrixStructure,
+    selectedBudgetIds: string[],
+    selectedTagIds: string[],
+  ): MatrixData {
+    const { budgets, index } = structure;
+    const cache = this.valuesCache.snapshot();
+
+    // Preserve the budgets-array order for columns and row values.
+    const selectedBudgets = budgets.filter(budget => selectedBudgetIds.includes(budget.id));
+    const selectedTagsByBudgetId = new Map<string, BudgetTag[]>(
+      selectedBudgets.map(budget => [budget.id, budget.tags.filter(tag => selectedTagIds.includes(tag.id))]),
+    );
+
+    const targetByKey = new Map<string, Decimal>();
+    const actualByKey = new Map<string, Decimal>();
+    const targetKey = (budgetId: string, tagId: string, accountId: string): string =>
+      `${budgetId}|${tagId}|${accountId}`;
+    const actualKey = (budgetId: string, accountId: string): string => `${budgetId}|${accountId}`;
+
+    const isLeaf = (account: AccountWithDepth<Account>): boolean => !index.isParent(account.id);
+
+    for (const account of index.ordered) {
+      if (!isLeaf(account)) {
+        continue;
+      }
+      for (const budget of selectedBudgets) {
+        for (const tag of selectedTagsByBudgetId.get(budget.id) ?? []) {
+          targetByKey.set(
+            targetKey(budget.id, tag.id, account.id),
+            cache.target.get(tag.id)?.get(account.id) ?? new Decimal(0),
+          );
         }
-
-        const sortedAccounts: Account[] = [];
-        const appendedAccountIds = new Set<string>();
-        const appendWithDescendants = (account: Account): void => {
-          if (appendedAccountIds.has(account.id)) {
-            return;
-          }
-          appendedAccountIds.add(account.id);
-          sortedAccounts.push(account);
-          (childrenByParentId.get(account.id) ?? []).forEach(appendWithDescendants);
-        };
-        (childrenByParentId.get(null) ?? []).forEach(appendWithDescendants);
-        // Accounts whose parent is not part of the list render at the end, like
-        // the unvisited rows below.
-        accounts
-          .filter(account => !appendedAccountIds.has(account.id))
-          .sort(compareByDisplayCode)
-          .forEach(appendWithDescendants);
-
-        const targetValuesByBudgetAccountTag = new Map<string, Decimal>();
-        Object.entries(targetValues).forEach(([tagId, accountMap]) => {
-          const budget = budgets.find(b => b.tags.some(t => t.id === tagId));
-          if (!budget) {
-            return;
-          }
-
-          Object.entries(accountMap).forEach(([accountId, value]) => {
-            const account = accountById.get(accountId);
-            if (!account || !this.isLeafAccount(account, accounts)) {
-              return;
-            }
-
-            targetValuesByBudgetAccountTag.set(
-              this.getBudgetAccountTagKey(budget.id, accountId, tagId),
-              value.targetValue
-            );
-          });
-        });
-
-        depthSortedAccounts.forEach(account => {
-          const children = childrenByParentId.get(account.id) ?? [];
-          if (children.length === 0) {
-            return;
-          }
-
-          budgets.forEach(budget => {
-            budget.tags.forEach(tag => {
-              const sum = children.reduce(
-                (acc, child) => acc.plus(this.getTargetRevisionValue(targetValuesByBudgetAccountTag, budget.id, child.id, tag.id)),
-                new Decimal(0)
-              );
-
-              targetValuesByBudgetAccountTag.set(this.getBudgetAccountTagKey(budget.id, account.id, tag.id), sum);
-            });
-          });
-        });
-
-        const actualValuesByBudgetAccount = new Map<string, Decimal>();
-        Object.entries(actualValues).forEach(([budgetId, accountMap]) => {
-          Object.entries(accountMap).forEach(([accountId, value]) => {
-            const account = accountById.get(accountId);
-            if (!account || !this.isLeafAccount(account, accounts)) {
-              return;
-            }
-
-            actualValuesByBudgetAccount.set(
-              this.getBudgetAccountKey(budgetId, accountId),
-              value.actualValue
-            );
-          });
-        });
-
-        depthSortedAccounts.forEach(account => {
-          const children = childrenByParentId.get(account.id) ?? [];
-          if (children.length === 0) {
-            return;
-          }
-
-          budgets.forEach(budget => {
-            const sum = children.reduce(
-              (acc, child) => acc.plus(this.getActualBudgetValue(actualValuesByBudgetAccount, budget.id, child.id)),
-              new Decimal(0)
-            );
-
-            actualValuesByBudgetAccount.set(this.getBudgetAccountKey(budget.id, account.id), sum);
-          });
-        });
-
-        const editableValuesLookup = new Map<string, MatrixEditableValuesByBudget['editableValues']>(
-          editableValuesByBudget.map(item => [item.budgetId, item.editableValues])
+        actualByKey.set(
+          actualKey(budget.id, account.id),
+          cache.actual.get(budget.id)?.get(account.id) ?? new Decimal(0),
         );
+      }
+    }
 
-        budgets.forEach(budget => {
-          const budgetEditableValues = editableValuesLookup.get(budget.id) ?? {};
-          const latestTag = budget.tags[budget.tags.length - 1];
+    // Group accounts carry no stored values; their cells sum the values of
+    // all leaf accounts below them.
+    const depthSortedAccounts = [...index.ordered].sort((a, b) => b.depth - a.depth);
+    for (const account of depthSortedAccounts) {
+      const children = index.childrenOf(account.id);
+      if (children.length === 0) {
+        continue;
+      }
+      for (const budget of selectedBudgets) {
+        for (const tag of selectedTagsByBudgetId.get(budget.id) ?? []) {
+          const sum = children.reduce(
+            (acc, child) => acc.plus(targetByKey.get(targetKey(budget.id, tag.id, child.id)) ?? new Decimal(0)),
+            new Decimal(0),
+          );
+          targetByKey.set(targetKey(budget.id, tag.id, account.id), sum);
+        }
+        const actualSum = children.reduce(
+          (acc, child) => acc.plus(actualByKey.get(actualKey(budget.id, child.id)) ?? new Decimal(0)),
+          new Decimal(0),
+        );
+        actualByKey.set(actualKey(budget.id, account.id), actualSum);
+      }
+    }
 
-          leafAccounts.forEach(account => {
-            const rawEditableValue = budgetEditableValues[account.id];
-            const fallback = latestTag
-              ? this.getTargetRevisionValue(targetValuesByBudgetAccountTag, budget.id, account.id, latestTag.id)
-              : new Decimal(0);
+    // Seed the editable store values once per budget. Rebuilding for a
+    // selection change must not clobber pending edits of already-seeded
+    // budgets, so those keep the signals living in the store.
+    for (const budget of selectedBudgets) {
+      if (this.initializedBudgets.has(budget.id)) {
+        continue;
+      }
+      this.initializedBudgets.add(budget.id);
 
-            const editableValue = rawEditableValue === undefined
-              ? fallback
-              : rawEditableValue;
+      const editableValues = cache.editable.get(budget.id);
+      const tags = selectedTagsByBudgetId.get(budget.id) ?? [];
+      const fallbackTag = tags[0];
 
-            this.valueStore.updateEditableTargetValue(budget.id, account.id, editableValue, true);
-          });
-        });
+      for (const account of index.ordered) {
+        if (!isLeaf(account)) {
+          continue;
+        }
+        const rawEditableValue = editableValues?.get(account.id);
+        const fallback = fallbackTag
+          ? (cache.target.get(fallbackTag.id)?.get(account.id) ?? new Decimal(0))
+          : new Decimal(0);
+        this.valueStore.updateEditableTargetValue(budget.id, account.id, rawEditableValue ?? fallback, true);
+      }
+    }
 
-        depthSortedAccounts.forEach(account => {
-          const children = childrenByParentId.get(account.id) ?? [];
-          if (children.length === 0) {
-            return;
-          }
+    // Aggregate editable signals for group accounts (sum of child signals).
+    for (const account of depthSortedAccounts) {
+      const children = index.childrenOf(account.id);
+      if (children.length === 0) {
+        continue;
+      }
+      for (const budget of selectedBudgets) {
+        const childSignals = children.map(child =>
+          this.valueStore.getEditableTargetValue(budget.id, child.id),
+        );
+        this.valueStore.setEditableTargetAggregateValue(budget.id, account.id, childSignals);
+      }
+    }
 
-          budgets.forEach(budget => {
-            const childSignals = children.map(child =>
-              this.valueStore.getEditableTargetValue(budget.id, child.id)
-            );
+    const columns: MatrixColumn[] = budgets.map(budget => ({
+      budgetId: budget.id,
+      displayName: budget.displayName,
+      displayDescription: budget.displayDescription,
+      date: budget.periodStart,
+      tags: budget.tags.map(tag => ({
+        tagId: tag.id,
+        displayName: tag.displayName,
+        displayDescription: tag.displayDescription,
+        createdAt: tag.createdAt
+      }))
+    }));
 
-            this.valueStore.setEditableTargetAggregateValue(budget.id, account.id, childSignals);
-          });
-        });
+    const rows: MatrixRow[] = index.ordered.map(account => {
+      const isParent = index.isParent(account.id);
 
-        const columns: MatrixColumn[] = budgets.map(budget => ({
-          budgetId: budget.id,
-          displayName: budget.displayName,
-          displayDescription: budget.displayDescription,
-          date: new Date(), // Mock date
-          tags: budget.tags.map(tag => ({
-            tagId: tag.id,
-            displayName: tag.displayName,
-            displayDescription: tag.displayDescription,
-            createdAt: tag.createdAt
-          }))
-        }));
-
-        const rows: MatrixRow[] = sortedAccounts.map(account => {
-          const isParent = (childrenByParentId.get(account.id) ?? []).length > 0;
+      return {
+        accountId: account.id,
+        depth: account.depth,
+        displayCode: account.displayCode,
+        displayName: account.name,
+        displayDescription: account.displayDescription,
+        isSumRow: false,
+        sourceAccountId: null,
+        isParent,
+        isArchived: account.isArchived,
+        values: selectedBudgets.map(budget => {
+          const editableTargetValue = this.valueStore.getEditableTargetValue(budget.id, account.id);
+          const editableTargetWritableValue = 'set' in editableTargetValue
+            ? editableTargetValue as WritableSignal<Decimal>
+            : undefined;
+          const actualValue = actualByKey.get(actualKey(budget.id, account.id)) ?? new Decimal(0);
+          const latestTagId = budget.tags[0]?.id;
 
           return {
-            accountId: account.id,
-            depth: account.depth,
-            displayCode: account.displayCode,
-            displayName: account.name,
-            displayDescription: account.displayDescription,
-            isSumRow: false,
-            sourceAccountId: null,
-            isParent,
-            isArchived: account.isArchived,
-            values: budgets.map(budget => {
-              const editableTargetValue = this.valueStore.getEditableTargetValue(budget.id, account.id);
-              const editableTargetWritableValue = 'set' in editableTargetValue
-                ? editableTargetValue as WritableSignal<Decimal>
-                : undefined;
-              const actualValue = this.getActualBudgetValue(actualValuesByBudgetAccount, budget.id, account.id);
+            budgetId: budget.id,
+            actualValue,
+            editableTargetValue,
+            editableTargetWritableValue,
+            tags: (selectedTagsByBudgetId.get(budget.id) ?? []).map(tag => {
+              const staticTargetValue = targetByKey.get(targetKey(budget.id, tag.id, account.id)) ?? new Decimal(0);
+              const targetValueSignal = signal(staticTargetValue);
 
               return {
-                budgetId: budget.id,
-                actualValue,
-                editableTargetValue,
-                editableTargetWritableValue,
-                tags: budget.tags.map((tag, index) => {
-                  const staticTargetValue = this.getTargetRevisionValue(
-                    targetValuesByBudgetAccountTag,
-                    budget.id,
-                    account.id,
-                    tag.id
-                  );
-                  const targetValueSignal = signal(staticTargetValue);
-
-                  return {
-                    tagId: tag.id,
-                    isLatest: index === budget.tags.length - 1,
-                    targetValue: targetValueSignal,
-                    diffValue: computed(() => targetValueSignal().minus(actualValue))
-                  };
-                })
+                tagId: tag.id,
+                isLatest: tag.id === latestTagId,
+                targetValue: targetValueSignal,
+                diffValue: computed(() => targetValueSignal().minus(actualValue))
               };
             })
           };
-        });
+        })
+      };
+    });
 
-        const rowByAccountId = new Map(rows.map(row => [row.accountId, row]));
+    const visited = new Set<string>();
+    const rowByAccountId = new Map(rows.map(row => [row.accountId, row]));
+    const buildRowsForAccount = (account: AccountWithDepth<Account>): MatrixRow[] => {
+      const row = rowByAccountId.get(account.id);
+      if (!row) {
+        return [];
+      }
 
-        const visited = new Set<string>();
-        const buildRowsForAccount = (account: Account): MatrixRow[] => {
-          const row = rowByAccountId.get(account.id);
-          if (!row) {
-            return [];
-          }
+      visited.add(account.id);
 
-          visited.add(account.id);
+      const children = index.childrenOf(account.id);
+      if (children.length === 0) {
+        return [row];
+      }
 
-          const children = childrenByParentId.get(account.id) ?? [];
-          if (children.length === 0) {
-            return [row];
-          }
+      const descendants = children.flatMap(child => buildRowsForAccount(child));
 
-          const descendants = children.flatMap(child => buildRowsForAccount(child));
+      const sumRow: MatrixRow = {
+        accountId: `${row.accountId}__sum`,
+        sourceAccountId: row.accountId,
+        depth: row.depth,
+        displayCode: row.displayCode,
+        displayName: `Summe ${row.displayName}`,
+        displayDescription: row.displayDescription,
+        isSumRow: true,
+        isParent: false,
+        isArchived: row.isArchived,
+        values: row.values
+      };
 
-          const sumRow: MatrixRow = {
-            accountId: `${row.accountId}__sum`,
-            sourceAccountId: row.accountId,
-            depth: row.depth,
-            displayCode: row.displayCode,
-            displayName: `Summe ${row.displayName}`,
-            displayDescription: row.displayDescription,
-            isSumRow: true,
-            isParent: false,
-            isArchived: row.isArchived,
-            values: row.values
-          };
+      return [row, ...descendants, sumRow];
+    };
 
-          return [row, ...descendants, sumRow];
-        };
+    const rootAccounts = index.childrenOf(null);
+    const rowsWithSums = rootAccounts.flatMap(root => buildRowsForAccount(root));
 
-        const rootAccounts = childrenByParentId.get(null) ?? [];
-        const rowsWithSums = rootAccounts.flatMap(root => buildRowsForAccount(root));
+    for (const row of rows) {
+      if (!visited.has(row.accountId)) {
+        rowsWithSums.push(row);
+      }
+    }
 
-        rows.forEach(row => {
-          if (!visited.has(row.accountId)) {
-            rowsWithSums.push(row);
-          }
-        });
-
-        return {
-          columns,
-          rows: rowsWithSums,
-          budgets,
-          accounts: sortedAccounts
-        };
-      })
-    );
+    return {
+      columns,
+      rows: rowsWithSums,
+      budgets,
+      accounts: index.ordered
+    };
   }
 }

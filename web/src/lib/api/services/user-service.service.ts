@@ -25,7 +25,7 @@ import { V1ListUserGroupsResponse } from '../models/v1list-user-groups-response'
 class UserServiceService extends __BaseService {
   static readonly UserServiceListUsersPath = '/v1/users';
   static readonly UserServiceBatchCheckUserPermissionsPath = '/v1/users:batchCheckPermissions';
-  static readonly UserServiceGetUserPath = '/v1/{name_20}';
+  static readonly UserServiceGetUserPath = '/v1/{name_22}';
   static readonly UserServiceCheckUserPermissionsPath = '/v1/{name}:checkPermissions';
   static readonly UserServiceListUserGroupsPath = '/v1/{name}:listGroups';
 
@@ -111,9 +111,12 @@ class UserServiceService extends __BaseService {
    * Checks permissions for one or more users in one call, each optionally
    * scoped to a different domain (batch custom method, AIP-231).
    * Authorization:
-   *   Scope: users:read
-   *   Permission: users:read
-   *   Domain: global
+   *   Checking the calling user's own permissions:
+   *     Requires authentication only.
+   *   Checking another user's permissions:
+   *     Scope: users:read
+   *     Permission: users:read
+   *     Domain: global
    * @param body BatchCheckUserPermissionsRequest checks permissions for one or more users
    * in a single call (AIP-231 batch pattern). Each entry can target a different
    * domain (or the global domain when domain is empty).
@@ -145,9 +148,12 @@ class UserServiceService extends __BaseService {
    * Checks permissions for one or more users in one call, each optionally
    * scoped to a different domain (batch custom method, AIP-231).
    * Authorization:
-   *   Scope: users:read
-   *   Permission: users:read
-   *   Domain: global
+   *   Checking the calling user's own permissions:
+   *     Requires authentication only.
+   *   Checking another user's permissions:
+   *     Scope: users:read
+   *     Permission: users:read
+   *     Domain: global
    * @param body BatchCheckUserPermissionsRequest checks permissions for one or more users
    * in a single call (AIP-231 batch pattern). Each entry can target a different
    * domain (or the global domain when domain is empty).
@@ -165,18 +171,18 @@ class UserServiceService extends __BaseService {
    *   Scope: users:read
    *   Permission: users:read
    *   Domain: global
-   * @param name_20 The resource name of the user.
+   * @param name_22 The resource name of the user.
    * Format: users/{user}
    * @return A successful response.
    */
-  UserServiceGetUserResponse(name20: string): __Observable<__StrictHttpResponse<V1User>> {
+  UserServiceGetUserResponse(name22: string): __Observable<__StrictHttpResponse<V1User>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name20))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name22))}`,
       __body,
       {
         headers: __headers,
@@ -197,12 +203,12 @@ class UserServiceService extends __BaseService {
    *   Scope: users:read
    *   Permission: users:read
    *   Domain: global
-   * @param name_20 The resource name of the user.
+   * @param name_22 The resource name of the user.
    * Format: users/{user}
    * @return A successful response.
    */
-  UserServiceGetUser(name20: string): __Observable<V1User> {
-    return this.UserServiceGetUserResponse(name20).pipe(
+  UserServiceGetUser(name22: string): __Observable<V1User> {
+    return this.UserServiceGetUserResponse(name22).pipe(
       __map(_r => _r.body as V1User)
     );
   }
@@ -213,9 +219,13 @@ class UserServiceService extends __BaseService {
    * When domain is empty, permissions are evaluated against the global
    * domain. When set, permissions are evaluated against the specified domain.
    * Authorization:
-   *   Scope: users:read
-   *   Permission: users:read
-   *   Domain: global
+   *   Checking the calling user's own permissions:
+   *     Requires authentication only (the SPA route guards call this on
+   *     every navigation).
+   *   Checking another user's permissions:
+   *     Scope: users:read
+   *     Permission: users:read
+   *     Domain: global
    * @param params The `UserServiceService.UserServiceCheckUserPermissionsParams` containing the following parameters:
    *
    * - `name`: The resource name of the user.
@@ -254,9 +264,13 @@ class UserServiceService extends __BaseService {
    * When domain is empty, permissions are evaluated against the global
    * domain. When set, permissions are evaluated against the specified domain.
    * Authorization:
-   *   Scope: users:read
-   *   Permission: users:read
-   *   Domain: global
+   *   Checking the calling user's own permissions:
+   *     Requires authentication only (the SPA route guards call this on
+   *     every navigation).
+   *   Checking another user's permissions:
+   *     Scope: users:read
+   *     Permission: users:read
+   *     Domain: global
    * @param params The `UserServiceService.UserServiceCheckUserPermissionsParams` containing the following parameters:
    *
    * - `name`: The resource name of the user.

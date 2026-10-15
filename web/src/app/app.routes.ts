@@ -97,6 +97,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'organizations/:orgId/committees',
+        runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+        loadChildren: () =>
+          import('./routes/committees/committees.routes').then(
+            (m) => m.COMMITTEES_ROUTES,
+          ),
+      },
+      {
         path: 'organizations/:orgId/budgets',
         runGuardsAndResolvers: 'paramsOrQueryParamsChange',
         loadChildren: () => import('./routes/budgets/budgets.routes').then((m) => m.BUDGETS_ROUTES),

@@ -21,8 +21,8 @@ import { V1ListSubmissionItemsResponse } from '../models/v1list-submission-items
 })
 class SubmissionItemServiceService extends __BaseService {
   static readonly SubmissionItemServiceUpdateSubmissionItemPath = '/v1/{item.name}';
-  static readonly SubmissionItemServiceGetSubmissionItemPath = '/v1/{name_14}';
-  static readonly SubmissionItemServiceDeleteSubmissionItemPath = '/v1/{name_8}';
+  static readonly SubmissionItemServiceDeleteSubmissionItemPath = '/v1/{name_13}';
+  static readonly SubmissionItemServiceGetSubmissionItemPath = '/v1/{name_19}';
   static readonly SubmissionItemServiceListSubmissionItemsPath = '/v1/{parent}/items';
   static readonly SubmissionItemServiceCreateSubmissionItemPath = '/v1/{parent}/items';
 
@@ -97,54 +97,6 @@ class SubmissionItemServiceService extends __BaseService {
   }
 
   /**
-   * Gets a single item by resource name.
-   * Authorization:
-   *   Scope: submissions:read
-   *   Permission: submissions:read or submissions:read_own
-   *   Domain: organization-scoped
-   * @param name_14 The resource name of the item.
-   * Format: organizations/{organization}/submissions/{submission}/items/{item}
-   * @return A successful response.
-   */
-  SubmissionItemServiceGetSubmissionItemResponse(name14: string): __Observable<__StrictHttpResponse<V1SubmissionItem>> {
-    let __params = this.newParams();
-    let __headers = new HttpHeaders();
-    let __body: any = null;
-
-    let req = new HttpRequest<any>(
-      'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name14))}`,
-      __body,
-      {
-        headers: __headers,
-        params: __params,
-        responseType: 'json'
-      });
-
-    return this.http.request<any>(req).pipe(
-      __filter(_r => _r instanceof HttpResponse),
-      __map((_r) => {
-        return _r as __StrictHttpResponse<V1SubmissionItem>;
-      })
-    );
-  }
-  /**
-   * Gets a single item by resource name.
-   * Authorization:
-   *   Scope: submissions:read
-   *   Permission: submissions:read or submissions:read_own
-   *   Domain: organization-scoped
-   * @param name_14 The resource name of the item.
-   * Format: organizations/{organization}/submissions/{submission}/items/{item}
-   * @return A successful response.
-   */
-  SubmissionItemServiceGetSubmissionItem(name14: string): __Observable<V1SubmissionItem> {
-    return this.SubmissionItemServiceGetSubmissionItemResponse(name14).pipe(
-      __map(_r => _r.body as V1SubmissionItem)
-    );
-  }
-
-  /**
    * Removes an item from the submission. Only allowed while the submission is
    * in DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the
    * submitter or the treasury.
@@ -152,18 +104,18 @@ class SubmissionItemServiceService extends __BaseService {
    *   Scope: submissions:write
    *   Permission: submissions:delete or submissions:update_own
    *   Domain: organization-scoped
-   * @param name_8 The resource name of the item.
+   * @param name_13 The resource name of the item.
    * Format: organizations/{organization}/submissions/{submission}/items/{item}
    * @return A successful response.
    */
-  SubmissionItemServiceDeleteSubmissionItemResponse(name8: string): __Observable<__StrictHttpResponse<{}>> {
+  SubmissionItemServiceDeleteSubmissionItemResponse(name13: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name8))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
       __body,
       {
         headers: __headers,
@@ -186,13 +138,61 @@ class SubmissionItemServiceService extends __BaseService {
    *   Scope: submissions:write
    *   Permission: submissions:delete or submissions:update_own
    *   Domain: organization-scoped
-   * @param name_8 The resource name of the item.
+   * @param name_13 The resource name of the item.
    * Format: organizations/{organization}/submissions/{submission}/items/{item}
    * @return A successful response.
    */
-  SubmissionItemServiceDeleteSubmissionItem(name8: string): __Observable<{}> {
-    return this.SubmissionItemServiceDeleteSubmissionItemResponse(name8).pipe(
+  SubmissionItemServiceDeleteSubmissionItem(name13: string): __Observable<{}> {
+    return this.SubmissionItemServiceDeleteSubmissionItemResponse(name13).pipe(
       __map(_r => _r.body as {})
+    );
+  }
+
+  /**
+   * Gets a single item by resource name.
+   * Authorization:
+   *   Scope: submissions:read
+   *   Permission: submissions:read or submissions:read_own
+   *   Domain: organization-scoped
+   * @param name_19 The resource name of the item.
+   * Format: organizations/{organization}/submissions/{submission}/items/{item}
+   * @return A successful response.
+   */
+  SubmissionItemServiceGetSubmissionItemResponse(name19: string): __Observable<__StrictHttpResponse<V1SubmissionItem>> {
+    let __params = this.newParams();
+    let __headers = new HttpHeaders();
+    let __body: any = null;
+
+    let req = new HttpRequest<any>(
+      'GET',
+      this.rootUrl + `/v1/${encodeURIComponent(String(name19))}`,
+      __body,
+      {
+        headers: __headers,
+        params: __params,
+        responseType: 'json'
+      });
+
+    return this.http.request<any>(req).pipe(
+      __filter(_r => _r instanceof HttpResponse),
+      __map((_r) => {
+        return _r as __StrictHttpResponse<V1SubmissionItem>;
+      })
+    );
+  }
+  /**
+   * Gets a single item by resource name.
+   * Authorization:
+   *   Scope: submissions:read
+   *   Permission: submissions:read or submissions:read_own
+   *   Domain: organization-scoped
+   * @param name_19 The resource name of the item.
+   * Format: organizations/{organization}/submissions/{submission}/items/{item}
+   * @return A successful response.
+   */
+  SubmissionItemServiceGetSubmissionItem(name19: string): __Observable<V1SubmissionItem> {
+    return this.SubmissionItemServiceGetSubmissionItemResponse(name19).pipe(
+      __map(_r => _r.body as V1SubmissionItem)
     );
   }
 

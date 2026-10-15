@@ -18,8 +18,8 @@ import { V1ListReportsResponse } from '../models/v1list-reports-response';
   providedIn: 'root',
 })
 class ReportServiceService extends __BaseService {
-  static readonly ReportServiceDeleteReportPath = '/v1/{name_10}';
-  static readonly ReportServiceGetReportPath = '/v1/{name_16}';
+  static readonly ReportServiceDeleteReportPath = '/v1/{name_11}';
+  static readonly ReportServiceGetReportPath = '/v1/{name_17}';
   static readonly ReportServiceListReportsPath = '/v1/{parent}/reports';
   static readonly ReportServiceCreateReportPath = '/v1/{parent}/reports';
 
@@ -36,18 +36,18 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:write
    *   Permission: reports:delete
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the report.
+   * @param name_11 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceDeleteReportResponse(name10: string): __Observable<__StrictHttpResponse<{}>> {
+  ReportServiceDeleteReportResponse(name11: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name10))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name11))}`,
       __body,
       {
         headers: __headers,
@@ -68,12 +68,12 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:write
    *   Permission: reports:delete
    *   Domain: organization-scoped
-   * @param name_10 The resource name of the report.
+   * @param name_11 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceDeleteReport(name10: string): __Observable<{}> {
-    return this.ReportServiceDeleteReportResponse(name10).pipe(
+  ReportServiceDeleteReport(name11: string): __Observable<{}> {
+    return this.ReportServiceDeleteReportResponse(name11).pipe(
       __map(_r => _r.body as {})
     );
   }
@@ -84,18 +84,18 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:read
    *   Permission: reports:read
    *   Domain: organization-scoped
-   * @param name_16 The resource name of the report.
+   * @param name_17 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceGetReportResponse(name16: string): __Observable<__StrictHttpResponse<V1Report>> {
+  ReportServiceGetReportResponse(name17: string): __Observable<__StrictHttpResponse<V1Report>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name16))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name17))}`,
       __body,
       {
         headers: __headers,
@@ -116,12 +116,12 @@ class ReportServiceService extends __BaseService {
    *   Scope: reports:read
    *   Permission: reports:read
    *   Domain: organization-scoped
-   * @param name_16 The resource name of the report.
+   * @param name_17 The resource name of the report.
    * Format: organizations/{organization}/reports/{report}
    * @return A successful response.
    */
-  ReportServiceGetReport(name16: string): __Observable<V1Report> {
-    return this.ReportServiceGetReportResponse(name16).pipe(
+  ReportServiceGetReport(name17: string): __Observable<V1Report> {
+    return this.ReportServiceGetReportResponse(name17).pipe(
       __map(_r => _r.body as V1Report)
     );
   }

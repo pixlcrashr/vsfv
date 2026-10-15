@@ -18,7 +18,7 @@ import { V1ListLedgerYearsResponse } from '../models/v1list-ledger-years-respons
   providedIn: 'root',
 })
 class LedgerYearServiceService extends __BaseService {
-  static readonly LedgerYearServiceGetLedgerYearPath = '/v1/{name_12}';
+  static readonly LedgerYearServiceGetLedgerYearPath = '/v1/{name_14}';
   static readonly LedgerYearServiceCloseLedgerYearPath = '/v1/{name_1}:close';
   static readonly LedgerYearServiceListLedgerYearsPath = '/v1/{parent}/ledgerYears';
 
@@ -35,18 +35,18 @@ class LedgerYearServiceService extends __BaseService {
    *   Scope: ledgerYear:read
    *   Permission: ledgerYear:read
    *   Domain: organization-scoped
-   * @param name_12 The resource name of the ledger year.
+   * @param name_14 The resource name of the ledger year.
    * Format: organizations/{organization}/ledgerYears/{ledger_year}
    * @return A successful response.
    */
-  LedgerYearServiceGetLedgerYearResponse(name12: string): __Observable<__StrictHttpResponse<V1LedgerYear>> {
+  LedgerYearServiceGetLedgerYearResponse(name14: string): __Observable<__StrictHttpResponse<V1LedgerYear>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name12))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name14))}`,
       __body,
       {
         headers: __headers,
@@ -67,12 +67,12 @@ class LedgerYearServiceService extends __BaseService {
    *   Scope: ledgerYear:read
    *   Permission: ledgerYear:read
    *   Domain: organization-scoped
-   * @param name_12 The resource name of the ledger year.
+   * @param name_14 The resource name of the ledger year.
    * Format: organizations/{organization}/ledgerYears/{ledger_year}
    * @return A successful response.
    */
-  LedgerYearServiceGetLedgerYear(name12: string): __Observable<V1LedgerYear> {
-    return this.LedgerYearServiceGetLedgerYearResponse(name12).pipe(
+  LedgerYearServiceGetLedgerYear(name14: string): __Observable<V1LedgerYear> {
+    return this.LedgerYearServiceGetLedgerYearResponse(name14).pipe(
       __map(_r => _r.body as V1LedgerYear)
     );
   }

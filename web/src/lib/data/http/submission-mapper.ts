@@ -5,6 +5,8 @@ import { V1Submission } from '../../api/models/v1submission';
 import { V1SubmissionItem } from '../../api/models/v1submission-item';
 import { V1SubmissionComment } from '../../api/models/v1submission-comment';
 import { V1Committee } from '../../api/models/v1committee';
+import { V1CommitteePaymentAccount } from '../../api/models/v1committee-payment-account';
+import { V1PaymentAccountKind } from '../../api/models/v1payment-account-kind';
 import {
   Submission,
   SubmissionComment,
@@ -12,63 +14,93 @@ import {
   SettlementKind,
   SubmissionScope,
   SubmissionStatus,
+  SubmissionType,
   PayoutMethod,
-  PaymentRequestTiming,
   DocumentForm,
   CommitteePaymentAccountKind,
+  BankDetails,
   SubmissionItem,
   Committee,
 } from '../../../app/shared/models';
 
-// 'DIRECTION_EXPENSE' → 'expense', 'SUBMISSION_STATUS_DRAFT' → 'draft', ...
-// Converts a decimal string (e.g. "12.34") into integer cents.
+// 'SUBMISSION_STATUS_DRAFT' → 'draft', 'PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT' →
+// 'bank_account', ... Converts a decimal string (e.g. "12.34") into integer
+// cents.
 export function decimalStringToCents(value: string | undefined): number {
   if (!value) return 0;
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
 }
 
-export function stripEnumPrefix(value: string | undefined): string {
+// stripEnumPrefix removes the leading enum family segments of a generated
+// enum value ('SUBMISSION_STATUS_DRAFT' with 2 segments → 'draft').
+export function stripEnumPrefix(value: string | undefined, segments = 1): string {
   if (!value) return '';
-  const idx = value.indexOf('_');
-  return idx >= 0 ? value.slice(idx + 1).toLowerCase() : value.toLowerCase();
+  let v = value;
+  for (let i = 0; i < segments; i++) {
+    const idx = v.indexOf('_');
+    if (idx < 0) break;
+    v = v.slice(idx + 1);
+  }
+  return v.toLowerCase();
+}
+
+export function mapApiType(submission: V1Submission): SubmissionType {
+  return submission.misc ? 'misc' : 'income_expense';
 }
 
 export function mapApiDirection(value: string | undefined): SubmissionDirection {
   return (stripEnumPrefix(value) || 'expense') as SubmissionDirection;
 }
 
-export function mapApiSettlement(value: string | undefined): SettlementKind | null {
-  const v = stripEnumPrefix(value);
-  return v ? (v as SettlementKind) : null;
-}
-
 export function mapApiScope(value: string | undefined): SubmissionScope {
-  return (stripEnumPrefix(value) || 'hoheitlich') as SubmissionScope;
+  return (stripEnumPrefix(value, 2) || 'hoheitlich') as SubmissionScope;
 }
 
 export function mapApiStatus(value: string | undefined): SubmissionStatus {
-  return (stripEnumPrefix(value) || 'draft') as SubmissionStatus;
-}
-
-export function mapApiPayoutMethod(value: string | undefined): PayoutMethod {
-  return (stripEnumPrefix(value) || 'bank_transfer') as PayoutMethod;
-}
-
-export function mapApiTiming(value: string | undefined): PaymentRequestTiming {
-  return (stripEnumPrefix(value) || 'on_invoice') as PaymentRequestTiming;
+  return (stripEnumPrefix(value, 2) || 'draft') as SubmissionStatus;
 }
 
 export function mapApiDocumentForm(value: string | undefined): DocumentForm {
-  return (stripEnumPrefix(value) || 'paper_original') as DocumentForm;
+  return (stripEnumPrefix(value, 2) || 'paper_original') as DocumentForm;
 }
 
 export function mapApiPaymentAccountKind(value: string | undefined): CommitteePaymentAccountKind {
-  return (stripEnumPrefix(value) || 'bank_account') as CommitteePaymentAccountKind;
+  return (stripEnumPrefix(value, 3) || 'bank_account') as CommitteePaymentAccountKind;
+}
+
+export function toApiPaymentAccountKind(kind: CommitteePaymentAccountKind): V1PaymentAccountKind {
+  return ('PAYMENT_ACCOUNT_KIND_' + kind.toUpperCase()) as V1PaymentAccountKind;
 }
 
 export function uidFromResourceName(name: string | undefined): string {
   return name?.split('/').pop() ?? '';
+}
+
+// Person payout method: the generated model encodes the oneof as the
+// bank_transfer/cash message fields.
+function payoutMethodFromPerson(person: {
+  bank_transfer?: unknown;
+  cash?: unknown;
+}): PayoutMethod | null {
+  if (person.bank_transfer) return 'bank_transfer';
+  if (person.cash) return 'cash';
+  return null;
+}
+
+function bankDetailsFromApi(ba: {
+  account_holder?: string;
+  iban?: string;
+  bic?: string;
+  account_number?: string;
+} | null): BankDetails | null {
+  if (!ba) return null;
+  return {
+    accountHolder: ba.account_holder ?? '',
+    iban: ba.iban ?? '',
+    bic: ba.bic || null,
+    accountNumber: ba.account_number || null,
+  };
 }
 
 export function mapApiSubmissionItem(s: V1SubmissionItem): SubmissionItem {
@@ -96,46 +128,56 @@ export function mapApiSubmissionItem(s: V1SubmissionItem): SubmissionItem {
 }
 
 export function mapApiSubmission(s: V1Submission): Submission {
-  const direction = mapApiDirection(s.direction);
-  const settlement = direction === 'income' ? null : mapApiSettlement(s.settlement);
+  const type = mapApiType(s);
+  const incomeExpense = type === 'misc' ? null : s.income_expense;
+  const direction: SubmissionDirection | null =
+    type === 'misc' ? null : incomeExpense?.expense ? 'expense' : 'income';
+  const settlement: SettlementKind | null =
+    direction === 'expense'
+      ? incomeExpense?.expense?.person
+        ? 'person'
+        : incomeExpense?.expense?.committee_account
+          ? 'committee_account'
+          : incomeExpense?.expense?.payment_request
+            ? 'payment_request'
+            : null
+      : null;
 
   const person =
-    s.person_details && settlement === 'person'
+    direction === 'expense' && incomeExpense?.expense?.person
       ? {
-          payoutMethod: mapApiPayoutMethod(s.person_details.payout_method),
-          bankDetails: s.person_details.bank_details
-            ? {
-                accountHolder: s.person_details.bank_details.account_holder ?? '',
-                iban: s.person_details.bank_details.iban ?? '',
-                bic: s.person_details.bank_details.bic || null,
-              }
-            : null,
+          payoutMethod: payoutMethodFromPerson(incomeExpense.expense.person) ?? 'bank_transfer',
+          bankDetails: bankDetailsFromApi(incomeExpense.expense.person.bank_transfer?.bank_account ?? null),
         }
       : null;
 
   const committeeAccount =
-    s.committee_account_details && settlement === 'committee_account'
+    direction === 'expense' && incomeExpense?.expense?.committee_account
       ? {
-          paymentAccountUid: s.committee_account_details.payment_account_uid ?? '',
-          paymentAccountLabel: s.committee_account_details.payment_account_label ?? '',
-          paidDate: s.committee_account_details.paid_date
+          paymentAccountUid: uidFromResourceName(
+            incomeExpense.expense.committee_account.payment_account
+          ),
+          paymentAccountLabel: '',
+          paidDate: incomeExpense.expense.committee_account.paid_date
             ? new Date(
-                s.committee_account_details.paid_date.year ?? 1970,
-                (s.committee_account_details.paid_date.month ?? 1) - 1,
-                s.committee_account_details.paid_date.day ?? 1
+                incomeExpense.expense.committee_account.paid_date.year ?? 1970,
+                (incomeExpense.expense.committee_account.paid_date.month ?? 1) - 1,
+                incomeExpense.expense.committee_account.paid_date.day ?? 1
               )
             : null,
-          paymentReference: s.committee_account_details.payment_reference || null,
+          paymentReference: incomeExpense.expense.committee_account.payment_reference || null,
         }
       : null;
 
   const paymentRequest =
-    s.payment_request_details && settlement === 'payment_request'
+    direction === 'expense' && incomeExpense?.expense?.payment_request
       ? {
-          vendorName: s.payment_request_details.vendor_name ?? '',
-          vendorIban: s.payment_request_details.vendor_iban ?? '',
-          vendorBic: s.payment_request_details.vendor_bic || null,
-          timing: mapApiTiming(s.payment_request_details.timing),
+          bankDetails: bankDetailsFromApi(incomeExpense.expense.payment_request.bank_account) ?? {
+            accountHolder: '',
+            iban: '',
+            bic: null,
+            accountNumber: null,
+          },
         }
       : null;
 
@@ -148,9 +190,10 @@ export function mapApiSubmission(s: V1Submission): Submission {
     createdByUserFullName: '',
     committeeId: uidFromResourceName(s.committee),
     committeeName: '',
+    type,
     direction,
     settlement,
-    scope: mapApiScope(s.scope),
+    scope: incomeExpense ? mapApiScope(incomeExpense.scope) : null,
     status: mapApiStatus(s.status),
     notice: s.notice || null,
     personSettlement: person,
@@ -182,20 +225,31 @@ export function mapApiSubmissionComment(c: V1SubmissionComment): SubmissionComme
   };
 }
 
+// mapApiCommittee maps the committee message. Payment accounts are a separate
+// sub-resource and are attached by the caller (see
+// mapApiCommitteePaymentAccount).
 export function mapApiCommittee(c: V1Committee): Committee {
-  const paymentAccounts = (c.payment_accounts ?? []).map((pa) => ({
-    uid: pa.uid ?? '',
-    kind: mapApiPaymentAccountKind(pa.kind) as CommitteePaymentAccountKind,
-    label: pa.display_label ?? '',
-  }));
   return {
     id: c.uid ?? uidFromResourceName(c.name),
     name: c.display_name ?? '',
     description: c.display_description || null,
     isActive: true,
     allowScopeSelection: !!c.allow_scope_selection,
-    paymentAccounts,
+    paymentAccounts: [],
+    isReferenced: !!c.is_referenced,
     createdAt: c.create_time ? new Date(c.create_time) : new Date(),
     updatedAt: c.update_time ? new Date(c.update_time) : new Date(),
+  };
+}
+
+export function mapApiCommitteePaymentAccount(pa: V1CommitteePaymentAccount): {
+  uid: string;
+  kind: CommitteePaymentAccountKind;
+  label: string;
+} {
+  return {
+    uid: pa.uid ?? uidFromResourceName(pa.name),
+    kind: mapApiPaymentAccountKind(pa.kind),
+    label: pa.display_label ?? '',
   };
 }

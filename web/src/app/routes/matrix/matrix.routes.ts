@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { Matrix } from './matrix.component';
 import { MatrixDataService } from './matrix.data-service';
+import { MatrixValuesCacheService } from './matrix-values-cache.service';
 import { environment } from '../../../environments/environment';
 import { requireAllPermissions } from '../../../lib/authz/permission.guard';
 import { Permission, Permissions } from '../../../lib/authz/permissions';
@@ -18,6 +19,10 @@ export const MATRIX_ROUTES: Routes = [
       {
         provide: MatrixDataService,
         useClass: environment.dataServices.matrix,
+      },
+      {
+        provide: MatrixValuesCacheService,
+        useClass: MatrixValuesCacheService,
       },
       {
         provide: Matrix,

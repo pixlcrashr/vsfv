@@ -66,6 +66,10 @@ export class MockAuthorizationDataService extends AuthorizationDataService {
     Permissions.SUBMISSIONS_READ_OWN,
     Permissions.SUBMISSIONS_COMMENT_OWN,
     Permissions.SUBMISSIONS_UPDATE_OWN,
+    Permissions.COMMITTEES_READ,
+    Permissions.COMMITTEES_CREATE,
+    Permissions.COMMITTEES_UPDATE,
+    Permissions.COMMITTEES_DELETE,
     Permissions.AUDIT_LOGS_READ,
   ]);
 

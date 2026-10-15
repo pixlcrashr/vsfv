@@ -1,5 +1,5 @@
 /* tslint:disable */
-import { V1AccountType } from './v1account-type';
+import { V1LedgerAccountType } from './v1ledger-account-type';
 
 /**
  * LedgerAccount represents an account from a "Kontenrahmen" used for bookkeeping.
@@ -8,14 +8,9 @@ import { V1AccountType } from './v1account-type';
 export interface V1LedgerAccount {
 
   /**
-   * The type of account for transaction interpretation.
-   */
-  account_type: V1AccountType;
-
-  /**
    * Unique account code (e.g., from the Kontenrahmen).
    */
-  code: string;
+  code?: string;
 
   /**
    * Creation timestamp.
@@ -37,6 +32,11 @@ export interface V1LedgerAccount {
    */
   etag?: string;
   name?: string;
+
+  /**
+   * The type of the account for budget-plan value interpretation.
+   */
+  type?: V1LedgerAccountType;
 
   /**
    * The UUID of the ledger account.

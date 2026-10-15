@@ -9,6 +9,13 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { merge, map, distinctUntilChanged, filter } from 'rxjs';
 import { Dialog } from '@angular/cdk/dialog';
 import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDropList,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
+import {
   PageContentLayoutComponent,
   BreadcrumbItem,
   ButtonComponent,
@@ -31,7 +38,9 @@ import { Budget } from '../../../shared/models';
 import { formatDateShort } from '../../../shared/utils';
 import { BudgetListDataService } from './budget-list.data-service';
 import { HasPermissionPipe } from '../../../../lib/authz/has-permission.pipe';
-import { Permission, Permissions } from '../../../../lib/authz/permissions';
+import { Permissions } from '../../../../lib/authz/permissions';
+
+
 
 @Component({
   selector: 'app-budget-list',
@@ -44,6 +53,9 @@ import { Permission, Permissions } from '../../../../lib/authz/permissions';
     LoadingSpinnerComponent,
     EmptyStateComponent,
     HasPermissionPipe,
+    CdkDropList,
+    CdkDrag,
+    CdkDragHandle,
   ],
   template: `
     <app-page-content-layout [breadcrumbs]="breadcrumbs">
@@ -65,52 +77,94 @@ import { Permission, Permissions } from '../../../../lib/authz/permissions';
           </app-empty-state>
         } @else {
           <div class="w-full max-w-6xl">
+            @if (Permissions.BUDGETS_UPDATE | hasPermission) {
+              <p class="mb-2 text-xs text-gray-500">
+                <ng-container i18n>Ziehe die Haushaltspläne am Griff, um ihre Reihenfolge zu ändern. Die Reihenfolge gilt auch für andere Ansichten.</ng-container>
+              </p>
+            }
             <div class="bg-white rounded-lg border border-gray-200">
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
+                    @if (Permissions.BUDGETS_UPDATE | hasPermission) {
+                      <th scope="col" class="px-2 py-1 w-8">
+                        <span class="sr-only" i18n>Sortieren</span>
+                      </th>
+                    }
                     <th
                       scope="col"
-                      class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                      class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                     >
                       <ng-container i18n>Name</ng-container>
                     </th>
                     <th
                       scope="col"
-                      class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                      class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                     >
                       <ng-container i18n>Beginn</ng-container>
                     </th>
                     <th
                       scope="col"
-                      class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                      class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                     >
                       <ng-container i18n>Ende</ng-container>
                     </th>
                     <th
                       scope="col"
-                      class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
+                      class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-left text-gray-500"
                     >
                       <ng-container i18n>Status</ng-container>
                     </th>
-                    <th scope="col" class="px-3 py-2 text-right">
+                    <th scope="col" class="px-3 py-1 text-right">
                       <span class="sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
+                <tbody
+                  class="divide-y divide-gray-200 bg-white"
+                  cdkDropList
+                  cdkDropListOrientation="vertical"
+                  [cdkDropListData]="budgets()"
+                  (cdkDropListDropped)="drop($event)"
+                >
                   @for (budget of budgets(); track trackById(budget)) {
-                    <tr class="hover:bg-gray-50 transition-colors">
-                      <td class="px-3 py-2 text-xs text-gray-900">{{ budget.displayName }}</td>
-                      <td class="px-3 py-2 text-xs text-gray-900">{{ budget.periodStart }}</td>
-                      <td class="px-3 py-2 text-xs text-gray-900">{{ budget.periodEnd }}</td>
-                      <td class="px-3 py-2 text-xs text-gray-900">
+                    <tr
+                      class="hover:bg-gray-50 transition-colors"
+                      cdkDrag
+                      cdkDragPreviewClass="budget-row-drag-preview"
+                      [cdkDragDisabled]="!(Permissions.BUDGETS_UPDATE | hasPermission)"
+                    >
+                      @if (Permissions.BUDGETS_UPDATE | hasPermission) {
+                        <td class="px-2 py-1 w-8 text-gray-400">
+                          <button
+                            type="button"
+                            cdkDragHandle
+                            class="cursor-grab active:cursor-grabbing hover:text-gray-600"
+                            i18n-aria-label
+                            aria-label="Zum Ändern der Reihenfolge ziehen"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4" aria-hidden="true">
+                              <circle cx="7" cy="5" r="1.5" />
+                              <circle cx="13" cy="5" r="1.5" />
+                              <circle cx="7" cy="10" r="1.5" />
+                              <circle cx="13" cy="10" r="1.5" />
+                              <circle cx="7" cy="15" r="1.5" />
+                              <circle cx="13" cy="15" r="1.5" />
+                            </svg>
+                            <span class="sr-only" i18n>Nach oben oder unten ziehen, um die Reihenfolge zu ändern</span>
+                          </button>
+                        </td>
+                      }
+                      <td class="px-3 py-1 text-xs text-gray-900">{{ budget.displayName }}</td>
+                      <td class="px-3 py-1 text-xs text-gray-900">{{ budget.periodStart }}</td>
+                      <td class="px-3 py-1 text-xs text-gray-900">{{ budget.periodEnd }}</td>
+                      <td class="px-3 py-1 text-xs text-gray-900">
                         <app-status-badge [variant]="budget.isClosed ? 'neutral' : 'success'" size="sm">
                           <ng-container i18n>{{ budget.isClosed ? 'Geschlossen' : 'Offen' }}</ng-container>
                         </app-status-badge>
                       </td>
-                      <td class="px-3 py-2 text-right text-xs">
+                      <td class="px-3 py-1 text-right text-xs">
                         <div class="flex items-center justify-end gap-2">
                           <a
                             [routerLink]="['/organizations', orgId, 'budgets', budget.id]"
@@ -171,11 +225,13 @@ export class BudgetListComponent {
   private loadBudgets(): void {
     this.dataService.listBudgets(this.orgId).subscribe({
       next: (budgets) => {
-        const formatted = budgets.map((b) => ({
-          ...b,
-          periodStart: formatDateShort(b.periodStart) as unknown as Date,
-          periodEnd: formatDateShort(b.periodEnd) as unknown as Date,
-        }));
+        const formatted = [...budgets]
+          .sort((a, b) => a.order - b.order)
+          .map((b) => ({
+            ...b,
+            periodStart: formatDateShort(b.periodStart) as unknown as Date,
+            periodEnd: formatDateShort(b.periodEnd) as unknown as Date,
+          }));
         this.budgets.set(formatted as Budget[]);
         this.loading.set(false);
       },
@@ -189,6 +245,26 @@ export class BudgetListComponent {
   }
 
   trackById = (budget: Budget) => budget.id;
+
+  drop(event: CdkDragDrop<Budget[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+
+    const original = [...this.budgets()];
+    const reordered = [...original];
+    moveItemInArray(reordered, event.previousIndex, event.currentIndex);
+    this.budgets.set(reordered);
+
+    this.dataService.reorderBudgets(this.orgId, reordered.map(b => b.id)).subscribe({
+      error: () => {
+        this.budgets.set(original);
+        this._notificationService.error($localize`Fehler beim Ändern der Reihenfolge`, {
+          duration: 5000,
+        });
+      },
+    });
+  }
 
   openCreateDialog(): void {
     const dialogRef = this.dialog.open<CreateBudgetDialogOutput, CreateBudgetDialogInput>(

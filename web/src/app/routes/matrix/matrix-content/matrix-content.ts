@@ -338,7 +338,7 @@ export class MatrixContent {
         return {
           ...col,
           isClosed: budget?.isClosed ?? false,
-          tags: [...tags].reverse()
+          tags
         };
       });
   });
@@ -362,7 +362,7 @@ export class MatrixContent {
           .filter(v => selectedBudgetIds.includes(v.budgetId))
           .map(v => {
             const tags = v.tags.filter(t => selectedTagIds.includes(t.tagId));
-            return { ...v, tags: [...tags].reverse() };
+            return { ...v, tags };
           })
       }));
   });

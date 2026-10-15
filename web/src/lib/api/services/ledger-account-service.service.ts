@@ -8,7 +8,7 @@ import { Observable as __Observable } from 'rxjs';
 import { map as __map, filter as __filter } from 'rxjs/operators';
 
 import { V1LedgerAccount } from '../models/v1ledger-account';
-import { V1AccountType } from '../models/v1account-type';
+import { V1LedgerAccountType } from '../models/v1ledger-account-type';
 import { V1ListLedgerAccountsResponse } from '../models/v1list-ledger-accounts-response';
 import { V1BatchGetLedgerAccountsResponse } from '../models/v1batch-get-ledger-accounts-response';
 
@@ -21,8 +21,8 @@ import { V1BatchGetLedgerAccountsResponse } from '../models/v1batch-get-ledger-a
 })
 class LedgerAccountServiceService extends __BaseService {
   static readonly LedgerAccountServiceUpdateLedgerAccountPath = '/v1/{ledger_account.name}';
-  static readonly LedgerAccountServiceGetLedgerAccountPath = '/v1/{name_11}';
-  static readonly LedgerAccountServiceDeleteLedgerAccountPath = '/v1/{name_6}';
+  static readonly LedgerAccountServiceGetLedgerAccountPath = '/v1/{name_13}';
+  static readonly LedgerAccountServiceDeleteLedgerAccountPath = '/v1/{name_8}';
   static readonly LedgerAccountServiceListLedgerAccountsPath = '/v1/{parent}/ledgerAccounts';
   static readonly LedgerAccountServiceBatchGetLedgerAccountsPath = '/v1/{parent}/ledgerAccounts:batchGet';
 
@@ -98,18 +98,18 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:read
    *   Permission: ledgerAccount:read
    *   Domain: organization-scoped
-   * @param name_11 The resource name of the ledger account.
+   * @param name_13 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceGetLedgerAccountResponse(name11: string): __Observable<__StrictHttpResponse<V1LedgerAccount>> {
+  LedgerAccountServiceGetLedgerAccountResponse(name13: string): __Observable<__StrictHttpResponse<V1LedgerAccount>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'GET',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name11))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name13))}`,
       __body,
       {
         headers: __headers,
@@ -130,12 +130,12 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:read
    *   Permission: ledgerAccount:read
    *   Domain: organization-scoped
-   * @param name_11 The resource name of the ledger account.
+   * @param name_13 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceGetLedgerAccount(name11: string): __Observable<V1LedgerAccount> {
-    return this.LedgerAccountServiceGetLedgerAccountResponse(name11).pipe(
+  LedgerAccountServiceGetLedgerAccount(name13: string): __Observable<V1LedgerAccount> {
+    return this.LedgerAccountServiceGetLedgerAccountResponse(name13).pipe(
       __map(_r => _r.body as V1LedgerAccount)
     );
   }
@@ -146,18 +146,18 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:write
    *   Permission: ledgerAccount:delete
    *   Domain: organization-scoped
-   * @param name_6 The resource name of the ledger account.
+   * @param name_8 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceDeleteLedgerAccountResponse(name6: string): __Observable<__StrictHttpResponse<{}>> {
+  LedgerAccountServiceDeleteLedgerAccountResponse(name8: string): __Observable<__StrictHttpResponse<{}>> {
     let __params = this.newParams();
     let __headers = new HttpHeaders();
     let __body: any = null;
 
     let req = new HttpRequest<any>(
       'DELETE',
-      this.rootUrl + `/v1/${encodeURIComponent(String(name6))}`,
+      this.rootUrl + `/v1/${encodeURIComponent(String(name8))}`,
       __body,
       {
         headers: __headers,
@@ -178,12 +178,12 @@ class LedgerAccountServiceService extends __BaseService {
    *   Scope: ledgerAccount:write
    *   Permission: ledgerAccount:delete
    *   Domain: organization-scoped
-   * @param name_6 The resource name of the ledger account.
+   * @param name_8 The resource name of the ledger account.
    * Format: organizations/{organization}/ledgerAccounts/{ledger_account}
    * @return A successful response.
    */
-  LedgerAccountServiceDeleteLedgerAccount(name6: string): __Observable<{}> {
-    return this.LedgerAccountServiceDeleteLedgerAccountResponse(name6).pipe(
+  LedgerAccountServiceDeleteLedgerAccount(name8: string): __Observable<{}> {
+    return this.LedgerAccountServiceDeleteLedgerAccountResponse(name8).pipe(
       __map(_r => _r.body as {})
     );
   }
@@ -209,8 +209,8 @@ class LedgerAccountServiceService extends __BaseService {
    * - `order_by`: Order by expression (e.g. "code", "display_name", "create_time desc").
    *
    * - `filter`: Filter expression conforming to AIP-160.
-   *   Supported fields: code, account_type, display_name.
-   *   Example: "account_type=ASSET" or "code:\"1000\"".
+   *   Supported fields: code, type, display_name.
+   *   Example: "type=LIQUIDITY" or "code:\"1000\"".
    *
    * @return A successful response.
    */
@@ -262,8 +262,8 @@ class LedgerAccountServiceService extends __BaseService {
    * - `order_by`: Order by expression (e.g. "code", "display_name", "create_time desc").
    *
    * - `filter`: Filter expression conforming to AIP-160.
-   *   Supported fields: code, account_type, display_name.
-   *   Example: "account_type=ASSET" or "code:\"1000\"".
+   *   Supported fields: code, type, display_name.
+   *   Example: "type=LIQUIDITY" or "code:\"1000\"".
    *
    * @return A successful response.
    */
@@ -353,7 +353,7 @@ module LedgerAccountServiceService {
     /**
      * The ledger account to update.
      */
-    ledgerAccount: {uid?: string, code: string, account_type: V1AccountType, display_name?: string, display_description?: string, update_time?: string, create_time?: string, etag?: string};
+    ledgerAccount: {uid?: string, code?: string, type?: V1LedgerAccountType, display_name?: string, display_description?: string, update_time?: string, create_time?: string, etag?: string};
   }
 
   /**
@@ -390,8 +390,8 @@ module LedgerAccountServiceService {
 
     /**
      * Filter expression conforming to AIP-160.
-     * Supported fields: code, account_type, display_name.
-     * Example: "account_type=ASSET" or "code:\"1000\"".
+     * Supported fields: code, type, display_name.
+     * Example: "type=LIQUIDITY" or "code:\"1000\"".
      */
     filter?: string;
   }

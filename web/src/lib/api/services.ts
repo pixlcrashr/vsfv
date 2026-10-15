@@ -13,6 +13,8 @@ export { BudgetServiceService } from './services/budget-service.service';
 export { CommitteeServiceService } from './services/committee-service.service';
 export { SubmissionItemServiceService } from './services/submission-item-service.service';
 export { LedgerAccountServiceService } from './services/ledger-account-service.service';
+export { CommitteeMemberServiceService } from './services/committee-member-service.service';
+export { CommitteePaymentAccountServiceService } from './services/committee-payment-account-service.service';
 export { ReportServiceService } from './services/report-service.service';
 export { LedgerYearServiceService } from './services/ledger-year-service.service';
 export { TransactionServiceService } from './services/transaction-service.service';

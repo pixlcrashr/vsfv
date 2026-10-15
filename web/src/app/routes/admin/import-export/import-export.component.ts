@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
+  computed,
   OnInit,
   viewChild,
   ElementRef,
@@ -18,7 +19,7 @@ import {
   AdminContentComponent,
 } from '../../../shared/components';
 import { Organization } from '../../../shared/models';
-import { OrganizationListDataService } from '../organizations/organization-list.data-service';
+import { OrganizationStoreService } from '../../../shared/services/organization-store.service';
 import { HasPermissionPipe } from '../../../../lib/authz/has-permission.pipe';
 import { Permissions } from '../../../../lib/authz/permissions';
 
@@ -114,14 +115,25 @@ interface ImportOrganizationResponse {
                           <td class="px-3 py-2 text-xs text-gray-900">{{ org.name }}</td>
                           <td class="px-3 py-2 text-xs text-gray-500">{{ org.description || '-' }}</td>
                           <td class="px-3 py-2 text-right text-xs">
-                            <button
-                              type="button"
-                              (click)="exportXml(org)"
-                              class="text-xs text-blue-600 hover:underline"
-                              i18n
-                            >
-                              Exportieren
-                            </button>
+                            @if (exportingOrgId() === org.id) {
+                              <span class="inline-flex items-center justify-end gap-1.5 text-gray-500">
+                                <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <ng-container i18n>Wird exportiert...</ng-container>
+                              </span>
+                            } @else {
+                              <button
+                                type="button"
+                                (click)="exportXml(org)"
+                                [disabled]="isExporting()"
+                                class="text-xs text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+                                i18n
+                              >
+                                Exportieren
+                              </button>
+                            }
                           </td>
                         </tr>
                       }
@@ -137,7 +149,7 @@ interface ImportOrganizationResponse {
   `,
 })
 export class ImportExportComponent implements OnInit {
-  private readonly organizationListDataService = inject(OrganizationListDataService);
+  private readonly organizationStore = inject(OrganizationStoreService);
   private readonly notificationService = inject(NotificationService);
   private readonly http = inject(HttpClient);
 
@@ -152,25 +164,17 @@ export class ImportExportComponent implements OnInit {
 
   readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
 
-  readonly loading = signal(true);
+  readonly loading = computed(() => this.organizationStore.loading() && this.organizationStore.organizations() === null);
   readonly importing = signal(false);
-  readonly organizations = signal<Organization[]>([]);
+  readonly exportingOrgId = signal<string | null>(null);
+  readonly isExporting = computed(() => this.exportingOrgId() !== null);
+  readonly organizations = computed<Organization[]>(() => this.organizationStore.organizations() ?? []);
 
   readonly Permissions = Permissions;
 
   ngOnInit(): void {
-    this.loadOrganizations();
-  }
-
-  private loadOrganizations(): void {
-    this.loading.set(true);
-    this.organizationListDataService.getOrganizations().subscribe({
-      next: (orgs) => {
-        this.organizations.set(orgs);
-        this.loading.set(false);
-      },
+    this.organizationStore.load().subscribe({
       error: () => {
-        this.loading.set(false);
         this.notificationService.error($localize`Fehler beim Laden der Organisationen`);
       },
     });
@@ -200,7 +204,9 @@ export class ImportExportComponent implements OnInit {
             ? $localize`Organisation "${name}" wurde importiert`
             : $localize`Organisation wurde importiert`,
         );
-        this.loadOrganizations();
+        // Refresh the shared store so the sidebar switcher and admin routes
+        // show the imported organization.
+        this.organizationStore.refresh().subscribe();
       },
       error: (err) => {
         this.importing.set(false);
@@ -215,7 +221,10 @@ export class ImportExportComponent implements OnInit {
   }
 
   exportXml(org: Organization): void {
+    if (this.isExporting()) return;
+
     const url = `${this.apiOrigin}/api/v1/organizations/${org.id}/data:export-xml`;
+    this.exportingOrgId.set(org.id);
     this.http.get(url, { responseType: 'blob' }).subscribe({
       next: (blob) => {
         const a = document.createElement('a');
@@ -224,8 +233,10 @@ export class ImportExportComponent implements OnInit {
         a.download = `vsfv-export-${org.id}.xml`;
         a.click();
         window.URL.revokeObjectURL(objectUrl);
+        this.exportingOrgId.set(null);
       },
       error: () => {
+        this.exportingOrgId.set(null);
         this.notificationService.error($localize`Fehler beim Exportieren der XML-Datei`);
       },
     });

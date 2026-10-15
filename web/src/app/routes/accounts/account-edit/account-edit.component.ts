@@ -104,6 +104,18 @@ import { AccountEditDataService, AccountDetails } from './account-edit.data-serv
                           class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         ></textarea>
                       </div>
+
+                      <div class="flex items-center gap-2 pt-1">
+                        <input
+                          id="invertSign"
+                          type="checkbox"
+                          formControlName="invertSign"
+                          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label for="invertSign" class="text-xs font-medium text-gray-700 cursor-pointer">
+                          <ng-container i18n>Vorzeichen umkehren (Ausgaben positiv darstellen; wird an Unterkonten vererbt)</ng-container>
+                        </label>
+                      </div>
                     </div>
                   </form>
                 </div>
@@ -203,6 +215,7 @@ export class AccountEditComponent implements OnInit, OnDestroy {
       code: ['', Validators.required],
       name: ['', Validators.required],
       description: [''],
+      invertSign: [false],
     });
   }
 
@@ -250,6 +263,7 @@ export class AccountEditComponent implements OnInit, OnDestroy {
           code: account.code,
           name: account.name,
           description: account.description,
+          invertSign: !!account.invertSign,
         }, { emitEvent: false });
         this.accountForm.markAsPristine();
         this.breadcrumbs.set([
@@ -271,9 +285,9 @@ export class AccountEditComponent implements OnInit, OnDestroy {
 
     this.saving.set(true);
     const account = this.account()!;
-    const { code, name, description } = this.accountForm.value;
+    const { code, name, description, invertSign } = this.accountForm.value;
 
-    this.dataService.updateAccount(this.orgId, account.id, name, code, description).subscribe({
+    this.dataService.updateAccount(this.orgId, account.id, name, code, description, !!invertSign).subscribe({
       next: () => {
         this.saving.set(false);
         this.accountForm.markAsPristine();

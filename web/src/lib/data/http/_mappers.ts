@@ -63,6 +63,7 @@ export function mapApiAccount(a: ApiAccount): Account {
     description: a.display_description ?? '',
     isArchived: a.is_archived ?? false,
     isContainer: a.is_container ?? false,
+    invertSign: a.invert_sign ?? false,
     parentAccountId: parentUid,
   };
 }
@@ -81,6 +82,7 @@ export function mapApiNestedAccount(n: ApiNestedAccount, depth = 0): Hierarchica
     description: a?.display_description ?? '',
     isArchived: a?.is_archived ?? false,
     isContainer: a?.is_container ?? false,
+    invertSign: a?.invert_sign ?? false,
     parentAccountId: parentUid,
     depth,
     children: (n.children ?? []).map((c) => mapApiNestedAccount(c, depth + 1)),
@@ -114,6 +116,7 @@ export function mapApiBudget(b: ApiBudget): Budget {
     isPublished: b.is_published ?? false,
     publishActualValues: b.publish_actual_values ?? false,
     publishActualValuesUntil: b.publish_actual_values_until ? typeDateToDate(b.publish_actual_values_until) : null,
+    order: b.order ?? 0,
   };
 }
 

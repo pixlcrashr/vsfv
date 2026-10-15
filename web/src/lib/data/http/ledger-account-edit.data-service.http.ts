@@ -6,7 +6,7 @@ import {
   UpdateLedgerAccountRequest,
 } from '../../../app/routes/ledger/ledger-accounts/ledger-account-edit.data-service';
 import { LedgerAccountServiceService } from '../../api/services/ledger-account-service.service';
-import { V1AccountType } from '../../api/models/v1account-type';
+import { V1LedgerAccountType } from '../../api/models/v1ledger-account-type';
 
 @Injectable({ providedIn: 'root' })
 export class HttpLedgerAccountEditDataService implements LedgerAccountEditDataService {
@@ -18,10 +18,10 @@ export class HttpLedgerAccountEditDataService implements LedgerAccountEditDataSe
       map((account) => ({
         id: account.uid || '',
         name: account.name || '',
-        code: account.code,
+        code: account.code ?? '',
         displayName: account.display_name,
         displayDescription: account.display_description,
-        accountType: account.account_type as V1AccountType,
+        type: (account.type ?? 'LEDGER_ACCOUNT_TYPE_UNSPECIFIED') as V1LedgerAccountType,
         updateTime: account.update_time,
         createTime: account.create_time,
         etag: account.etag,
@@ -35,13 +35,14 @@ export class HttpLedgerAccountEditDataService implements LedgerAccountEditDataSe
   ): Observable<LedgerAccountDetail> {
     const ledgerAccountName = `organizations/${organizationId}/ledgerAccounts/${request.id}`;
 
+    // The code is output-only and never sent; the server applies the update
+    // mask (type, display_name, display_description).
     return this.api
       .LedgerAccountServiceUpdateLedgerAccount({
         ledgerAccountName,
         ledgerAccount: {
           uid: request.id,
-          code: '',
-          account_type: (request.accountType ?? 'ACCOUNT_TYPE_UNSPECIFIED') as V1AccountType,
+          type: (request.type ?? 'LEDGER_ACCOUNT_TYPE_UNSPECIFIED') as V1LedgerAccountType,
           display_name: request.displayName,
           display_description: request.displayDescription,
           etag: request.etag,
@@ -51,10 +52,10 @@ export class HttpLedgerAccountEditDataService implements LedgerAccountEditDataSe
         map((account) => ({
           id: account.uid || '',
           name: account.name || '',
-          code: account.code,
+          code: account.code ?? '',
           displayName: account.display_name,
           displayDescription: account.display_description,
-          accountType: account.account_type as V1AccountType,
+          type: (account.type ?? 'LEDGER_ACCOUNT_TYPE_UNSPECIFIED') as V1LedgerAccountType,
           updateTime: account.update_time,
           createTime: account.create_time,
           etag: account.etag,

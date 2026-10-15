@@ -19,3 +19,4 @@ export { AdminContentHeaderComponent } from './admin-content-header/admin-conten
 export { AdminContentComponent } from './admin-content/admin-content.component';
 export { StatusBadgeComponent, type BadgeVariant } from './status-badge/status-badge.component';
 export { AuditLogHistoryComponent } from './audit-log-history/audit-log-history.component';
+export { AccountCodeCellComponent } from './account-code-cell/account-code-cell.component';

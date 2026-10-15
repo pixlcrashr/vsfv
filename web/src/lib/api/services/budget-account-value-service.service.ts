@@ -197,26 +197,37 @@ class BudgetAccountValueServiceService extends __BaseService {
   }
 
   /**
-   * Lists account values for a budget.
+   * Lists account values for a budget. The wildcard parent form
+   * (organizations/{organization}/budgets/-) lists the values of every
+   * budget of the organization in a single request, optionally restricted
+   * via the `budget` filter.
    * Authorization:
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
    * @param params The `BudgetAccountValueServiceService.BudgetAccountValueServiceListBudgetAccountValuesParams` containing the following parameters:
    *
-   * - `parent`: The parent budget resource name.
-   *   Format: organizations/{organization}/budgets/{budget}
+   * - `parent`: The parent budget resource name. Two forms are accepted:
+   *    - A single budget: organizations/{organization}/budgets/{budget}
+   *    - The wildcard form organizations/{organization}/budgets/- to list the
+   *      account values of every budget of the organization in one request;
+   *      the budgets can be selected via the `budget` filter field.
+   *   The dash "-" is the only wildcard marker; "*" is not supported.
    *
    * - `page_token`: A page token from a previous ListBudgetAccountValues call.
    *
    * - `page_size`: Maximum number of values to return. The service may return fewer.
-   *   If unspecified, at most 20 are returned. Maximum value is 100.
+   *   If unspecified, at most 100 are returned. Maximum value is 500.
    *
    * - `order_by`: Order by expression (e.g. "create_time desc").
    *
    * - `filter`: Filter expression conforming to AIP-160.
-   *   Supported fields: account.
-   *   Example: "account=\"organizations/{organization}/accounts/{account}\"".
+   *   Supported fields:
+   *     - account: the account resource name (e.g.
+   *                "organizations/{organization}/accounts/{account}").
+   *     - budget:  the budget resource name. Only accepted when the budget
+   *                segment of the parent is the wildcard "-", e.g.:
+   *                budget="..." OR budget="...".
    *
    * @return A successful response.
    */
@@ -247,26 +258,37 @@ class BudgetAccountValueServiceService extends __BaseService {
     );
   }
   /**
-   * Lists account values for a budget.
+   * Lists account values for a budget. The wildcard parent form
+   * (organizations/{organization}/budgets/-) lists the values of every
+   * budget of the organization in a single request, optionally restricted
+   * via the `budget` filter.
    * Authorization:
    *   Scope: budgets:read
    *   Permission: budgets:read
    *   Domain: organization-scoped
    * @param params The `BudgetAccountValueServiceService.BudgetAccountValueServiceListBudgetAccountValuesParams` containing the following parameters:
    *
-   * - `parent`: The parent budget resource name.
-   *   Format: organizations/{organization}/budgets/{budget}
+   * - `parent`: The parent budget resource name. Two forms are accepted:
+   *    - A single budget: organizations/{organization}/budgets/{budget}
+   *    - The wildcard form organizations/{organization}/budgets/- to list the
+   *      account values of every budget of the organization in one request;
+   *      the budgets can be selected via the `budget` filter field.
+   *   The dash "-" is the only wildcard marker; "*" is not supported.
    *
    * - `page_token`: A page token from a previous ListBudgetAccountValues call.
    *
    * - `page_size`: Maximum number of values to return. The service may return fewer.
-   *   If unspecified, at most 20 are returned. Maximum value is 100.
+   *   If unspecified, at most 100 are returned. Maximum value is 500.
    *
    * - `order_by`: Order by expression (e.g. "create_time desc").
    *
    * - `filter`: Filter expression conforming to AIP-160.
-   *   Supported fields: account.
-   *   Example: "account=\"organizations/{organization}/accounts/{account}\"".
+   *   Supported fields:
+   *     - account: the account resource name (e.g.
+   *                "organizations/{organization}/accounts/{account}").
+   *     - budget:  the budget resource name. Only accepted when the budget
+   *                segment of the parent is the wildcard "-", e.g.:
+   *                budget="..." OR budget="...".
    *
    * @return A successful response.
    */
@@ -439,8 +461,12 @@ module BudgetAccountValueServiceService {
   export interface BudgetAccountValueServiceListBudgetAccountValuesParams {
 
     /**
-     * The parent budget resource name.
-     * Format: organizations/{organization}/budgets/{budget}
+     * The parent budget resource name. Two forms are accepted:
+     *  - A single budget: organizations/{organization}/budgets/{budget}
+     *  - The wildcard form organizations/{organization}/budgets/- to list the
+     *    account values of every budget of the organization in one request;
+     *    the budgets can be selected via the `budget` filter field.
+     * The dash "-" is the only wildcard marker; "*" is not supported.
      */
     parent: string;
 
@@ -451,7 +477,7 @@ module BudgetAccountValueServiceService {
 
     /**
      * Maximum number of values to return. The service may return fewer.
-     * If unspecified, at most 20 are returned. Maximum value is 100.
+     * If unspecified, at most 100 are returned. Maximum value is 500.
      */
     pageSize?: number;
 
@@ -462,8 +488,12 @@ module BudgetAccountValueServiceService {
 
     /**
      * Filter expression conforming to AIP-160.
-     * Supported fields: account.
-     * Example: "account=\"organizations/{organization}/accounts/{account}\"".
+     * Supported fields:
+     *   - account: the account resource name (e.g.
+     *              "organizations/{organization}/accounts/{account}").
+     *   - budget:  the budget resource name. Only accepted when the budget
+     *              segment of the parent is the wildcard "-", e.g.:
+     *              budget="..." OR budget="...".
      */
     filter?: string;
   }

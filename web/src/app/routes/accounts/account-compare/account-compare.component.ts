@@ -16,7 +16,11 @@ import {
   EmptyStateComponent,
   NotificationService,
 } from '../../../shared/components';
-import { formatDateShort, naturalCompare } from '../../../shared/utils';
+import { formatDateShort } from '../../../shared/utils';
+import {
+  AccountHierarchyService,
+  accountIndentLabel,
+} from '../../../shared/services/account-hierarchy.service';
 import {
   AccountCompareDataService,
   BudgetOption,
@@ -230,6 +234,7 @@ export class AccountCompareComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly dataService = inject(AccountCompareDataService);
   private readonly notifications = inject(NotificationService);
+  private readonly hierarchy = inject(AccountHierarchyService);
 
   orgId = '';
 
@@ -310,7 +315,9 @@ export class AccountCompareComponent {
 
     this.dataService.listAccounts(this.orgId, this.selectedBudgetId).subscribe({
       next: (accounts) => {
-        this.accounts.set(this.arrangeAccountsHierarchically(accounts));
+        // Canonical hierarchy order and depth from the shared account
+        // hierarchy service.
+        this.accounts.set(this.hierarchy.flatten(accounts));
         this.loading.set(false);
       },
       error: () => {
@@ -386,53 +393,11 @@ export class AccountCompareComponent {
   }
 
   accountOptionLabel(account: CompareAccountOption): string {
-    return `${'\u00A0'.repeat((account.depth ?? 0) * 4)}${(account.depth ?? 0) > 0 ? '└─ ' : ''}${account.code} ${account.name}`;
+    return accountIndentLabel(account.depth ?? 0, `${account.code} ${account.name}`);
   }
 
   isParentAccount(accountId: string): boolean {
     return this.accounts().some((account) => account.parentAccountId === accountId);
-  }
-
-  private arrangeAccountsHierarchically(accounts: CompareAccountOption[]): CompareAccountOption[] {
-    const childrenByParentId = new Map<string | null, CompareAccountOption[]>();
-
-    accounts.forEach((account) => {
-      const parentId = account.parentAccountId ?? null;
-      const siblings = childrenByParentId.get(parentId) ?? [];
-      siblings.push(account);
-      childrenByParentId.set(parentId, siblings);
-    });
-
-    childrenByParentId.forEach((siblings) => {
-      siblings.sort((left, right) => naturalCompare(left.code, right.code));
-    });
-
-    const arranged: CompareAccountOption[] = [];
-    const visited = new Set<string>();
-
-    const appendAccount = (account: CompareAccountOption, depth: number): void => {
-      if (visited.has(account.id)) {
-        return;
-      }
-
-      visited.add(account.id);
-      arranged.push({ ...account, depth });
-
-      for (const child of childrenByParentId.get(account.id) ?? []) {
-        appendAccount(child, depth + 1);
-      }
-    };
-
-    for (const account of childrenByParentId.get(null) ?? []) {
-      appendAccount(account, 0);
-    }
-
-    accounts
-      .filter((account) => !visited.has(account.id))
-      .sort((left, right) => naturalCompare(left.code, right.code))
-      .forEach((account) => appendAccount(account, account.depth ?? 0));
-
-    return arranged;
   }
 
   formatDate(date: Date): string {

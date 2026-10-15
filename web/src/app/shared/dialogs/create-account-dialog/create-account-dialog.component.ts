@@ -126,6 +126,18 @@ export interface CreateAccountDialogOutput {
                 <ng-container i18n>Sammelkonto (kann keine Werte enthalten)</ng-container>
               </label>
             </div>
+
+            <div class="flex items-center gap-2">
+              <input
+                id="invertSign"
+                type="checkbox"
+                formControlName="invertSign"
+                class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              />
+              <label for="invertSign" class="text-xs font-medium text-gray-700 cursor-pointer">
+                <ng-container i18n>Vorzeichen umkehren (Ausgaben positiv darstellen; wird an Unterkonten vererbt)</ng-container>
+              </label>
+            </div>
           </div>
         </fieldset>
 
@@ -161,6 +173,7 @@ export class CreateAccountDialogComponent implements OnInit {
     description: [''],
     parentAccountId: [''],
     isContainer: [false],
+    invertSign: [false],
   });
 
   ngOnInit(): void {
@@ -191,10 +204,10 @@ export class CreateAccountDialogComponent implements OnInit {
     if (this.form.invalid) return;
 
     this.creating.set(true);
-    const { code, name, description, parentAccountId, isContainer } = this.form.value;
+    const { code, name, description, parentAccountId, isContainer, invertSign } = this.form.value;
 
     this.dataService
-      .createAccount(this.data.organizationId, name, code, description || '', parentAccountId || null, !!isContainer)
+      .createAccount(this.data.organizationId, name, code, description || '', parentAccountId || null, !!isContainer, !!invertSign)
       .subscribe({
         next: (account) => {
           this.creating.set(false);

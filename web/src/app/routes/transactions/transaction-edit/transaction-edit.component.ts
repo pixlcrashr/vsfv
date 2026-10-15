@@ -106,29 +106,14 @@ import { TransactionEditDataService } from './transaction-edit.data-service';
                 </div>
               </div>
 
-              <!-- Description Field -->
+              <!-- Description (read-only: immutable after creation) -->
               <div class="mt-4">
-                <label
-                  for="description"
-                  class="block text-xs font-medium text-gray-500 mb-1"
-                >
-                  <ng-container i18n>Beschreibung</ng-container>
+                <label i18n class="block text-xs font-medium text-gray-500 mb-1">
+                  Beschreibung
                 </label>
-                <div class="flex gap-2">
-                  <input
-                    id="description"
-                    type="text"
-                    [(ngModel)]="description"
-                    class="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <app-button
-                    variant="primary"
-                    [disabled]="saving() || description === transaction()!.description"
-                    (clicked)="saveDescription()"
-                  >
-                    <ng-container i18n>{{ saving() ? 'Speichern...' : 'Speichern' }}</ng-container>
-                  </app-button>
-                </div>
+                <p class="text-sm text-gray-900 whitespace-pre-line">
+                  {{ transaction()!.description || '-' }}
+                </p>
               </div>
             </div>
 
@@ -249,7 +234,6 @@ export class TransactionEditComponent implements OnInit {
   private orgId = '';
 
   readonly loading = signal(true);
-  readonly saving = signal(false);
   readonly assignmentSaving = signal(false);
   readonly transaction = signal<Transaction | null>(null);
   readonly availableAccounts = signal<Account[]>([]);
@@ -260,8 +244,6 @@ export class TransactionEditComponent implements OnInit {
   readonly usedAccountIds = computed(() =>
     new Set(this.editableAssignments().map(a => a.accountId).filter(Boolean))
   );
-
-  description = '';
 
   private originalAssignments = signal<ReadonlyArray<{id: string; accountId: string; value: string}>>([]);
   readonly editableAssignments = signal<Array<{id: string; accountId: string; value: string}>>([]);
@@ -342,7 +324,6 @@ export class TransactionEditComponent implements OnInit {
     this.dataService.getTransaction(this.orgId, id).subscribe({
       next: (transaction) => {
         this.transaction.set(transaction);
-        this.description = transaction.description;
         const assignments = transaction.accountAssignments.map(a => ({
           id: a.id,
           accountId: a.accountId,
@@ -355,23 +336,6 @@ export class TransactionEditComponent implements OnInit {
       error: () => {
         this.notifications.error($localize`Fehler beim Laden der Buchung`);
         this.loading.set(false);
-      },
-    });
-  }
-
-  saveDescription(): void {
-    const tx = this.transaction();
-    if (!tx) return;
-
-    this.saving.set(true);
-    this.dataService.updateTransaction(this.orgId, tx.id, this.description).subscribe({
-      next: (updated) => {
-        this.transaction.set(updated);
-        this.saving.set(false);
-      },
-      error: () => {
-        this.notifications.error($localize`Fehler beim Speichern der Buchung`);
-        this.saving.set(false);
       },
     });
   }

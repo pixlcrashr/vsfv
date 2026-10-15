@@ -16,6 +16,7 @@ export class MockAccountGroupStatsDataService extends AccountGroupStatsDataServi
       isPublished: false,
       publishActualValues: false,
       isClosed: false,
+      order: 0,
     },
     {
       id: 'b2',
@@ -26,6 +27,7 @@ export class MockAccountGroupStatsDataService extends AccountGroupStatsDataServi
       isPublished: true,
       publishActualValues: true,
       isClosed: true,
+      order: 1,
     },
   ];
 

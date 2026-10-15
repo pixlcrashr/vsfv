@@ -36,12 +36,6 @@ export class MockTransactionEditDataService extends TransactionEditDataService {
     return of({ ...this.transaction, id }).pipe(delay(300));
   }
 
-  updateTransaction(organizationId: string, id: string, description: string): Observable<Transaction> {
-    this.transaction.description = description;
-    this.transaction.updatedAt = new Date();
-    return of({ ...this.transaction, id }).pipe(delay(300));
-  }
-
   listAvailableAccounts(organizationId: string): Observable<Account[]> {
     return of([
       this.createAccount('2.1.3', 'Weiterbildung'),

@@ -10,5 +10,6 @@ export abstract class CreateAccountDialogDataService {
     description: string,
     parentAccountId: string | null,
     isContainer: boolean,
+    invertSign: boolean,
   ): Observable<CreatedAccount>;
 }

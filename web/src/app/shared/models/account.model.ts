@@ -8,6 +8,8 @@ export interface Account {
   description: string;
   isArchived: boolean;
   isContainer?: boolean;
+  /** When true (own flag or inherited from an ancestor), actual values are reported with a reversed sign. */
+  invertSign?: boolean;
   parentAccountId: string | null;
 }
 

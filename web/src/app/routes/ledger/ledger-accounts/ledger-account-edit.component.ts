@@ -20,7 +20,7 @@ import {
   LedgerAccountDetail,
   UpdateLedgerAccountRequest,
 } from './ledger-account-edit.data-service';
-import { V1AccountType } from '../../../../lib/api/models/v1account-type';
+import { V1LedgerAccountType } from '../../../../lib/api/models/v1ledger-account-type';
 
 @Component({
   selector: 'app-ledger-account-edit',
@@ -33,77 +33,80 @@ import { V1AccountType } from '../../../../lib/api/models/v1account-type';
           <app-loading-spinner [fullPage]="true" i18n-text text="Konto wird geladen..." />
         } @else if (account()) {
           @let acc = account()!;
-          <div class="max-w-2xl mx-auto">
-            <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <div class="space-y-4">
-                <!-- Read-only fields -->
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <ng-container i18n>Kontonummer</ng-container>
-                  </label>
-                  <input
-                    type="text"
-                    [value]="acc.code"
-                    disabled
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                  />
-                </div>
+          <div class="max-w-4xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <!-- Left Column: Editable fields -->
+              <div class="lg:col-span-2 space-y-4">
+                <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                  <div class="space-y-4">
+                    <!-- Editable fields -->
+                    <div>
+                      <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <ng-container i18n>Bilanzrolle</ng-container>
+                      </label>
+                      <select
+                        [(ngModel)]="ledgerAccountType"
+                        class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Keine (Ertrags-/Aufwandskonto)</option>
+                        <option value="LEDGER_ACCOUNT_TYPE_LIQUIDITY">Zahlungsverkehr (Bank/Kasse)</option>
+                        <option value="LEDGER_ACCOUNT_TYPE_COUNTER">Kontokorrent (Debitor/Kreditor)</option>
+                        <option value="LEDGER_ACCOUNT_TYPE_START_ACCOUNT">Eröffnungskonto</option>
+                      </select>
+                    </div>
 
-                <!-- Editable fields -->
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <ng-container i18n>Typ</ng-container>
-                  </label>
-                  <select
-                    [(ngModel)]="accountType"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="ACCOUNT_TYPE_ASSET">Aktiv</option>
-                    <option value="ACCOUNT_TYPE_LIABILITY">Passiv</option>
-                    <option value="ACCOUNT_TYPE_EQUITY">Eigenkapital</option>
-                    <option value="ACCOUNT_TYPE_REVENUE">Ertrag</option>
-                    <option value="ACCOUNT_TYPE_EXPENSE">Aufwand</option>
-                    <option value="ACCOUNT_TYPE_SYSTEM">System</option>
-                  </select>
-                </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <ng-container i18n>Anzeigename</ng-container>
+                      </label>
+                      <input
+                        type="text"
+                        [(ngModel)]="displayName"
+                        placeholder="Optionaler Anzeigename"
+                        class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
 
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <ng-container i18n>Anzeigename</ng-container>
-                  </label>
-                  <input
-                    type="text"
-                    [(ngModel)]="displayName"
-                    placeholder="Optionaler Anzeigename"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <ng-container i18n>Beschreibung</ng-container>
+                      </label>
+                      <textarea
+                        [(ngModel)]="displayDescription"
+                        rows="3"
+                        placeholder="Optionale Beschreibung"
+                        class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      ></textarea>
+                    </div>
+                  </div>
 
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <ng-container i18n>Beschreibung</ng-container>
-                  </label>
-                  <textarea
-                    [(ngModel)]="displayDescription"
-                    rows="3"
-                    placeholder="Optionale Beschreibung"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  ></textarea>
+                  <!-- Actions -->
+                  <div class="flex justify-end gap-2 mt-6">
+                    <app-button variant="secondary" (clicked)="goBack()">
+                      <ng-container i18n>Abbrechen</ng-container>
+                    </app-button>
+                    <app-button
+                      [disabled]="saving()"
+                      [loading]="saving()"
+                      (clicked)="save()"
+                    >
+                      <ng-container i18n>Speichern</ng-container>
+                    </app-button>
+                  </div>
                 </div>
               </div>
 
-              <!-- Actions -->
-              <div class="flex justify-end gap-2 mt-6">
-                <app-button variant="secondary" (clicked)="goBack()">
-                  <ng-container i18n>Abbrechen</ng-container>
-                </app-button>
-                <app-button
-                  [disabled]="saving()"
-                  [loading]="saving()"
-                  (clicked)="save()"
-                >
-                  <ng-container i18n>Speichern</ng-container>
-                </app-button>
+              <!-- Right Column: Info -->
+              <div class="space-y-4">
+                <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 i18n class="text-xs font-semibold text-gray-500 uppercase mb-3">Informationen</h3>
+                  <dl class="space-y-3">
+                    <div>
+                      <dt i18n class="text-xs text-gray-500">Kontonummer</dt>
+                      <dd class="text-sm text-gray-900 font-mono">{{ acc.code }}</dd>
+                    </div>
+                  </dl>
+                </div>
               </div>
             </div>
           </div>
@@ -124,7 +127,7 @@ export class LedgerAccountEditComponent implements OnInit {
 
   displayName = '';
   displayDescription = '';
-  accountType: V1AccountType = 'ACCOUNT_TYPE_UNSPECIFIED';
+  ledgerAccountType: V1LedgerAccountType | '' = '';
 
   readonly orgId = signal<string>('');
   readonly accountId = signal<string>('');
@@ -152,7 +155,7 @@ export class LedgerAccountEditComponent implements OnInit {
         this.account.set(account);
         this.displayName = account.displayName || '';
         this.displayDescription = account.displayDescription || '';
-        this.accountType = account.accountType;
+        this.ledgerAccountType = account.type ?? '';
         this.loading.set(false);
       },
       error: () => {
@@ -173,7 +176,7 @@ export class LedgerAccountEditComponent implements OnInit {
       id: account.id,
       displayName: this.displayName || undefined,
       displayDescription: this.displayDescription || undefined,
-      accountType: this.accountType,
+      type: this.ledgerAccountType === '' ? 'LEDGER_ACCOUNT_TYPE_UNSPECIFIED' : this.ledgerAccountType,
       etag: account.etag,
     };
 
@@ -192,17 +195,5 @@ export class LedgerAccountEditComponent implements OnInit {
 
   goBack(): void {
     this.router.navigate(['/organizations', this.orgId(), 'ledgerAccounts']);
-  }
-
-  formatAccountType(type: V1AccountType): string {
-    const typeMap: Record<string, string> = {
-      ACCOUNT_TYPE_ASSET: 'Aktiv',
-      ACCOUNT_TYPE_LIABILITY: 'Passiv',
-      ACCOUNT_TYPE_EQUITY: 'Eigenkapital',
-      ACCOUNT_TYPE_REVENUE: 'Ertrag',
-      ACCOUNT_TYPE_EXPENSE: 'Aufwand',
-      ACCOUNT_TYPE_SYSTEM: 'System',
-    };
-    return typeMap[type] || type;
   }
 }

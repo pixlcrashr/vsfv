@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { AssistantInfoBoxComponent } from './assistant-info-box.component';
-import { ReceiptCategory } from './assistant.types';
+import { ReceiptCategory, ReceiptDirection } from './assistant.types';
 
 export type ReceiptStepSection = 'category' | 'form' | 'amount' | 'extras';
 
@@ -26,23 +26,40 @@ export type ReceiptStepSection = 'category' | 'form' | 'amount' | 'extras';
           Was für ein Beleg ist es?
         </h2>
 
-        <app-assistant-info-box>
-          <li i18n>
-            Stehen Anbieter, Adresse, Leistungen und ausgewiesene MwSt. auf dem Dokument, ist es eine
-            „Rechnung“ - z. B. die PDF-Rechnung vom Copyshop per E-Mail.
-          </li>
-          <li i18n>
-            Nur ein Kassenstreifen ohne weitere Angaben? Dann ist es eine „Quittung / Kassenbon“,
-            z. B. vom Supermarkt oder Baumarkt.
-          </li>
-          <li i18n>
-            Gibt es überhaupt keinen Fremdbeleg, kannst du einen „Eigenbeleg“ schreiben,
-            z. B. für Portokosten.
-          </li>
-        </app-assistant-info-box>
+        @if (direction() === 'income') {
+          <app-assistant-info-box>
+            <li i18n>
+              Eine „Quittung“ bestätigt erhaltene Zahlungen, z. B. eine Empfangsbestätigung oder ein
+              Einzahlungsbeleg.
+            </li>
+            <li i18n>
+              Ein „Kassenbericht“ dokumentiert Kasseneinnahmen, z. B. aus einem Verkauf oder einer
+              Sammlung.
+            </li>
+            <li i18n>
+              Liegt kein anderer Beleg vor, kannst du einen „Eigen-/Hilfsbeleg“ erstellen,
+              z. B. einen einfachen Vermerk über erhaltene Gelder.
+            </li>
+          </app-assistant-info-box>
+        } @else {
+          <app-assistant-info-box>
+            <li i18n>
+              Stehen Anbieter, Adresse, Leistungen und ausgewiesene MwSt. auf dem Dokument, ist es eine
+              „Rechnung“ - z. B. die PDF-Rechnung vom Copyshop per E-Mail.
+            </li>
+            <li i18n>
+              Nur ein Kassenstreifen ohne weitere Angaben? Dann ist es eine „Quittung / Kassenbon“,
+              z. B. vom Supermarkt oder Baumarkt.
+            </li>
+            <li i18n>
+              Gibt es überhaupt keinen Fremdbeleg, kannst du einen „Eigenbeleg“ schreiben,
+              z. B. für Portokosten.
+            </li>
+          </app-assistant-info-box>
+        }
 
         <div [formGroup]="itemGroup()" class="mt-5 space-y-3">
-          @for (choice of receiptCategoryChoices; track choice.value) {
+          @for (choice of receiptCategoryChoices(); track choice.value) {
             <label class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700">
               <input
                 type="radio"
@@ -246,6 +263,7 @@ export type ReceiptStepSection = 'category' | 'form' | 'amount' | 'extras';
 export class AssistantReceiptStepComponent {
   readonly section = input.required<ReceiptStepSection>();
   readonly itemGroup = input.required<FormGroup>();
+  readonly direction = input.required<ReceiptDirection>();
   readonly receiptNumber = input.required<number>();
   readonly receiptCount = input.required<number>();
   readonly attachmentName = input<string | null>(null);
@@ -255,43 +273,75 @@ export class AssistantReceiptStepComponent {
   // OnPush child re-evaluates showError() after a failed "Weiter".
   readonly validationAttempt = input(0);
 
-  readonly receiptCategoryChoices: { value: ReceiptCategory; label: string; example: string }[] = [
+  private readonly expenseCategoryChoices: { value: ReceiptCategory; label: string; example: string }[] = [
     {
-      value: 'rechnung',
+      value: 'invoice',
       label: $localize`Rechnung`,
       example: $localize`Vom Anbieter ausgestellt, mit Leistungen und ausgewiesener MwSt., z. B. die PDF-Rechnung vom Copyshop.`,
     },
     {
-      value: 'quittung_kassenbon',
+      value: 'cash_receipt',
       label: $localize`Quittung / Kassenbon`,
       example: $localize`Kassenstreifen aus dem Geschäft, z. B. vom Supermarkt oder Baumarkt.`,
     },
     {
-      value: 'eigenbeleg',
+      value: 'self_written_receipt',
       label: $localize`Eigenbeleg`,
       example: $localize`Selbst geschrieben, wenn es keinen anderen Beleg gibt, z. B. für Portokosten.`,
     },
     {
-      value: 'fahrtkostennachweis',
+      value: 'travel_expense_proof',
       label: $localize`Fahrtkostennachweis`,
       example: $localize`z. B. DB-Ticket, ausgedrucktes Online-Ticket oder Fahrtenbuch.`,
     },
     {
-      value: 'sonstige',
-      label: $localize`Sonstige`,
+      value: 'other',
+      label: $localize`Sonstiges`,
       example: $localize`Alles, was in keine der anderen Kategorien passt, z. B. eine Teilnahmegebühr mit Bestätigung.`,
     },
     {
-      value: 'lieferschein',
+      value: 'delivery_note',
       label: $localize`Lieferschein`,
       example: $localize`Begleitpapier einer Lieferung; allein nicht als Nachweis ausreichend.`,
     },
     {
-      value: 'bestellbestaetigung',
+      value: 'order_confirmation',
       label: $localize`Bestellbestätigung`,
       example: $localize`z. B. Auftragsbestätigung eines Online-Shops; allein nicht als Nachweis ausreichend.`,
     },
   ];
+
+  private readonly incomeCategoryChoices: { value: ReceiptCategory; label: string; example: string }[] = [
+    {
+      value: 'receipt',
+      label: $localize`Quittung`,
+      example: $localize`Bestätigung über erhaltene Zahlungen, z. B. eine Empfangsbestätigung oder ein Einzahlungsbeleg.`,
+    },
+    {
+      value: 'cash_report',
+      label: $localize`Kassenbericht`,
+      example: $localize`Übersicht über Kasseneinnahmen, z. B. aus einem Verkauf oder einer Sammlung.`,
+    },
+    {
+      value: 'invoice',
+      label: $localize`Rechnung`,
+      example: $localize`Ausgestellte Rechnung über erbrachte Leistungen, z. B. Standgebühren oder Verkäufe auf Rechnung.`,
+    },
+    {
+      value: 'auxiliary_receipt',
+      label: $localize`Eigen-/Hilfsbeleg`,
+      example: $localize`Selbst erstellt, wenn kein anderer Beleg vorliegt, z. B. ein einfacher Vermerk über erhaltene Gelder.`,
+    },
+    {
+      value: 'other',
+      label: $localize`Sonstiges`,
+      example: $localize`Alles, was in keine der anderen Kategorien passt, z. B. ein Kontoauszug als Nachweis einer Überweisung.`,
+    },
+  ];
+
+  readonly receiptCategoryChoices = computed(() =>
+    this.direction() === 'income' ? this.incomeCategoryChoices : this.expenseCategoryChoices
+  );
 
   showError(controlName: string): boolean {
     void this.validationAttempt();

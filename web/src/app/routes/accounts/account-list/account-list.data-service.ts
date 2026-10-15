@@ -10,6 +10,7 @@ export abstract class AccountListDataService {
     description: string,
     parentAccountId: string | null,
     isContainer: boolean,
+    invertSign: boolean,
   ): Observable<Account>;
   abstract archiveAccount(organizationId: string, accountId: string): Observable<void>;
   abstract restoreAccount(organizationId: string, accountId: string): Observable<void>;

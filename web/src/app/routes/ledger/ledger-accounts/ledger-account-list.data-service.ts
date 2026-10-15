@@ -6,12 +6,12 @@ export interface LedgerAccountListItem {
   code: string;
   displayName: string;
   displayDescription?: string;
-  accountType: string;
+  type: string;
   updateTime?: string;
 }
 
 export interface LedgerAccountListFilter {
-  accountType?: string;
+  type?: string;
   search?: string;
 }
 

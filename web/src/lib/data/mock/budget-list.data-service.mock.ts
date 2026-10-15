@@ -29,6 +29,7 @@ export class MockBudgetListDataService extends BudgetListDataService {
       isPublished: false,
       publishActualValues: false,
       isClosed: false,
+      order: this.sharedData.getNextOrder(),
     };
 
     this.sharedData.addBudget(newBudget);
@@ -38,6 +39,11 @@ export class MockBudgetListDataService extends BudgetListDataService {
 
   deleteBudget(organizationId: string, id: string): Observable<void> {
     this.sharedData.deleteBudget(id);
+    return of(undefined).pipe(delay(300));
+  }
+
+  reorderBudgets(organizationId: string, budgetIds: string[]): Observable<void> {
+    this.sharedData.reorderBudgets(budgetIds);
     return of(undefined).pipe(delay(300));
   }
 }
