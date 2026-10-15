@@ -3,6 +3,26 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "web:serve:api",
+      "type": "npm",
+      "script": "serve:api",
+      "isBackground": true,
+      "path": "web",
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": "Changes detected"
+          },
+          "endsPattern": {
+            "regexp": "bundle generation (complete|failed)"
+          }
+        }
+      }
+    },
+    {
       "label": "web:test",
       "type": "npm",
       "script": "test",

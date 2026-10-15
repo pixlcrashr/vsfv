@@ -8,6 +8,7 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -16,6 +17,7 @@ import (
 	"go.einride.tech/aip/ordering"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 var (
@@ -31,14 +33,12 @@ var (
 
 type auditLogServiceServer struct {
 	gen.UnimplementedAuditLogServiceServer
-	repo     *repository.AuditLogEntryRepository
-	orgRepo  *repository.OrganizationRepository
-	userRepo *repository.UserRepository
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newAuditLogServiceServer(repo *repository.AuditLogEntryRepository, orgRepo *repository.OrganizationRepository, userRepo *repository.UserRepository, enforcer *authz.Enforcer) gen.AuditLogServiceServer {
-	return &auditLogServiceServer{repo: repo, orgRepo: orgRepo, userRepo: userRepo, enforcer: enforcer}
+func newAuditLogServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.AuditLogServiceServer {
+	return &auditLogServiceServer{db: db, enforcer: enforcer}
 }
 
 // auditAccess describes the caller's effective audit log access. unrestricted
@@ -52,7 +52,7 @@ type auditAccess struct {
 
 // resolveAuditAccess computes the caller's audit log access. Callers must
 // have passed the scope check beforehand.
-func (s *auditLogServiceServer) resolveAuditAccess(ctx context.Context) (*auditAccess, error) {
+func (s *auditLogServiceServer) resolveAuditAccess(ctx context.Context, orgRepo *repository.OrganizationRepository) (*auditAccess, error) {
 	userID, ok := authz.UserIDFromContext(ctx)
 	if !ok {
 		return nil, authz.ErrUnauthenticated
@@ -69,7 +69,7 @@ func (s *auditLogServiceServer) resolveAuditAccess(ctx context.Context) (*auditA
 
 	access := &auditAccess{allowedOrgIDs: make([]uuid.UUID, 0, len(orgCustomIDs))}
 	for _, customID := range orgCustomIDs {
-		org, err := s.orgRepo.GetByResourceName(ctx, customID)
+		org, err := orgRepo.GetByResourceName(ctx, customID)
 		if err != nil {
 			// The organization may have been deleted since the assignment
 			// was made; it simply contributes no visible entries.
@@ -95,57 +95,64 @@ func (s *auditLogServiceServer) GetAuditLogEntry(ctx context.Context, req *gen.G
 		return nil, authError(err)
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrAuditLogEntryNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAuditLogEntryNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetAuditLogEntry}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.AuditLogEntry, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AuditLogEntry()
+		orgRepo := f.Organization()
+		userRepo := f.User()
 
-	var orgResourceName string
-	if m.OrganizationID.Valid {
-		org, err := s.orgRepo.GetByID(ctx, m.OrganizationID.UUID)
-		if err == nil {
-			if err := authz.CheckOrg(ctx, s.enforcer, authz.ResourceAuditLogs, authz.ActionRead, authz.OrgDomain(org.CustomID)); err != nil {
-				return nil, authError(err)
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrAuditLogEntryNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAuditLogEntryNotFound}
 			}
-			orgResourceName = organizationResourceName(org.CustomID)
-		} else if !errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusFailedResolveOrganization}
+			return nil, &ServerError{Err: err, Status: statusFailedGetAuditLogEntry}
+		}
+
+		var orgResourceName string
+		if m.OrganizationID.Valid {
+			org, err := orgRepo.GetByID(ctx, m.OrganizationID.UUID)
+			if err == nil {
+				if err := authz.CheckOrg(ctx, s.enforcer, authz.ResourceAuditLogs, authz.ActionRead, authz.OrgDomain(org.CustomID)); err != nil {
+					return nil, authError(err)
+				}
+				orgResourceName = organizationResourceName(org.CustomID)
+			} else if !errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusFailedResolveOrganization}
+			} else {
+				// The organization is gone; entries survive but require
+				// unrestricted audit access.
+				access, err := s.resolveAuditAccess(ctx, orgRepo)
+				if err != nil {
+					return nil, authError(err)
+				}
+				if !access.unrestricted {
+					return nil, &ServerError{Err: authz.ErrPermissionDenied, Status: statusPermissionDenied}
+				}
+			}
 		} else {
-			// The organization is gone; entries survive but require
-			// unrestricted audit access.
-			access, err := s.resolveAuditAccess(ctx)
+			// Global entries (users, groups, organizations) require wildcard
+			// audit access.
+			access, err := s.resolveAuditAccess(ctx, orgRepo)
 			if err != nil {
-				return nil, authError(err)
+				return nil, &ServerError{Err: err, Status: statusFailedResolveAuditAccess}
 			}
 			if !access.unrestricted {
 				return nil, &ServerError{Err: authz.ErrPermissionDenied, Status: statusPermissionDenied}
 			}
 		}
-	} else {
-		// Global entries (users, groups, organizations) require wildcard
-		// audit access.
-		access, err := s.resolveAuditAccess(ctx)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedResolveAuditAccess}
-		}
-		if !access.unrestricted {
-			return nil, &ServerError{Err: authz.ErrPermissionDenied, Status: statusPermissionDenied}
-		}
-	}
 
-	return AuditLogEntryToProto(m, orgResourceName, s.actorDisplayName(ctx, m)), nil
+		return AuditLogEntryToProto(m, orgResourceName, s.actorDisplayName(ctx, userRepo, m)), nil
+	})
 }
 
 // actorDisplayName resolves the display name for an entry's actor. It returns
 // an empty string for system entries and for actors that have been deleted.
-func (s *auditLogServiceServer) actorDisplayName(ctx context.Context, m *model.AuditLogEntry) string {
+func (s *auditLogServiceServer) actorDisplayName(ctx context.Context, userRepo *repository.UserRepository, m *model.AuditLogEntry) string {
 	if !m.ActorID.Valid {
 		return ""
 	}
-	user, err := s.userRepo.GetByID(ctx, m.ActorID.UUID)
+	user, err := userRepo.GetByID(ctx, m.ActorID.UUID)
 	if err != nil {
 		return ""
 	}
@@ -157,162 +164,169 @@ func (s *auditLogServiceServer) ListAuditLogEntries(ctx context.Context, req *ge
 		return nil, authError(err)
 	}
 
-	access, err := s.resolveAuditAccess(ctx)
-	if err != nil {
-		if errors.Is(err, authz.ErrUnauthenticated) {
-			return nil, authError(err)
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedResolveAuditAccess}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListAuditLogEntriesResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AuditLogEntry()
+		orgRepo := f.Organization()
+		userRepo := f.User()
 
-	if !access.unrestricted && len(access.allowedOrgIDs) == 0 {
-		return nil, authError(authz.ErrPermissionDenied)
-	}
-
-	c, err := svcfilter.ParseAuditLogEntryFilter(req.Filter)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidFilter}
-	}
-
-	filters, c, err := svcfilter.ExtractAuditLogEntryFilters(c)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidFilter}
-	}
-
-	// Resolve the organization filter to a UUID and intersect it with the
-	// caller's access restriction.
-	var filterOrgID *uuid.UUID
-	if filters.Organization != "" {
-		var on gen.OrganizationResourceName
-		if err := on.UnmarshalString(filters.Organization); err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInFilter}
-		}
-		org, err := s.orgRepo.GetByResourceName(ctx, on.Organization)
+		access, err := s.resolveAuditAccess(ctx, orgRepo)
 		if err != nil {
-			if errors.Is(err, repository.ErrOrganizationNotFound) {
-				// A filter for an unknown organization matches nothing.
-				return &gen.ListAuditLogEntriesResponse{}, nil
+			if errors.Is(err, authz.ErrUnauthenticated) {
+				return nil, authError(err)
 			}
-			return nil, &ServerError{Err: err, Status: statusFailedResolveOrganization}
+			return nil, &ServerError{Err: err, Status: statusFailedResolveAuditAccess}
 		}
-		filterOrgID = &org.ID
-	}
 
-	var orgRestriction []uuid.UUID
-	switch {
-	case access.unrestricted:
-		if filterOrgID != nil {
-			orgRestriction = []uuid.UUID{*filterOrgID}
+		if !access.unrestricted && len(access.allowedOrgIDs) == 0 {
+			return nil, authError(authz.ErrPermissionDenied)
 		}
-	case filterOrgID != nil:
-		allowed := false
-		for _, id := range access.allowedOrgIDs {
-			if id == *filterOrgID {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			return &gen.ListAuditLogEntriesResponse{}, nil
-		}
-		orgRestriction = []uuid.UUID{*filterOrgID}
-	default:
-		orgRestriction = access.allowedOrgIDs
-	}
 
-	// Resolve the actor filter resource name to a UUID column condition.
-	if filters.Actor != "" {
-		var un gen.UserResourceName
-		if err := un.UnmarshalString(filters.Actor); err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidActorInFilter}
-		}
-		actorID, err := uuid.Parse(un.User)
+		c, err := svcfilter.ParseAuditLogEntryFilter(req.Filter)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidActorInFilter}
+			return nil, &ServerError{Err: err, Status: statusInvalidFilter}
 		}
-		actorCond := cond.Eq("actor_id", actorID)
-		if c == nil || c.IsEmpty() {
-			c = actorCond
-		} else {
-			c = cond.And(c, actorCond)
+
+		filters, c, err := svcfilter.ExtractAuditLogEntryFilters(c)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidFilter}
 		}
-	}
 
-	offset, err := pagetoken.Decode(req.PageToken)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
-	}
+		// Resolve the organization filter to a UUID and intersect it with the
+		// caller's access restriction.
+		var filterOrgID *uuid.UUID
+		if filters.Organization != "" {
+			var on gen.OrganizationResourceName
+			if err := on.UnmarshalString(filters.Organization); err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInFilter}
+			}
+			org, err := orgRepo.GetByResourceName(ctx, on.Organization)
+			if err != nil {
+				if errors.Is(err, repository.ErrOrganizationNotFound) {
+					// A filter for an unknown organization matches nothing.
+					return &gen.ListAuditLogEntriesResponse{}, nil
+				}
+				return nil, &ServerError{Err: err, Status: statusFailedResolveOrganization}
+			}
+			filterOrgID = &org.ID
+		}
 
-	pageSize := normalizePageSize(req.PageSize)
-
-	orderBy, err := ordering.ParseOrderBy(req)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidOrderBy}
-	}
-
-	orderExprs, _ := order.Resolve(orderBy, repository.AuditLogEntryOrderFieldMapper)
-
-	params := repository.ListAuditLogEntriesParams{
-		Cond:            c,
-		OrganizationIDs: orgRestriction,
-		Page:            int(offset/int64(pageSize)) + 1,
-		PageSize:        pageSize,
-		OrderBy:         orderExprs,
-	}
-
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListAuditLogEntries}
-	}
-
-	// Batch-resolve the organization resource names and actor display names
-	// for the page.
-	orgRNByID := make(map[uuid.UUID]string)
-	actorIDSet := make(map[uuid.UUID]struct{}, len(ms))
-	actorIDs := make([]uuid.UUID, 0, len(ms))
-	for _, m := range ms {
-		if m.OrganizationID.Valid {
-			if _, ok := orgRNByID[m.OrganizationID.UUID]; !ok {
-				org, err := s.orgRepo.GetByID(ctx, m.OrganizationID.UUID)
-				if err == nil {
-					orgRNByID[org.ID] = organizationResourceName(org.CustomID)
+		var orgRestriction []uuid.UUID
+		switch {
+		case access.unrestricted:
+			if filterOrgID != nil {
+				orgRestriction = []uuid.UUID{*filterOrgID}
+			}
+		case filterOrgID != nil:
+			allowed := false
+			for _, id := range access.allowedOrgIDs {
+				if id == *filterOrgID {
+					allowed = true
+					break
 				}
 			}
+			if !allowed {
+				return &gen.ListAuditLogEntriesResponse{}, nil
+			}
+			orgRestriction = []uuid.UUID{*filterOrgID}
+		default:
+			orgRestriction = access.allowedOrgIDs
 		}
-		if m.ActorID.Valid {
-			if _, seen := actorIDSet[m.ActorID.UUID]; !seen {
-				actorIDSet[m.ActorID.UUID] = struct{}{}
-				actorIDs = append(actorIDs, m.ActorID.UUID)
+
+		// Resolve the actor filter resource name to a UUID column condition.
+		if filters.Actor != "" {
+			var un gen.UserResourceName
+			if err := un.UnmarshalString(filters.Actor); err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidActorInFilter}
+			}
+			actorID, err := uuid.Parse(un.User)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidActorInFilter}
+			}
+			actorCond := cond.Eq("actor_id", actorID)
+			if c == nil || c.IsEmpty() {
+				c = actorCond
+			} else {
+				c = cond.And(c, actorCond)
 			}
 		}
-	}
 
-	actorNameByID := make(map[uuid.UUID]string)
-	if len(actorIDs) > 0 {
-		users, err := s.userRepo.GetByIDs(ctx, actorIDs)
+		offset, err := pagetoken.Decode(req.PageToken)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
+		}
+
+		pageSize := normalizePageSize(req.PageSize)
+
+		orderBy, err := ordering.ParseOrderBy(req)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidOrderBy}
+		}
+
+		orderExprs, _ := order.Resolve(orderBy, repository.AuditLogEntryOrderFieldMapper)
+
+		params := repository.ListAuditLogEntriesParams{
+			Cond:            c,
+			OrganizationIDs: orgRestriction,
+			Page:            int(offset/int64(pageSize)) + 1,
+			PageSize:        pageSize,
+			OrderBy:         orderExprs,
+		}
+
+		ms, total, err := repo.List(ctx, params)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedListAuditLogEntries}
 		}
-		for _, u := range users {
-			actorNameByID[u.ID] = u.Name
+
+		// Batch-resolve the organization resource names and actor display names
+		// for the page.
+		orgRNByID := make(map[uuid.UUID]string)
+		actorIDSet := make(map[uuid.UUID]struct{}, len(ms))
+		actorIDs := make([]uuid.UUID, 0, len(ms))
+		for _, m := range ms {
+			if m.OrganizationID.Valid {
+				if _, ok := orgRNByID[m.OrganizationID.UUID]; !ok {
+					org, err := orgRepo.GetByID(ctx, m.OrganizationID.UUID)
+					if err == nil {
+						orgRNByID[org.ID] = organizationResourceName(org.CustomID)
+					}
+				}
+			}
+			if m.ActorID.Valid {
+				if _, seen := actorIDSet[m.ActorID.UUID]; !seen {
+					actorIDSet[m.ActorID.UUID] = struct{}{}
+					actorIDs = append(actorIDs, m.ActorID.UUID)
+				}
+			}
 		}
-	}
 
-	resp := &gen.ListAuditLogEntriesResponse{TotalSize: total}
-	for _, m := range ms {
-		var orgRN string
-		if m.OrganizationID.Valid {
-			orgRN = orgRNByID[m.OrganizationID.UUID]
+		actorNameByID := make(map[uuid.UUID]string)
+		if len(actorIDs) > 0 {
+			users, err := userRepo.GetByIDs(ctx, actorIDs)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedListAuditLogEntries}
+			}
+			for _, u := range users {
+				actorNameByID[u.ID] = u.Name
+			}
 		}
-		resp.AuditLogEntries = append(resp.AuditLogEntries, AuditLogEntryToProto(m, orgRN, actorNameByID[m.ActorID.UUID]))
-	}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListAuditLogEntriesResponse{TotalSize: total}
+		for _, m := range ms {
+			var orgRN string
+			if m.OrganizationID.Valid {
+				orgRN = orgRNByID[m.OrganizationID.UUID]
+			}
+			resp.AuditLogEntries = append(resp.AuditLogEntries, AuditLogEntryToProto(m, orgRN, actorNameByID[m.ActorID.UUID]))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 // organizationResourceName builds the resource name for an organization
@@ -326,13 +340,13 @@ func organizationResourceName(customID string) string {
 // actorDisplayName may be empty when the actor is the system or a deleted user.
 func AuditLogEntryToProto(m *model.AuditLogEntry, orgResourceName, actorDisplayName string) *gen.AuditLogEntry {
 	e := &gen.AuditLogEntry{
-		Name:            gen.AuditLogEntryResourceName{AuditLogEntry: m.ID.String()}.String(),
-		Uid:             m.ID.String(),
-		Resource:        m.ResourceName,
-		Organization:    orgResourceName,
-		Action:          auditActionToProto(m.Action),
+		Name:             gen.AuditLogEntryResourceName{AuditLogEntry: m.ID.String()}.String(),
+		Uid:              m.ID.String(),
+		Resource:         m.ResourceName,
+		Organization:     orgResourceName,
+		Action:           auditActionToProto(m.Action),
 		ActorDisplayName: actorDisplayName,
-		Timestamp:       ts(m.CreatedAt),
+		Timestamp:        ts(m.CreatedAt),
 	}
 
 	if m.ActorID.Valid {

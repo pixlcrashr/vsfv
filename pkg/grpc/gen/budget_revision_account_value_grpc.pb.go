@@ -38,7 +38,10 @@ type BudgetRevisionAccountValueServiceClient interface {
 	//	Permission: budgets:read
 	//	Domain: organization-scoped
 	GetBudgetRevisionAccountValue(ctx context.Context, in *GetBudgetRevisionAccountValueRequest, opts ...grpc.CallOption) (*BudgetRevisionAccountValue, error)
-	// Lists the account values captured in a revision, with pagination.
+	// Lists the account values captured in a revision, with pagination. The
+	// wildcard parent form (organizations/{organization}/budgets/-/revisions/-,
+	// revisions selected via the `revision` filter) fetches values across
+	// multiple revisions in a single request.
 	// Authorization:
 	//
 	//	Scope: budgets:read
@@ -90,7 +93,10 @@ type BudgetRevisionAccountValueServiceServer interface {
 	//	Permission: budgets:read
 	//	Domain: organization-scoped
 	GetBudgetRevisionAccountValue(context.Context, *GetBudgetRevisionAccountValueRequest) (*BudgetRevisionAccountValue, error)
-	// Lists the account values captured in a revision, with pagination.
+	// Lists the account values captured in a revision, with pagination. The
+	// wildcard parent form (organizations/{organization}/budgets/-/revisions/-,
+	// revisions selected via the `revision` filter) fetches values across
+	// multiple revisions in a single request.
 	// Authorization:
 	//
 	//	Scope: budgets:read

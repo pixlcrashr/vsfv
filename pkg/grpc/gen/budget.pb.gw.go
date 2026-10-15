@@ -312,6 +312,51 @@ func local_request_BudgetService_CloseBudget_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
+func request_BudgetService_ReorderBudgets_0(ctx context.Context, marshaler runtime.Marshaler, client BudgetServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq ReorderBudgetsRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["parent"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "parent")
+	}
+	protoReq.Parent, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "parent", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.ReorderBudgets(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_BudgetService_ReorderBudgets_0(ctx context.Context, marshaler runtime.Marshaler, server BudgetServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq ReorderBudgetsRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["parent"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "parent")
+	}
+	protoReq.Parent, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "parent", err)
+	}
+	msg, err := server.ReorderBudgets(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_BudgetService_DeleteBudget_0(ctx context.Context, marshaler runtime.Marshaler, client BudgetServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq DeleteBudgetRequest
@@ -456,6 +501,26 @@ func RegisterBudgetServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 			return
 		}
 		forward_BudgetService_CloseBudget_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodPost, pattern_BudgetService_ReorderBudgets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/pixlcrashr.vsfv.v1.BudgetService/ReorderBudgets", runtime.WithHTTPPathPattern("/v1/{parent=organizations/*}/budgets:reorder"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BudgetService_ReorderBudgets_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BudgetService_ReorderBudgets_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodDelete, pattern_BudgetService_DeleteBudget_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -602,6 +667,23 @@ func RegisterBudgetServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		}
 		forward_BudgetService_CloseBudget_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_BudgetService_ReorderBudgets_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/pixlcrashr.vsfv.v1.BudgetService/ReorderBudgets", runtime.WithHTTPPathPattern("/v1/{parent=organizations/*}/budgets:reorder"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BudgetService_ReorderBudgets_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BudgetService_ReorderBudgets_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodDelete, pattern_BudgetService_DeleteBudget_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -623,19 +705,21 @@ func RegisterBudgetServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 }
 
 var (
-	pattern_BudgetService_GetBudget_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "name"}, ""))
-	pattern_BudgetService_ListBudgets_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"v1", "organizations", "parent", "budgets"}, ""))
-	pattern_BudgetService_CreateBudget_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"v1", "organizations", "parent", "budgets"}, ""))
-	pattern_BudgetService_UpdateBudget_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "budget.name"}, ""))
-	pattern_BudgetService_CloseBudget_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "name"}, "close"))
-	pattern_BudgetService_DeleteBudget_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "name"}, ""))
+	pattern_BudgetService_GetBudget_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "name"}, ""))
+	pattern_BudgetService_ListBudgets_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"v1", "organizations", "parent", "budgets"}, ""))
+	pattern_BudgetService_CreateBudget_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"v1", "organizations", "parent", "budgets"}, ""))
+	pattern_BudgetService_UpdateBudget_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "budget.name"}, ""))
+	pattern_BudgetService_CloseBudget_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "name"}, "close"))
+	pattern_BudgetService_ReorderBudgets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"v1", "organizations", "parent", "budgets"}, "reorder"))
+	pattern_BudgetService_DeleteBudget_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"v1", "organizations", "budgets", "name"}, ""))
 )
 
 var (
-	forward_BudgetService_GetBudget_0    = runtime.ForwardResponseMessage
-	forward_BudgetService_ListBudgets_0  = runtime.ForwardResponseMessage
-	forward_BudgetService_CreateBudget_0 = runtime.ForwardResponseMessage
-	forward_BudgetService_UpdateBudget_0 = runtime.ForwardResponseMessage
-	forward_BudgetService_CloseBudget_0  = runtime.ForwardResponseMessage
-	forward_BudgetService_DeleteBudget_0 = runtime.ForwardResponseMessage
+	forward_BudgetService_GetBudget_0      = runtime.ForwardResponseMessage
+	forward_BudgetService_ListBudgets_0    = runtime.ForwardResponseMessage
+	forward_BudgetService_CreateBudget_0   = runtime.ForwardResponseMessage
+	forward_BudgetService_UpdateBudget_0   = runtime.ForwardResponseMessage
+	forward_BudgetService_CloseBudget_0    = runtime.ForwardResponseMessage
+	forward_BudgetService_ReorderBudgets_0 = runtime.ForwardResponseMessage
+	forward_BudgetService_DeleteBudget_0   = runtime.ForwardResponseMessage
 )

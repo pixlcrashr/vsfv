@@ -83,13 +83,19 @@ func (e *ServerError) GRPCStatus() *status.Status {
 
 // normalizePageSize clamps the requested page size to [1, 200], defaulting to 100.
 func normalizePageSize(requested int32) int {
+	return normalizePageSizeMax(requested, 200)
+}
+
+// normalizePageSizeMax clamps the requested page size to [1, max], defaulting
+// to 100.
+func normalizePageSizeMax(requested int32, max int) int {
 	n := int(requested)
 	if n <= 0 {
 		return 100
 	}
 
-	if n > 200 {
-		return 200
+	if n > max {
+		return max
 	}
 
 	return n

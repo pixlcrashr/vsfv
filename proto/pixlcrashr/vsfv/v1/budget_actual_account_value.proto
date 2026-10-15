@@ -61,7 +61,7 @@ message ListBudgetActualAccountValuesRequest {
   ];
 
   // Maximum number of actual account values to return. The service may return
-  // fewer. If unspecified, at most 50 are returned. Maximum value is 200.
+  // fewer. If unspecified, at most 100 are returned. Maximum value is 500.
   int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
 
   // A page token from a previous ListBudgetActualAccountValues call.

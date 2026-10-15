@@ -16,9 +16,11 @@ import (
 
 	apiserv "github.com/pixlcrashr/vsfv/pkg/api/grpc"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services"
+	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/auth"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
 	"github.com/pixlcrashr/vsfv/pkg/cfg"
+	"github.com/pixlcrashr/vsfv/pkg/storage"
 	"github.com/pixlcrashr/vsfv/web"
 )
 
@@ -36,8 +38,10 @@ type Server struct {
 // svc is the shared service set used by both the grpc-gateway JSON API and the
 // Huma REST API.  db is still required for the routes that have not yet been
 // migrated to the service layer. enforcer guards the routes that cannot use
-// the service-layer permission checks (XML import/export).
-func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, authSrv *auth.Server, gitlabHandler *auth.GitLabHandler, enforcer *authz.Enforcer, attachmentsPath string) *Server {
+// the service-layer permission checks (XML import/export). fileStorage is the
+// global blob storage used by the attachment endpoints; audits is the shared
+// audit log writer used by the mutating Huma endpoints.
+func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, authSrv *auth.Server, gitlabHandler *auth.GitLabHandler, enforcer *authz.Enforcer, fileStorage *storage.FileStorage, audits *audit.Writer) *Server {
 	app := fiber.New(fiber.Config{
 		// Disable default startup banner — the serve command prints its own.
 		DisableStartupMessage: true,
@@ -71,7 +75,7 @@ func New(db *gorm.DB, svc *services.Services, version string, corsCfg cfg.CORS, 
 	}
 
 	s := &Server{app: app, API: api}
-	RegisterRoutes(s.API, db, authSrv, enforcer, attachmentsPath)
+	RegisterRoutes(s.API, db, authSrv, enforcer, fileStorage, audits)
 
 	apiserv.RegisterRoutes(app, svc, authMiddleware)
 

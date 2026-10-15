@@ -20,11 +20,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CommitteeService_GetCommittee_FullMethodName    = "/pixlcrashr.vsfv.v1.CommitteeService/GetCommittee"
-	CommitteeService_ListCommittees_FullMethodName  = "/pixlcrashr.vsfv.v1.CommitteeService/ListCommittees"
-	CommitteeService_CreateCommittee_FullMethodName = "/pixlcrashr.vsfv.v1.CommitteeService/CreateCommittee"
-	CommitteeService_UpdateCommittee_FullMethodName = "/pixlcrashr.vsfv.v1.CommitteeService/UpdateCommittee"
-	CommitteeService_DeleteCommittee_FullMethodName = "/pixlcrashr.vsfv.v1.CommitteeService/DeleteCommittee"
+	CommitteeService_GetCommittee_FullMethodName       = "/pixlcrashr.vsfv.v1.CommitteeService/GetCommittee"
+	CommitteeService_ListCommittees_FullMethodName     = "/pixlcrashr.vsfv.v1.CommitteeService/ListCommittees"
+	CommitteeService_CreateCommittee_FullMethodName    = "/pixlcrashr.vsfv.v1.CommitteeService/CreateCommittee"
+	CommitteeService_UpdateCommittee_FullMethodName    = "/pixlcrashr.vsfv.v1.CommitteeService/UpdateCommittee"
+	CommitteeService_DeleteCommittee_FullMethodName    = "/pixlcrashr.vsfv.v1.CommitteeService/DeleteCommittee"
+	CommitteeService_ListUserCommittees_FullMethodName = "/pixlcrashr.vsfv.v1.CommitteeService/ListUserCommittees"
 )
 
 // CommitteeServiceClient is the client API for CommitteeService service.
@@ -69,6 +70,19 @@ type CommitteeServiceClient interface {
 	//	Permission: committees:delete
 	//	Domain: organization-scoped
 	DeleteCommittee(ctx context.Context, in *DeleteCommitteeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Lists the committees a user is a member of within an organization
+	// (custom method, AIP-136). Only memberships are considered; committees
+	// the user is not a member of are not returned.
+	// Authorization:
+	//
+	//	Own committees (user empty or the calling user):
+	//	  Permission: submissions:create or submissions:update or
+	//	              committees:read
+	//	Another user's committees:
+	//	  Scope: committees:read
+	//	  Permission: committees:read
+	//	Domain: organization-scoped
+	ListUserCommittees(ctx context.Context, in *ListUserCommitteesRequest, opts ...grpc.CallOption) (*ListUserCommitteesResponse, error)
 }
 
 type committeeServiceClient struct {
@@ -129,6 +143,16 @@ func (c *committeeServiceClient) DeleteCommittee(ctx context.Context, in *Delete
 	return out, nil
 }
 
+func (c *committeeServiceClient) ListUserCommittees(ctx context.Context, in *ListUserCommitteesRequest, opts ...grpc.CallOption) (*ListUserCommitteesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListUserCommitteesResponse)
+	err := c.cc.Invoke(ctx, CommitteeService_ListUserCommittees_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CommitteeServiceServer is the server API for CommitteeService service.
 // All implementations should embed UnimplementedCommitteeServiceServer
 // for forward compatibility.
@@ -171,6 +195,19 @@ type CommitteeServiceServer interface {
 	//	Permission: committees:delete
 	//	Domain: organization-scoped
 	DeleteCommittee(context.Context, *DeleteCommitteeRequest) (*emptypb.Empty, error)
+	// Lists the committees a user is a member of within an organization
+	// (custom method, AIP-136). Only memberships are considered; committees
+	// the user is not a member of are not returned.
+	// Authorization:
+	//
+	//	Own committees (user empty or the calling user):
+	//	  Permission: submissions:create or submissions:update or
+	//	              committees:read
+	//	Another user's committees:
+	//	  Scope: committees:read
+	//	  Permission: committees:read
+	//	Domain: organization-scoped
+	ListUserCommittees(context.Context, *ListUserCommitteesRequest) (*ListUserCommitteesResponse, error)
 }
 
 // UnimplementedCommitteeServiceServer should be embedded to have
@@ -194,6 +231,9 @@ func (UnimplementedCommitteeServiceServer) UpdateCommittee(context.Context, *Upd
 }
 func (UnimplementedCommitteeServiceServer) DeleteCommittee(context.Context, *DeleteCommitteeRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteCommittee not implemented")
+}
+func (UnimplementedCommitteeServiceServer) ListUserCommittees(context.Context, *ListUserCommitteesRequest) (*ListUserCommitteesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListUserCommittees not implemented")
 }
 func (UnimplementedCommitteeServiceServer) testEmbeddedByValue() {}
 
@@ -305,6 +345,24 @@ func _CommitteeService_DeleteCommittee_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CommitteeService_ListUserCommittees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListUserCommitteesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CommitteeServiceServer).ListUserCommittees(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CommitteeService_ListUserCommittees_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CommitteeServiceServer).ListUserCommittees(ctx, req.(*ListUserCommitteesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CommitteeService_ServiceDesc is the grpc.ServiceDesc for CommitteeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -331,6 +389,10 @@ var CommitteeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteCommittee",
 			Handler:    _CommitteeService_DeleteCommittee_Handler,
+		},
+		{
+			MethodName: "ListUserCommittees",
+			Handler:    _CommitteeService_ListUserCommittees_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

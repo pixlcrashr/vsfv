@@ -52,6 +52,11 @@ type Account struct {
 	// Whether this account is a container account (cannot hold values directly).
 	// Immutable after creation.
 	IsContainer bool `protobuf:"varint,7,opt,name=is_container,json=isContainer,proto3" json:"is_container,omitempty"`
+	// Whether actual values of this account (and, inherited, of its
+	// non-overriding descendants) are returned with a reversed sign, so
+	// expense-oriented accounts can display positive values against positive
+	// targets.
+	InvertSign bool `protobuf:"varint,14,opt,name=invert_sign,json=invertSign,proto3" json:"invert_sign,omitempty"`
 	// Whether the account is archived (soft-deleted).
 	IsArchived bool `protobuf:"varint,8,opt,name=is_archived,json=isArchived,proto3" json:"is_archived,omitempty"`
 	// Last modification timestamp.
@@ -153,6 +158,13 @@ func (x *Account) GetDisplayDescription() string {
 func (x *Account) GetIsContainer() bool {
 	if x != nil {
 		return x.IsContainer
+	}
+	return false
+}
+
+func (x *Account) GetInvertSign() bool {
+	if x != nil {
+		return x.InvertSign
 	}
 	return false
 }
@@ -889,7 +901,7 @@ var File_pixlcrashr_vsfv_v1_account_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_account_proto_rawDesc = "" +
 	"\n" +
-	" pixlcrashr/vsfv/v1/account.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb3\x05\n" +
+	" pixlcrashr/vsfv/v1/account.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd9\x05\n" +
 	"\aAccount\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12J\n" +
@@ -901,6 +913,8 @@ const file_pixlcrashr_vsfv_v1_account_proto_rawDesc = "" +
 	"\x11display_full_name\x18\r \x01(\tB\x03\xe0A\x03R\x0fdisplayFullName\x124\n" +
 	"\x13display_description\x18\x06 \x01(\tB\x03\xe0A\x01R\x12displayDescription\x12&\n" +
 	"\fis_container\x18\a \x01(\bB\x03\xe0A\x05R\visContainer\x12$\n" +
+	"\vinvert_sign\x18\x0e \x01(\bB\x03\xe0A\x01R\n" +
+	"invertSign\x12$\n" +
 	"\vis_archived\x18\b \x01(\bB\x03\xe0A\x03R\n" +
 	"isArchived\x12@\n" +
 	"\vupdate_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +

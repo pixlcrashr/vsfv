@@ -68,6 +68,7 @@ func ExportOrganization(ctx context.Context, deps *ExportRepositoryDependencies,
 			DisplayCode:        m.DisplayCode,
 			DisplayDescription: m.DisplayDescription,
 			IsContainer:        m.IsContainer,
+			InvertSign:         m.InvertSign,
 			IsArchived:         m.IsArchived,
 		}
 		if m.ParentAccountID.Valid {
@@ -135,7 +136,7 @@ func ExportOrganization(ctx context.Context, deps *ExportRepositoryDependencies,
 			ID:                 la.ID.String(),
 			CustomID:           la.CustomID,
 			Code:               la.Code,
-			AccountType:        accountTypeToString(la.AccountType),
+			Type:               ledgerAccountTypeToString(la.Type),
 			DisplayName:        la.DisplayName,
 			DisplayDescription: la.DisplayDescription,
 		})
@@ -299,43 +300,37 @@ func ExportOrganization(ctx context.Context, deps *ExportRepositoryDependencies,
 	}, nil
 }
 
-func accountTypeToString(t model.AccountType) string {
-	switch t {
-	case model.AccountTypeAsset:
-		return "asset"
-	case model.AccountTypeLiability:
-		return "liability"
-	case model.AccountTypeEquity:
-		return "equity"
-	case model.AccountTypeRevenue:
-		return "revenue"
-	case model.AccountTypeExpense:
-		return "expense"
-	case model.AccountTypeSystem:
-		return "system"
+func ledgerAccountTypeToString(t *model.LedgerAccountType) string {
+	if t == nil {
+		return ""
+	}
+	switch *t {
+	case model.LedgerAccountTypeLiquidity:
+		return "liquidity"
+	case model.LedgerAccountTypeCounter:
+		return "counter"
+	case model.LedgerAccountTypeStartAccount:
+		return "startAccount"
 	default:
-		return "unspecified"
+		return ""
 	}
 }
 
-func accountTypeFromString(s string) (model.AccountType, error) {
+func ledgerAccountTypeFromString(s string) (*model.LedgerAccountType, error) {
 	switch s {
-	case "asset":
-		return model.AccountTypeAsset, nil
-	case "liability":
-		return model.AccountTypeLiability, nil
-	case "equity":
-		return model.AccountTypeEquity, nil
-	case "revenue":
-		return model.AccountTypeRevenue, nil
-	case "expense":
-		return model.AccountTypeExpense, nil
-	case "system":
-		return model.AccountTypeSystem, nil
-	case "unspecified", "":
-		return model.AccountTypeUnspecified, nil
+	case "liquidity":
+		v := model.LedgerAccountTypeLiquidity
+		return &v, nil
+	case "counter":
+		v := model.LedgerAccountTypeCounter
+		return &v, nil
+	case "startAccount":
+		v := model.LedgerAccountTypeStartAccount
+		return &v, nil
+	case "":
+		return nil, nil
 	default:
-		return 0, fmt.Errorf("unknown account type %q", s)
+		return nil, fmt.Errorf("unknown ledger account type %q", s)
 	}
 }
 

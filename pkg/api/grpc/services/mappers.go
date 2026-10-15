@@ -105,6 +105,7 @@ func AccountToProto(orgRN gen.OrganizationResourceName, m *model.Account, pM *mo
 		DisplayFullName:    accountDisplayFullName(m, ancestorByID),
 		DisplayDescription: m.DisplayDescription,
 		IsContainer:        m.IsContainer,
+		InvertSign:         m.InvertSign,
 		IsArchived:         m.IsArchived,
 		UpdateTime:         ts(m.UpdatedAt),
 		CreateTime:         ts(m.CreatedAt),
@@ -205,6 +206,7 @@ func BudgetToProto(orgRN gen.OrganizationResourceName, m *model.Budget) *gen.Bud
 		PublishActualValues: m.PublishActualValues,
 		PeriodStart:         dateProto(m.PeriodStart),
 		PeriodEnd:           dateProto(m.PeriodEnd),
+		Order:               m.Order,
 		UpdateTime:          ts(m.UpdatedAt),
 		CreateTime:          ts(m.CreatedAt),
 	}
@@ -292,10 +294,15 @@ func TransactionToProto(orgRN gen.OrganizationResourceName, m *model.Transaction
 // LedgerAccountToProto maps a model.LedgerAccount to its proto representation.
 func LedgerAccountToProto(orgRN gen.OrganizationResourceName, m *model.LedgerAccount) *gen.LedgerAccount {
 	return &gen.LedgerAccount{
-		Name:               orgRN.LedgerAccountResourceName(m.CustomID).String(),
-		Uid:                m.ID.String(),
-		Code:               m.Code,
-		AccountType:        gen.AccountType(m.AccountType),
+		Name: orgRN.LedgerAccountResourceName(m.CustomID).String(),
+		Uid:  m.ID.String(),
+		Code: m.Code,
+		Type: func() gen.LedgerAccountType {
+			if m.Type == nil {
+				return gen.LedgerAccountType_LEDGER_ACCOUNT_TYPE_UNSPECIFIED
+			}
+			return gen.LedgerAccountType(*m.Type)
+		}(),
 		DisplayName:        m.DisplayName,
 		DisplayDescription: m.DisplayDescription,
 		UpdateTime:         ts(m.UpdatedAt),

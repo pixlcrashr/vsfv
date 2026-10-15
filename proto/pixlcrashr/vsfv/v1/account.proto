@@ -60,6 +60,12 @@ message Account {
   // Immutable after creation.
   bool is_container = 7 [(google.api.field_behavior) = IMMUTABLE];
 
+  // Whether actual values of this account (and, inherited, of its
+  // non-overriding descendants) are returned with a reversed sign, so
+  // expense-oriented accounts can display positive values against positive
+  // targets.
+  bool invert_sign = 14 [(google.api.field_behavior) = OPTIONAL];
+
   // Whether the account is archived (soft-deleted).
   bool is_archived = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
 

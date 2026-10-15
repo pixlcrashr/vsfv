@@ -59,8 +59,12 @@ type Budget struct {
 	// Must lie within the budget period. If unset, the end of the budget period
 	// is assumed.
 	PublishActualValuesUntil *date.Date `protobuf:"bytes,13,opt,name=publish_actual_values_until,json=publishActualValuesUntil,proto3" json:"publish_actual_values_until,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Position of the budget in the organization's custom ordering. A lower
+	// value means a higher position; the first budget has the lowest value.
+	// Assigned automatically; modified only via ReorderBudgets.
+	Order         int32 `protobuf:"varint,14,opt,name=order,proto3" json:"order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Budget) Reset() {
@@ -184,6 +188,13 @@ func (x *Budget) GetPublishActualValuesUntil() *date.Date {
 	return nil
 }
 
+func (x *Budget) GetOrder() int32 {
+	if x != nil {
+		return x.Order
+	}
+	return 0
+}
+
 type GetBudgetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The resource name of the budget.
@@ -247,6 +258,7 @@ type ListBudgetsRequest struct {
 	// If true, closed budgets are included in results.
 	ShowDeleted bool `protobuf:"varint,5,opt,name=show_deleted,json=showDeleted,proto3" json:"show_deleted,omitempty"`
 	// Order by expression (e.g. "display_name", "period_start desc").
+	// If unspecified, budgets are returned in their custom order.
 	OrderBy       string `protobuf:"bytes,6,opt,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -598,11 +610,68 @@ func (x *CloseBudgetRequest) GetName() string {
 	return ""
 }
 
+type ReorderBudgetsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The parent organization resource name.
+	// Format: organizations/{organization}
+	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
+	// The budget resource names in their desired order, from first (top of
+	// lists) to last (bottom of lists). Must contain every budget of the
+	// organization exactly once.
+	Budgets       []string `protobuf:"bytes,2,rep,name=budgets,proto3" json:"budgets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderBudgetsRequest) Reset() {
+	*x = ReorderBudgetsRequest{}
+	mi := &file_pixlcrashr_vsfv_v1_budget_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderBudgetsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderBudgetsRequest) ProtoMessage() {}
+
+func (x *ReorderBudgetsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_budget_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderBudgetsRequest.ProtoReflect.Descriptor instead.
+func (*ReorderBudgetsRequest) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_budget_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ReorderBudgetsRequest) GetParent() string {
+	if x != nil {
+		return x.Parent
+	}
+	return ""
+}
+
+func (x *ReorderBudgetsRequest) GetBudgets() []string {
+	if x != nil {
+		return x.Budgets
+	}
+	return nil
+}
+
 var File_pixlcrashr_vsfv_v1_budget_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_budget_proto_rawDesc = "" +
 	"\n" +
-	"\x1fpixlcrashr/vsfv/v1/budget.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\xdd\x05\n" +
+	"\x1fpixlcrashr/vsfv/v1/budget.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\xf8\x05\n" +
 	"\x06Budget\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12&\n" +
@@ -620,7 +689,8 @@ const file_pixlcrashr_vsfv_v1_budget_proto_rawDesc = "" +
 	" \x01(\tB\x03\xe0A\x03R\x04etag\x12&\n" +
 	"\fis_published\x18\v \x01(\bB\x03\xe0A\x01R\visPublished\x127\n" +
 	"\x15publish_actual_values\x18\f \x01(\bB\x03\xe0A\x01R\x13publishActualValues\x12U\n" +
-	"\x1bpublish_actual_values_until\x18\r \x01(\v2\x11.google.type.DateB\x03\xe0A\x01R\x18publishActualValuesUntil:N\xeaAK\n" +
+	"\x1bpublish_actual_values_until\x18\r \x01(\v2\x11.google.type.DateB\x03\xe0A\x01R\x18publishActualValuesUntil\x12\x19\n" +
+	"\x05order\x18\x0e \x01(\x05B\x03\xe0A\x03R\x05order:N\xeaAK\n" +
 	"\x1avsfv.pixlcrashr.dev/Budget\x12-organizations/{organization}/budgets/{budget}\"J\n" +
 	"\x10GetBudgetRequest\x126\n" +
 	"\x04name\x18\x01 \x01(\tB\"\xe0A\x02\xfaA\x1c\n" +
@@ -653,13 +723,19 @@ const file_pixlcrashr_vsfv_v1_budget_proto_rawDesc = "" +
 	"\x1avsfv.pixlcrashr.dev/BudgetR\x04name\"L\n" +
 	"\x12CloseBudgetRequest\x126\n" +
 	"\x04name\x18\x01 \x01(\tB\"\xe0A\x02\xfaA\x1c\n" +
-	"\x1avsfv.pixlcrashr.dev/BudgetR\x04name2\xab\a\n" +
+	"\x1avsfv.pixlcrashr.dev/BudgetR\x04name\"\x97\x01\n" +
+	"\x15ReorderBudgetsRequest\x12@\n" +
+	"\x06parent\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
+	" vsfv.pixlcrashr.dev/OrganizationR\x06parent\x12<\n" +
+	"\abudgets\x18\x02 \x03(\tB\"\xe0A\x02\xfaA\x1c\n" +
+	"\x1avsfv.pixlcrashr.dev/BudgetR\abudgets2\xcb\b\n" +
 	"\rBudgetService\x12\x82\x01\n" +
 	"\tGetBudget\x12$.pixlcrashr.vsfv.v1.GetBudgetRequest\x1a\x1a.pixlcrashr.vsfv.v1.Budget\"3\xdaA\x04name\x82\xd3\xe4\x93\x02&\x12$/v1/{name=organizations/*/budgets/*}\x12\x95\x01\n" +
 	"\vListBudgets\x12&.pixlcrashr.vsfv.v1.ListBudgetsRequest\x1a'.pixlcrashr.vsfv.v1.ListBudgetsResponse\"5\xdaA\x06parent\x82\xd3\xe4\x93\x02&\x12$/v1/{parent=organizations/*}/budgets\x12\xa3\x01\n" +
 	"\fCreateBudget\x12'.pixlcrashr.vsfv.v1.CreateBudgetRequest\x1a\x1a.pixlcrashr.vsfv.v1.Budget\"N\xdaA\x17parent,budget,budget_id\x82\xd3\xe4\x93\x02.:\x06budget\"$/v1/{parent=organizations/*}/budgets\x12\xa5\x01\n" +
 	"\fUpdateBudget\x12'.pixlcrashr.vsfv.v1.UpdateBudgetRequest\x1a\x1a.pixlcrashr.vsfv.v1.Budget\"P\xdaA\x12budget,update_mask\x82\xd3\xe4\x93\x025:\x06budget2+/v1/{budget.name=organizations/*/budgets/*}\x12\x8f\x01\n" +
-	"\vCloseBudget\x12&.pixlcrashr.vsfv.v1.CloseBudgetRequest\x1a\x1a.pixlcrashr.vsfv.v1.Budget\"<\xdaA\x04name\x82\xd3\xe4\x93\x02/:\x01*\"*/v1/{name=organizations/*/budgets/*}:close\x12\x84\x01\n" +
+	"\vCloseBudget\x12&.pixlcrashr.vsfv.v1.CloseBudgetRequest\x1a\x1a.pixlcrashr.vsfv.v1.Budget\"<\xdaA\x04name\x82\xd3\xe4\x93\x02/:\x01*\"*/v1/{name=organizations/*/budgets/*}:close\x12\x9d\x01\n" +
+	"\x0eReorderBudgets\x12).pixlcrashr.vsfv.v1.ReorderBudgetsRequest\x1a\x16.google.protobuf.Empty\"H\xdaA\x0eparent,budgets\x82\xd3\xe4\x93\x021:\x01*\",/v1/{parent=organizations/*}/budgets:reorder\x12\x84\x01\n" +
 	"\fDeleteBudget\x12'.pixlcrashr.vsfv.v1.DeleteBudgetRequest\x1a\x16.google.protobuf.Empty\"3\xdaA\x04name\x82\xd3\xe4\x93\x02&*$/v1/{name=organizations/*/budgets/*}\x1a\x16\xcaA\x13vsfv.pixlcrashr.devB\xb8\x01\n" +
 	"\x16com.pixlcrashr.vsfv.v1B\vBudgetProtoP\x01Z'github.com/pixlcrashr/vsfv/pkg/grpc/gen\xa2\x02\x03PVX\xaa\x02\x12Pixlcrashr.Vsfv.V1\xca\x02\x12Pixlcrashr\\Vsfv\\V1\xe2\x02\x1ePixlcrashr\\Vsfv\\V1\\GPBMetadata\xea\x02\x14Pixlcrashr::Vsfv::V1b\x06proto3"
 
@@ -675,7 +751,7 @@ func file_pixlcrashr_vsfv_v1_budget_proto_rawDescGZIP() []byte {
 	return file_pixlcrashr_vsfv_v1_budget_proto_rawDescData
 }
 
-var file_pixlcrashr_vsfv_v1_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_pixlcrashr_vsfv_v1_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_pixlcrashr_vsfv_v1_budget_proto_goTypes = []any{
 	(*Budget)(nil),                // 0: pixlcrashr.vsfv.v1.Budget
 	(*GetBudgetRequest)(nil),      // 1: pixlcrashr.vsfv.v1.GetBudgetRequest
@@ -685,35 +761,38 @@ var file_pixlcrashr_vsfv_v1_budget_proto_goTypes = []any{
 	(*UpdateBudgetRequest)(nil),   // 5: pixlcrashr.vsfv.v1.UpdateBudgetRequest
 	(*DeleteBudgetRequest)(nil),   // 6: pixlcrashr.vsfv.v1.DeleteBudgetRequest
 	(*CloseBudgetRequest)(nil),    // 7: pixlcrashr.vsfv.v1.CloseBudgetRequest
-	(*date.Date)(nil),             // 8: google.type.Date
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil), // 10: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),         // 11: google.protobuf.Empty
+	(*ReorderBudgetsRequest)(nil), // 8: pixlcrashr.vsfv.v1.ReorderBudgetsRequest
+	(*date.Date)(nil),             // 9: google.type.Date
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil), // 11: google.protobuf.FieldMask
+	(*emptypb.Empty)(nil),         // 12: google.protobuf.Empty
 }
 var file_pixlcrashr_vsfv_v1_budget_proto_depIdxs = []int32{
-	8,  // 0: pixlcrashr.vsfv.v1.Budget.period_start:type_name -> google.type.Date
-	8,  // 1: pixlcrashr.vsfv.v1.Budget.period_end:type_name -> google.type.Date
-	9,  // 2: pixlcrashr.vsfv.v1.Budget.update_time:type_name -> google.protobuf.Timestamp
-	9,  // 3: pixlcrashr.vsfv.v1.Budget.create_time:type_name -> google.protobuf.Timestamp
-	8,  // 4: pixlcrashr.vsfv.v1.Budget.publish_actual_values_until:type_name -> google.type.Date
+	9,  // 0: pixlcrashr.vsfv.v1.Budget.period_start:type_name -> google.type.Date
+	9,  // 1: pixlcrashr.vsfv.v1.Budget.period_end:type_name -> google.type.Date
+	10, // 2: pixlcrashr.vsfv.v1.Budget.update_time:type_name -> google.protobuf.Timestamp
+	10, // 3: pixlcrashr.vsfv.v1.Budget.create_time:type_name -> google.protobuf.Timestamp
+	9,  // 4: pixlcrashr.vsfv.v1.Budget.publish_actual_values_until:type_name -> google.type.Date
 	0,  // 5: pixlcrashr.vsfv.v1.ListBudgetsResponse.budgets:type_name -> pixlcrashr.vsfv.v1.Budget
 	0,  // 6: pixlcrashr.vsfv.v1.CreateBudgetRequest.budget:type_name -> pixlcrashr.vsfv.v1.Budget
 	0,  // 7: pixlcrashr.vsfv.v1.UpdateBudgetRequest.budget:type_name -> pixlcrashr.vsfv.v1.Budget
-	10, // 8: pixlcrashr.vsfv.v1.UpdateBudgetRequest.update_mask:type_name -> google.protobuf.FieldMask
+	11, // 8: pixlcrashr.vsfv.v1.UpdateBudgetRequest.update_mask:type_name -> google.protobuf.FieldMask
 	1,  // 9: pixlcrashr.vsfv.v1.BudgetService.GetBudget:input_type -> pixlcrashr.vsfv.v1.GetBudgetRequest
 	2,  // 10: pixlcrashr.vsfv.v1.BudgetService.ListBudgets:input_type -> pixlcrashr.vsfv.v1.ListBudgetsRequest
 	4,  // 11: pixlcrashr.vsfv.v1.BudgetService.CreateBudget:input_type -> pixlcrashr.vsfv.v1.CreateBudgetRequest
 	5,  // 12: pixlcrashr.vsfv.v1.BudgetService.UpdateBudget:input_type -> pixlcrashr.vsfv.v1.UpdateBudgetRequest
 	7,  // 13: pixlcrashr.vsfv.v1.BudgetService.CloseBudget:input_type -> pixlcrashr.vsfv.v1.CloseBudgetRequest
-	6,  // 14: pixlcrashr.vsfv.v1.BudgetService.DeleteBudget:input_type -> pixlcrashr.vsfv.v1.DeleteBudgetRequest
-	0,  // 15: pixlcrashr.vsfv.v1.BudgetService.GetBudget:output_type -> pixlcrashr.vsfv.v1.Budget
-	3,  // 16: pixlcrashr.vsfv.v1.BudgetService.ListBudgets:output_type -> pixlcrashr.vsfv.v1.ListBudgetsResponse
-	0,  // 17: pixlcrashr.vsfv.v1.BudgetService.CreateBudget:output_type -> pixlcrashr.vsfv.v1.Budget
-	0,  // 18: pixlcrashr.vsfv.v1.BudgetService.UpdateBudget:output_type -> pixlcrashr.vsfv.v1.Budget
-	0,  // 19: pixlcrashr.vsfv.v1.BudgetService.CloseBudget:output_type -> pixlcrashr.vsfv.v1.Budget
-	11, // 20: pixlcrashr.vsfv.v1.BudgetService.DeleteBudget:output_type -> google.protobuf.Empty
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
+	8,  // 14: pixlcrashr.vsfv.v1.BudgetService.ReorderBudgets:input_type -> pixlcrashr.vsfv.v1.ReorderBudgetsRequest
+	6,  // 15: pixlcrashr.vsfv.v1.BudgetService.DeleteBudget:input_type -> pixlcrashr.vsfv.v1.DeleteBudgetRequest
+	0,  // 16: pixlcrashr.vsfv.v1.BudgetService.GetBudget:output_type -> pixlcrashr.vsfv.v1.Budget
+	3,  // 17: pixlcrashr.vsfv.v1.BudgetService.ListBudgets:output_type -> pixlcrashr.vsfv.v1.ListBudgetsResponse
+	0,  // 18: pixlcrashr.vsfv.v1.BudgetService.CreateBudget:output_type -> pixlcrashr.vsfv.v1.Budget
+	0,  // 19: pixlcrashr.vsfv.v1.BudgetService.UpdateBudget:output_type -> pixlcrashr.vsfv.v1.Budget
+	0,  // 20: pixlcrashr.vsfv.v1.BudgetService.CloseBudget:output_type -> pixlcrashr.vsfv.v1.Budget
+	12, // 21: pixlcrashr.vsfv.v1.BudgetService.ReorderBudgets:output_type -> google.protobuf.Empty
+	12, // 22: pixlcrashr.vsfv.v1.BudgetService.DeleteBudget:output_type -> google.protobuf.Empty
+	16, // [16:23] is the sub-list for method output_type
+	9,  // [9:16] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -730,7 +809,7 @@ func file_pixlcrashr_vsfv_v1_budget_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pixlcrashr_vsfv_v1_budget_proto_rawDesc), len(file_pixlcrashr_vsfv_v1_budget_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

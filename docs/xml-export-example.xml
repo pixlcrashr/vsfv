@@ -58,13 +58,12 @@
       <ledgerAccount id="66666666-6666-6666-6666-666666666666"
                      customId="bank"
                      code="1000"
-                     accountType="asset"
+                     type="liquidity"
                      displayName="Bankkonto"
                      displayDescription="Hauptbankkonto"/>
       <ledgerAccount id="77777777-7777-7777-7777-777777777777"
                      customId="expense-office"
                      code="2000"
-                     accountType="expense"
                      displayName="Büromaterial"
                      displayDescription="Materialaufwand"/>
     </ledgerAccounts>

@@ -7,10 +7,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 var (
@@ -23,12 +25,12 @@ var (
 
 type userIdentityServiceServer struct {
 	gen.UnimplementedUserIdentityServiceServer
-	repo     *repository.UserIdentityRepository
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newUserIdentityServiceServer(repo *repository.UserIdentityRepository, enforcer *authz.Enforcer) gen.UserIdentityServiceServer {
-	return &userIdentityServiceServer{repo: repo, enforcer: enforcer}
+func newUserIdentityServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.UserIdentityServiceServer {
+	return &userIdentityServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *userIdentityServiceServer) GetUserIdentity(ctx context.Context, req *gen.GetUserIdentityRequest) (*gen.UserIdentity, error) {
@@ -46,15 +48,19 @@ func (s *userIdentityServiceServer) GetUserIdentity(ctx context.Context, req *ge
 		return nil, &ServerError{Err: err, Status: statusInvalidUserIdentityName}
 	}
 
-	m, err := s.repo.GetByCustomID(ctx, userID, n.Identity)
-	if err != nil {
-		if errors.Is(err, repository.ErrUserIdentityNotFound) {
-			return nil, &ServerError{Err: err, Status: statusUserIdentityNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetUserIdentity}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.UserIdentity, error) {
+		repo := repository.NewFactory(tx, s.enforcer).UserIdentity()
 
-	return UserIdentityToProto(n.UserResourceName(), m), nil
+		m, err := repo.GetByCustomID(ctx, userID, n.Identity)
+		if err != nil {
+			if errors.Is(err, repository.ErrUserIdentityNotFound) {
+				return nil, &ServerError{Err: err, Status: statusUserIdentityNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetUserIdentity}
+		}
+
+		return UserIdentityToProto(n.UserResourceName(), m), nil
+	})
 }
 
 func (s *userIdentityServiceServer) ListUserIdentities(ctx context.Context, req *gen.ListUserIdentitiesRequest) (*gen.ListUserIdentitiesResponse, error) {
@@ -85,20 +91,24 @@ func (s *userIdentityServiceServer) ListUserIdentities(ctx context.Context, req 
 		PageSize: pageSize,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListUserIdentities}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListUserIdentitiesResponse, error) {
+		repo := repository.NewFactory(tx, s.enforcer).UserIdentity()
 
-	resp := &gen.ListUserIdentitiesResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.Identities = append(resp.Identities, UserIdentityToProto(pn, m))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListUserIdentities}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListUserIdentitiesResponse{TotalSize: total}
+		for _, m := range ms {
+			resp.Identities = append(resp.Identities, UserIdentityToProto(pn, m))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }

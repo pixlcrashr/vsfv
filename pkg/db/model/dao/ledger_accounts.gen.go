@@ -31,7 +31,7 @@ func newLedgerAccount(db *gorm.DB, opts ...gen.DOOption) ledgerAccount {
 	_ledgerAccount.CustomID = field.NewString(tableName, "custom_id")
 	_ledgerAccount.OrganizationID = field.NewField(tableName, "organization_id")
 	_ledgerAccount.Code = field.NewString(tableName, "code")
-	_ledgerAccount.AccountType = field.NewInt(tableName, "account_type")
+	_ledgerAccount.Type = field.NewInt(tableName, "type")
 	_ledgerAccount.DisplayName = field.NewString(tableName, "display_name")
 	_ledgerAccount.DisplayDescription = field.NewString(tableName, "display_description")
 	_ledgerAccount.UpdatedAt = field.NewTime(tableName, "updated_at")
@@ -894,7 +894,7 @@ type ledgerAccount struct {
 	CustomID           field.String
 	OrganizationID     field.Field
 	Code               field.String
-	AccountType        field.Int
+	Type               field.Int
 	DisplayName        field.String
 	DisplayDescription field.String
 	UpdatedAt          field.Time
@@ -924,7 +924,7 @@ func (l *ledgerAccount) updateTableName(table string) *ledgerAccount {
 	l.CustomID = field.NewString(table, "custom_id")
 	l.OrganizationID = field.NewField(table, "organization_id")
 	l.Code = field.NewString(table, "code")
-	l.AccountType = field.NewInt(table, "account_type")
+	l.Type = field.NewInt(table, "type")
 	l.DisplayName = field.NewString(table, "display_name")
 	l.DisplayDescription = field.NewString(table, "display_description")
 	l.UpdatedAt = field.NewTime(table, "updated_at")
@@ -962,7 +962,7 @@ func (l *ledgerAccount) fillFieldMap() {
 	l.fieldMap["custom_id"] = l.CustomID
 	l.fieldMap["organization_id"] = l.OrganizationID
 	l.fieldMap["code"] = l.Code
-	l.fieldMap["account_type"] = l.AccountType
+	l.fieldMap["type"] = l.Type
 	l.fieldMap["display_name"] = l.DisplayName
 	l.fieldMap["display_description"] = l.DisplayDescription
 	l.fieldMap["updated_at"] = l.UpdatedAt

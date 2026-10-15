@@ -38,7 +38,7 @@ func sampleOrganization() Organization {
 			{
 				ID:          "44444444-4444-4444-4444-444444444444",
 				Code:        "1000",
-				AccountType: "asset",
+				Type:        "liquidity",
 				DisplayName: "Bank",
 			},
 		},
@@ -110,7 +110,7 @@ func TestMarshalUnmarshalRoundtrip(t *testing.T) {
 	require.Len(t, org.AccountGroups[0].Assignments, 1)
 	require.True(t, org.AccountGroups[0].Assignments[0].Negate)
 	require.Len(t, org.LedgerAccounts, 1)
-	require.Equal(t, "asset", org.LedgerAccounts[0].AccountType)
+	require.Equal(t, "liquidity", org.LedgerAccounts[0].Type)
 	require.Len(t, org.Budgets, 1)
 	require.Len(t, org.Budgets[0].Revisions, 1)
 	require.Len(t, org.Transactions, 1)

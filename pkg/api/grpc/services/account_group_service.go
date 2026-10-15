@@ -8,6 +8,7 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"github.com/pixlcrashr/vsfv/pkg/query/order"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -32,13 +34,12 @@ var (
 
 type accountGroupServiceServer struct {
 	gen.UnimplementedAccountGroupServiceServer
-	repo     *repository.AccountGroupRepository
-	audits   *auditWriter
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newAccountGroupServiceServer(repo *repository.AccountGroupRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.AccountGroupServiceServer {
-	return &accountGroupServiceServer{repo: repo, audits: audits, enforcer: enforcer}
+func newAccountGroupServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.AccountGroupServiceServer {
+	return &accountGroupServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *accountGroupServiceServer) GetAccountGroup(ctx context.Context, req *gen.GetAccountGroupRequest) (*gen.AccountGroup, error) {
@@ -52,20 +53,25 @@ func (s *accountGroupServiceServer) GetAccountGroup(ctx context.Context, req *ge
 		return nil, authError(err)
 	}
 
-	m, err := s.repo.GetByResourceName(ctx, n.Organization, n.AccountGroup)
-	if err != nil {
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.AccountGroup, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AccountGroup()
+
+		m, err := repo.GetByResourceName(ctx, n.Organization, n.AccountGroup)
+		if err != nil {
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			if errors.Is(err, repository.ErrAccountGroupNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
 		}
 
-		if errors.Is(err, repository.ErrAccountGroupNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
-		}
-
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
-	}
-
-	return AccountGroupToProto(n.OrganizationResourceName(), m), nil
+		return AccountGroupToProto(n.OrganizationResourceName(), m), nil
+	})
 }
 
 func (s *accountGroupServiceServer) ListAccountGroups(ctx context.Context, req *gen.ListAccountGroupsRequest) (*gen.ListAccountGroupsResponse, error) {
@@ -112,22 +118,27 @@ func (s *accountGroupServiceServer) ListAccountGroups(ctx context.Context, req *
 		OrderBy:        orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListAccountGroups}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListAccountGroupsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AccountGroup()
 
-	resp := &gen.ListAccountGroupsResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.AccountGroups = append(resp.AccountGroups, AccountGroupToProto(orgN, m))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListAccountGroups}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListAccountGroupsResponse{TotalSize: total}
+		for _, m := range ms {
+			resp.AccountGroups = append(resp.AccountGroups, AccountGroupToProto(orgN, m))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *accountGroupServiceServer) CreateAccountGroup(ctx context.Context, req *gen.CreateAccountGroupRequest) (*gen.AccountGroup, error) {
@@ -150,31 +161,37 @@ func (s *accountGroupServiceServer) CreateAccountGroup(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidParent}
 	}
 
-	m, err := s.repo.Create(ctx, repository.CreateAccountGroupParams{
-		OrganizationID:     orgID,
-		DisplayName:        req.AccountGroup.DisplayName,
-		DisplayDescription: req.AccountGroup.DisplayDescription,
-		CustomID:           req.AccountGroupId,
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.AccountGroup, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AccountGroup()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.Create(ctx, repository.CreateAccountGroupParams{
+			OrganizationID:     orgID,
+			DisplayName:        req.AccountGroup.DisplayName,
+			DisplayDescription: req.AccountGroup.DisplayDescription,
+			CustomID:           req.AccountGroupId,
+		})
+		if err != nil {
+			if errors.Is(err, repository.ErrAccountGroupAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusAccountGroupAlreadyExists}
+			}
+
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateAccountGroup}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			pn.AccountGroupResourceName(m.CustomID).String(), orgID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return AccountGroupToProto(pn, m), nil
 	})
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountGroupAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusAccountGroupAlreadyExists}
-		}
-
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
-		}
-
-		return nil, &ServerError{Err: err, Status: statusFailedCreateAccountGroup}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		pn.AccountGroupResourceName(m.CustomID).String(), orgID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return AccountGroupToProto(pn, m), nil
 }
 
 func (s *accountGroupServiceServer) UpdateAccountGroup(ctx context.Context, req *gen.UpdateAccountGroupRequest) (*gen.AccountGroup, error) {
@@ -197,40 +214,46 @@ func (s *accountGroupServiceServer) UpdateAccountGroup(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountGroupName}
 	}
 
-	// Use CustomID (n.AccountGroup) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.AccountGroup)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountGroupNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.AccountGroup, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AccountGroup()
+		audits := newAuditWriter(tx)
+
+		// Use CustomID (n.AccountGroup) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.AccountGroup)
+		if err != nil {
+			if errors.Is(err, repository.ErrAccountGroupNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
-	}
+		before := *m
 
-	before := *m
+		updateParams := repository.UpdateAccountGroupParams{
+			DisplayName:        optional.From(req.AccountGroup.DisplayName),
+			DisplayDescription: optional.From(req.AccountGroup.DisplayDescription),
+		}
 
-	updateParams := repository.UpdateAccountGroupParams{
-		DisplayName:        optional.From(req.AccountGroup.DisplayName),
-		DisplayDescription: optional.From(req.AccountGroup.DisplayDescription),
-	}
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateAccountGroup}
+		}
 
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateAccountGroup}
-	}
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateAccountGroup}
+		}
 
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateAccountGroup}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return AccountGroupToProto(n.OrganizationResourceName(), m), nil
+		return AccountGroupToProto(n.OrganizationResourceName(), m), nil
+	})
 }
 
 func (s *accountGroupServiceServer) DeleteAccountGroup(ctx context.Context, req *gen.DeleteAccountGroupRequest) (*emptypb.Empty, error) {
@@ -249,29 +272,35 @@ func (s *accountGroupServiceServer) DeleteAccountGroup(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountGroupName}
 	}
 
-	// Use CustomID (n.AccountGroup) to find the group, then delete by actual ID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.AccountGroup)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountGroupNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.AccountGroup()
+		audits := newAuditWriter(tx)
+
+		// Use CustomID (n.AccountGroup) to find the group, then delete by actual ID
+		m, err := repo.GetByCustomID(ctx, orgID, n.AccountGroup)
+		if err != nil {
+			if errors.Is(err, repository.ErrAccountGroupNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccountGroup}
-	}
+		if err := repo.Delete(ctx, m.ID); err != nil {
+			if errors.Is(err, repository.ErrAccountGroupNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+			}
 
-	if err := s.repo.Delete(ctx, m.ID); err != nil {
-		if errors.Is(err, repository.ErrAccountGroupNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountGroupNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteAccountGroup}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteAccountGroup}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionDelete, m, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionDelete, m, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return &emptypb.Empty{}, nil
+		return &emptypb.Empty{}, nil
+	})
 }

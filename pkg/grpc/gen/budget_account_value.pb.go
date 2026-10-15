@@ -187,17 +187,26 @@ func (x *GetBudgetAccountValueRequest) GetName() string {
 
 type ListBudgetAccountValuesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent budget resource name.
-	// Format: organizations/{organization}/budgets/{budget}
+	// The parent budget resource name. Two forms are accepted:
+	//   - A single budget: organizations/{organization}/budgets/{budget}
+	//   - The wildcard form organizations/{organization}/budgets/- to list the
+	//     account values of every budget of the organization in one request;
+	//     the budgets can be selected via the `budget` filter field.
+	//
+	// The dash "-" is the only wildcard marker; "*" is not supported.
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
 	// Maximum number of values to return. The service may return fewer.
-	// If unspecified, at most 20 are returned. Maximum value is 100.
+	// If unspecified, at most 100 are returned. Maximum value is 500.
 	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// A page token from a previous ListBudgetAccountValues call.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Filter expression conforming to AIP-160.
-	// Supported fields: account.
-	// Example: "account=\"organizations/{organization}/accounts/{account}\"".
+	// Supported fields:
+	//   - account: the account resource name (e.g.
+	//     "organizations/{organization}/accounts/{account}").
+	//   - budget:  the budget resource name. Only accepted when the budget
+	//     segment of the parent is the wildcard "-", e.g.:
+	//     budget="..." OR budget="...".
 	Filter string `protobuf:"bytes,4,opt,name=filter,proto3" json:"filter,omitempty"`
 	// Order by expression (e.g. "create_time desc").
 	OrderBy       string `protobuf:"bytes,5,opt,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`

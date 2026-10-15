@@ -1,0 +1,34 @@
+name: "Test"
+run-name: "Test"
+on:
+  push:
+  pull_request:
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Run Go tests
+        run: go test ./...
+
+  web-test:
+    runs-on: ubuntu-latest
+    # The SPA tests are allowed to fail without failing the whole workflow.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+      - name: Run web tests
+        working-directory: web
+        run: npm test -- --watch=false

@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "pixlcrashr/vsfv/v1/decimal.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// DocumentForm describes in which form the original document exists.
+enum DocumentForm {
+  // Filler value for protobuf only; never stored in the database.
+  DOCUMENT_FORM_UNSPECIFIED = 0;
+  DOCUMENT_FORM_PAPER_ORIGINAL = 1;
+  DOCUMENT_FORM_DIGITAL_ORIGINAL = 2;
+
+  // Explicitly no document form chosen yet (drafts).
+  DOCUMENT_FORM_NONE = 3;
+}
+
+// SubmissionItem is a single bill/receipt (expense) or income document within
+// a submission.
+message SubmissionItem {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/SubmissionItem"
+    pattern: "organizations/{organization}/submissions/{submission}/items/{item}"
+  };
+
+  // The resource name of the item.
+  // Format: organizations/{organization}/submissions/{submission}/items/{item}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the item.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // Human-readable public ID derived from the submission's public ID and the
+  // item index (e.g. "2026/04/2").
+  string public_id = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Document category. Free-form to keep the API generalization-friendly;
+  // clients present per-direction presets (expenses: invoice, cash receipt,
+  // ...; income: donation receipt, sponsorship agreement, ...).
+  string category = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // In which form the original document exists.
+  DocumentForm document_form = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Origin/source of an income (e.g. sponsor name). Only used by income
+  // submissions.
+  string source = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // Free-text description of the document.
+  string description = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // Amount of the item.
+  Decimal amount = 8 [(google.api.field_behavior) = REQUIRED];
+
+  // Time the original document was received by the treasury.
+  google.protobuf.Timestamp original_receive_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The user that received the original document.
+  // Format: users/{user}
+  string original_received_by = 10 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+}
+
+message GetSubmissionItemRequest {
+  // The resource name of the item.
+  // Format: organizations/{organization}/submissions/{submission}/items/{item}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/SubmissionItem"}
+  ];
+}
+
+message ListSubmissionItemsRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // Maximum number of items to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListSubmissionItems call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListSubmissionItemsResponse {
+  // The items returned.
+  repeated SubmissionItem items = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+}
+
+message CreateSubmissionItemRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // The item to create.
+  SubmissionItem item = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the item. If not provided, a system-generated
+  // UUID will be used. Must be unique within the parent submission.
+  string item_id = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UpdateSubmissionItemRequest {
+  // The item to update.
+  SubmissionItem item = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The list of fields to update.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteSubmissionItemRequest {
+  // The resource name of the item.
+  // Format: organizations/{organization}/submissions/{submission}/items/{item}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/SubmissionItem"}
+  ];
+}
+
+// SubmissionItemService manages the bills/receipts and income documents of a
+// submission.
+service SubmissionItemService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Gets a single item by resource name.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read or submissions:read_own
+  //   Domain: organization-scoped
+  rpc GetSubmissionItem(GetSubmissionItemRequest) returns (SubmissionItem) {
+    option (google.api.http) = {get: "/v1/{name=organizations/*/submissions/*/items/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the items of a submission.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read or submissions:read_own
+  //   Domain: organization-scoped
+  rpc ListSubmissionItems(ListSubmissionItemsRequest) returns (ListSubmissionItemsResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*/submissions/*}/items"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a new item. Only allowed while the submission is in DRAFT,
+  // PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter or the
+  // treasury.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:create or submissions:update_own
+  //   Domain: organization-scoped
+  rpc CreateSubmissionItem(CreateSubmissionItemRequest) returns (SubmissionItem) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*/submissions/*}/items"
+      body: "item"
+    };
+    option (google.api.method_signature) = "parent,item,item_id";
+  }
+
+  // Updates an existing item. Only allowed while the submission is in DRAFT,
+  // PENDING or FURTHER_INFO_REQUIRED state, and only by the submitter or the
+  // treasury.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:update or submissions:update_own
+  //   Domain: organization-scoped
+  rpc UpdateSubmissionItem(UpdateSubmissionItemRequest) returns (SubmissionItem) {
+    option (google.api.http) = {
+      patch: "/v1/{item.name=organizations/*/submissions/*/items/*}"
+      body: "item"
+    };
+    option (google.api.method_signature) = "item,update_mask";
+  }
+
+  // Removes an item from the submission. Only allowed while the submission is
+  // in DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the
+  // submitter or the treasury.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:delete or submissions:update_own
+  //   Domain: organization-scoped
+  rpc DeleteSubmissionItem(DeleteSubmissionItemRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/{name=organizations/*/submissions/*/items/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}

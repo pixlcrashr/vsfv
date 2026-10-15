@@ -416,7 +416,6 @@ func loadLedgerAccountsFromTransactionAccounts(db *sql.DB, schema string, requir
 			ID:                 id,
 			CustomID:           id,
 			Code:               code,
-			AccountType:        "unspecified",
 			DisplayName:        displayName,
 			DisplayDescription: displayDescription,
 		})
@@ -434,7 +433,6 @@ func loadLedgerAccountsFromTransactionAccounts(db *sql.DB, schema string, requir
 			ID:                 id,
 			CustomID:           id,
 			Code:               id,
-			AccountType:        "unspecified",
 			DisplayName:        "",
 			DisplayDescription: "",
 		})

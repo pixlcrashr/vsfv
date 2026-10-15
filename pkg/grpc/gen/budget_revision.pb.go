@@ -197,8 +197,12 @@ func (x *GetBudgetRevisionRequest) GetName() string {
 
 type ListBudgetRevisionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent budget resource name.
-	// Format: organizations/{organization}/budgets/{budget}
+	// The parent budget resource name. Two forms are accepted:
+	//   - A single budget: organizations/{organization}/budgets/{budget}
+	//   - The wildcard form organizations/{organization}/budgets/- to list the
+	//     revisions of every budget of the organization in one request.
+	//
+	// The dash "-" is the only wildcard marker; "*" is not supported.
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
 	// Maximum number of revisions to return. The service may return fewer.
 	// If unspecified, at most 20 are returned. Maximum value is 100.

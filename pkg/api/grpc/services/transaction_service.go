@@ -8,13 +8,17 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"github.com/pixlcrashr/vsfv/pkg/query/cond"
+	"github.com/pixlcrashr/vsfv/pkg/query/order"
 	"github.com/theater-improrama/go-utils/optional"
+	"go.einride.tech/aip/ordering"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -22,6 +26,7 @@ var (
 	statusInvalidTransactionName            = status.New(codes.InvalidArgument, "invalid transaction name")
 	statusInvalidCreditTransactionAccountID = status.New(codes.InvalidArgument, "invalid credit_transaction_account_id")
 	statusInvalidDebitTransactionAccountID  = status.New(codes.InvalidArgument, "invalid debit_transaction_account_id")
+	statusTransactionDescriptionImmutable   = status.New(codes.InvalidArgument, "transaction description cannot be updated")
 	statusTransactionAlreadyExists          = status.New(codes.AlreadyExists, "transaction with this ID already exists")
 	statusFailedGetTransaction              = status.New(codes.Internal, "failed to get transaction")
 	statusFailedListTransactions            = status.New(codes.Internal, "failed to list transactions")
@@ -32,14 +37,12 @@ var (
 
 type transactionServiceServer struct {
 	gen.UnimplementedTransactionServiceServer
-	repo              *repository.TransactionRepository
-	ledgerAccountRepo *repository.LedgerAccountRepository
-	audits            *auditWriter
-	enforcer          *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newTransactionServiceServer(repo *repository.TransactionRepository, ledgerAccountRepo *repository.LedgerAccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.TransactionServiceServer {
-	return &transactionServiceServer{repo: repo, ledgerAccountRepo: ledgerAccountRepo, audits: audits, enforcer: enforcer}
+func newTransactionServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.TransactionServiceServer {
+	return &transactionServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *transactionServiceServer) GetTransaction(ctx context.Context, req *gen.GetTransactionRequest) (*gen.Transaction, error) {
@@ -58,26 +61,32 @@ func (s *transactionServiceServer) GetTransaction(ctx context.Context, req *gen.
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Transaction, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Transaction()
+		ledgerAccountRepo := f.LedgerAccount()
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
-	}
+		creditLA, err := ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
+		}
 
-	creditLA, err := s.ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
-	}
+		debitLA, err := ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
+		}
 
-	debitLA, err := s.ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
-	}
-
-	return TransactionToProto(n.OrganizationResourceName(), m, creditLA, debitLA), nil
+		return TransactionToProto(n.OrganizationResourceName(), m, creditLA, debitLA), nil
+	})
 }
 
 func (s *transactionServiceServer) ListTransactions(ctx context.Context, req *gen.ListTransactionsRequest) (*gen.ListTransactionsResponse, error) {
@@ -103,39 +112,52 @@ func (s *transactionServiceServer) ListTransactions(ctx context.Context, req *ge
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusInvalidParent}
 	}
-	c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
-		if field != "credit_ledger_account" && field != "debit_ledger_account" {
-			return field, value, true
-		}
-		laName, ok := value.(string)
-		if !ok {
-			return field, value, true
-		}
-		var laRN gen.LedgerAccountResourceName
-		if err := laRN.UnmarshalString(laName); err != nil {
-			return field, value, false
-		}
-		la, err := s.ledgerAccountRepo.GetByCustomID(ctx, orgID, laRN.LedgerAccount)
-		if err != nil {
-			return field, value, false
-		}
-		return field, la.ID.String(), true
-	})
 
-	// Extract assignment_status from the cond chain; it is a derived field
-	// handled separately by the repository via a subquery.
-	var assignmentStatus string
-	c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
-		if field == "assignment_status" {
-			if s, ok := value.(string); ok {
-				assignmentStatus = s
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListTransactionsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Transaction()
+		ledgerAccountRepo := f.LedgerAccount()
+
+		c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+			if field != "credit_ledger_account" && field != "debit_ledger_account" {
+				return field, value, true
 			}
-			return field, value, false
-		}
-		return field, value, true
-	})
+			laName, ok := value.(string)
+			if !ok {
+				return field, value, true
+			}
+			var laRN gen.LedgerAccountResourceName
+			if err := laRN.UnmarshalString(laName); err != nil {
+				return field, value, false
+			}
+			la, err := ledgerAccountRepo.GetByCustomID(ctx, orgID, laRN.LedgerAccount)
+			if err != nil {
+				return field, value, false
+			}
+			return field, la.ID.String(), true
+		})
+
+		// Extract assignment_status from the cond chain; it is a derived field
+		// handled separately by the repository via a subquery.
+		var assignmentStatus string
+		c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+			if field == "assignment_status" {
+				if s, ok := value.(string); ok {
+					assignmentStatus = s
+				}
+				return field, value, false
+			}
+			return field, value, true
+		})
 
 	pageSize := normalizePageSize(req.PageSize)
+
+	orderBy, err := ordering.ParseOrderBy(req)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidOrderBy}
+	}
+
+	orderExprs, _ := order.Resolve(orderBy, repository.TransactionOrderFieldMapper)
 
 	offset, err := pagetoken.Decode(req.PageToken)
 	if err != nil {
@@ -146,39 +168,41 @@ func (s *transactionServiceServer) ListTransactions(ctx context.Context, req *ge
 		PageSize:         pageSize,
 		Offset:           int(offset),
 		Cond:             c,
+		OrderBy:          orderExprs,
 		AssignmentStatus: assignmentStatus,
 	}
 
-	ms, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
-	}
-
-	total, err := s.repo.Count(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
-	}
-
-	resp := &gen.ListTransactionsResponse{TotalSize: total}
-	for _, m := range ms {
-		creditLA, err := s.ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
+		ms, err := repo.List(ctx, params)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
 		}
 
-		debitLA, err := s.ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
+		total, err := repo.Count(ctx, params)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
 		}
 
-		resp.Transactions = append(resp.Transactions, TransactionToProto(pn, m, creditLA, debitLA))
-	}
+		resp := &gen.ListTransactionsResponse{TotalSize: total}
+		for _, m := range ms {
+			creditLA, err := ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
+			}
 
-	if len(ms) == pageSize {
-		resp.NextPageToken = pagetoken.Encode(offset + int64(len(ms)))
-	}
+			debitLA, err := ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedListTransactions}
+			}
 
-	return resp, nil
+			resp.Transactions = append(resp.Transactions, TransactionToProto(pn, m, creditLA, debitLA))
+		}
+
+		if len(ms) == pageSize {
+			resp.NextPageToken = pagetoken.Encode(offset + int64(len(ms)))
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *transactionServiceServer) CreateTransaction(ctx context.Context, req *gen.CreateTransactionRequest) (*gen.Transaction, error) {
@@ -236,36 +260,43 @@ func (s *transactionServiceServer) CreateTransaction(ctx context.Context, req *g
 		params.DocumentDate = t.DocumentDate.AsTime()
 	}
 
-	m, err := s.repo.Create(ctx, params)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAlreadyExists}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Transaction, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Transaction()
+		ledgerAccountRepo := f.LedgerAccount()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.Create(ctx, params)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAlreadyExists}
+			}
+
+			if errors.Is(err, repository.ErrLedgerAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
 		}
 
-		if errors.Is(err, repository.ErrLedgerAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+		creditLA, err := ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
-	}
+		debitLA, err := ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
+		}
 
-	creditLA, err := s.ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.TransactionResourceName(m.ID.String()).String(), orgID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	debitLA, err := s.ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedCreateTransaction}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.TransactionResourceName(m.ID.String()).String(), orgID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return TransactionToProto(n, m, creditLA, debitLA), nil
+		return TransactionToProto(n, m, creditLA, debitLA), nil
+	})
 }
 
 func (s *transactionServiceServer) UpdateTransaction(ctx context.Context, req *gen.UpdateTransactionRequest) (*gen.Transaction, error) {
@@ -283,68 +314,83 @@ func (s *transactionServiceServer) UpdateTransaction(ctx context.Context, req *g
 		return nil, authError(err)
 	}
 
+	// The description is immutable after creation: reject update masks that
+	// target it explicitly instead of silently ignoring it.
+	for _, path := range req.GetUpdateMask().GetPaths() {
+		if path == "description" {
+			return nil, &ServerError{Status: statusTransactionDescriptionImmutable}
+		}
+	}
+
 	id, err := uuid.Parse(n.Transaction)
 	if err != nil {
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Transaction, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Transaction()
+		ledgerAccountRepo := f.LedgerAccount()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
-	}
+		before := *m
 
-	before := *m
+		t := req.Transaction
+		// Description is deliberately not updatable (immutable after creation).
+		updateParams := repository.UpdateTransactionParams{
+			Reference: optional.From(t.Reference),
+		}
 
-	t := req.Transaction
-	updateParams := repository.UpdateTransactionParams{
-		Description: optional.From(t.Description),
-		Reference:   optional.From(t.Reference),
-	}
+		if t.BookedAt != nil {
+			updateParams.BookedAt = optional.From(t.BookedAt.AsTime())
+		}
 
-	if t.BookedAt != nil {
-		updateParams.BookedAt = optional.From(t.BookedAt.AsTime())
-	}
+		if t.DocumentDate != nil {
+			updateParams.DocumentDate = optional.From(t.DocumentDate.AsTime())
+		}
 
-	if t.DocumentDate != nil {
-		updateParams.DocumentDate = optional.From(t.DocumentDate.AsTime())
-	}
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
+		}
 
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
-	}
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
+		}
 
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
-	}
+		orgID, err := uuid.Parse(n.Organization)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
+		}
 
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		creditLA, err := ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
+		}
 
-	creditLA, err := s.ledgerAccountRepo.GetByID(ctx, m.CreditLedgerAccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
-	}
+		debitLA, err := ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
+		}
 
-	debitLA, err := s.ledgerAccountRepo.GetByID(ctx, m.DebitLedgerAccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransaction}
-	}
-
-	return TransactionToProto(n.OrganizationResourceName(), m, creditLA, debitLA), nil
+		return TransactionToProto(n.OrganizationResourceName(), m, creditLA, debitLA), nil
+	})
 }
 
 func (s *transactionServiceServer) DeleteTransaction(ctx context.Context, req *gen.DeleteTransactionRequest) (*emptypb.Empty, error) {
@@ -363,33 +409,39 @@ func (s *transactionServiceServer) DeleteTransaction(ctx context.Context, req *g
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Transaction()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransaction}
-	}
+		if err := repo.Delete(ctx, id); err != nil {
+			if errors.Is(err, repository.ErrTransactionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+			}
 
-	if err := s.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrTransactionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteTransaction}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteTransaction}
-	}
+		orgID, err := uuid.Parse(n.Organization)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
+		}
 
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidTransactionName}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionDelete, m, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionDelete, m, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return &emptypb.Empty{}, nil
+		return &emptypb.Empty{}, nil
+	})
 }

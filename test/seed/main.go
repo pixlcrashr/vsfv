@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
@@ -18,6 +18,7 @@ import (
 
 func main() {
 	cfgFile := flag.String("c", "", "config file (default: ./config.yaml)")
+	force := flag.Bool("f", false, "wipe fixture data from a previously seeded database before seeding")
 	flag.Parse()
 
 	config, err := cfg.Load(*cfgFile)
@@ -31,17 +32,24 @@ func main() {
 	}
 	db.Logger = db.Logger.LogMode(logger.Silent)
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("get underlying sql.DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	// Seeding requires the schema to exist; bring it up to date first.
+	if err := pkgdb.Run(sqlDB); err != nil {
+		log.Fatalf("migrate: %v", err)
+	}
+
 	enforcer, err := authz.NewEnforcer(db)
 	if err != nil {
 		log.Fatalf("create enforcer: %v", err)
 	}
 
-	if err := authz.SeedAdminGroup(context.Background(), db, enforcer); err != nil {
-		log.Fatalf("seed admin group: %v", err)
-	}
-
 	if err := db.Transaction(func(tx *gorm.DB) error {
-		return seed(tx, enforcer)
+		return seed(tx, enforcer, *force)
 	}); err != nil {
 		log.Fatalf("seed: %v", err)
 	}
@@ -74,7 +82,52 @@ func fiscalYearEnd(year int, startMonth time.Month) time.Time {
 
 func cr(db *gorm.DB, v any) error { return db.Create(v).Error }
 
-func seed(db *gorm.DB, enforcer *authz.Enforcer) error {
+func ptr[T any](v T) *T { return &v }
+
+// reset removes all data inserted by previous seed runs, children first so
+// foreign keys stay satisfied.
+func reset(db *gorm.DB) error {
+	log.Println("wiping existing fixture data")
+	for _, m := range []any{
+		&model.TransactionAssignment{},
+		&model.Transaction_{},
+		&model.BudgetRevisionAccountValue{},
+		&model.BudgetRevision{},
+		&model.BudgetAccountValue{},
+		&model.Budget{},
+		&model.AccountGroupAssignment{},
+		&model.Account{},
+		&model.AccountGroup{},
+		&model.Report{},
+		&model.ReportTemplate{},
+		&model.LedgerAccount{},
+		&model.LedgerYear{},
+		&model.Organization{},
+	} {
+		if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(m).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func seed(db *gorm.DB, enforcer *authz.Enforcer, force bool) error {
+	// The fixtures assume a clean database: every insert is unconditional, so
+	// a second run collides with unique constraints. Refuse on a seeded
+	// database unless the caller asked for a reset.
+	var orgCount int64
+	if err := db.Model(&model.Organization{}).Count(&orgCount).Error; err != nil {
+		return err
+	}
+	if orgCount > 0 && !force {
+		return fmt.Errorf("database already contains %d organizations; run with -f to wipe fixture data before seeding", orgCount)
+	}
+	if orgCount > 0 {
+		if err := reset(db); err != nil {
+			return err
+		}
+	}
+
 	// ── Organizations ────────────────────────────────────────────────────────
 	// org1: Verein Musterstadt – a registered association (Verein), focuses on
 	//       membership fees, event income, and operating expenses.
@@ -287,17 +340,19 @@ func seed(db *gorm.DB, enforcer *authz.Enforcer) error {
 	}
 
 	// ── Ledger Accounts ─────────────────────────────────────────────────
+	// Bank/cash accounts carry the liquidity role; income/expense accounts
+	// stay unmarked for the budget-plan value computation.
 	// org1
-	ta1 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "1000", AccountType: model.AccountTypeAsset, DisplayName: "Kasse"}
-	ta2 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "1200", AccountType: model.AccountTypeAsset, DisplayName: "Girokonto"}
-	ta3 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "4000", AccountType: model.AccountTypeRevenue, DisplayName: "Mitgliedsbeiträge"}
-	ta4 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "4100", AccountType: model.AccountTypeRevenue, DisplayName: "Veranstaltungserlöse"}
-	ta5 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "6000", AccountType: model.AccountTypeExpense, DisplayName: "Raummiete"}
+	ta1 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "1000", Type: ptr(model.LedgerAccountTypeLiquidity), DisplayName: "Kasse"}
+	ta2 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "1200", Type: ptr(model.LedgerAccountTypeLiquidity), DisplayName: "Girokonto"}
+	ta3 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "4000", DisplayName: "Mitgliedsbeiträge"}
+	ta4 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "4100", DisplayName: "Veranstaltungserlöse"}
+	ta5 := &model.LedgerAccount{OrganizationID: org1.ID, Code: "6000", DisplayName: "Raummiete"}
 	// org2
-	ta6 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "1210", AccountType: model.AccountTypeAsset, DisplayName: "Geschäftskonto"}
-	ta7 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "8000", AccountType: model.AccountTypeRevenue, DisplayName: "Erlöse Aufträge"}
-	ta8 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "5000", AccountType: model.AccountTypeExpense, DisplayName: "Materialaufwand"}
-	ta9 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "6200", AccountType: model.AccountTypeExpense, DisplayName: "Löhne und Gehälter"}
+	ta6 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "1210", Type: ptr(model.LedgerAccountTypeLiquidity), DisplayName: "Geschäftskonto"}
+	ta7 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "8000", DisplayName: "Erlöse Aufträge"}
+	ta8 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "5000", DisplayName: "Materialaufwand"}
+	ta9 := &model.LedgerAccount{OrganizationID: org2.ID, Code: "6200", DisplayName: "Löhne und Gehälter"}
 	for _, v := range []any{ta1, ta2, ta3, ta4, ta5, ta6, ta7, ta8, ta9} {
 		if err := cr(db, v); err != nil {
 			return err
@@ -392,6 +447,20 @@ func seed(db *gorm.DB, enforcer *authz.Enforcer) error {
 			Amount: dec("11000.00"), Description: "Lohnzahlung August", Reference: "LOHN-2025-08",
 			BookedAt: date(2025, 8, 27), DocumentDate: date(2025, 8, 27),
 		},
+	}
+
+	// JournalKey is a per-organization dedup identifier with a unique index;
+	// unset keys would collide on the second transaction of an organization.
+	codes := map[uuid.UUID]string{}
+	for _, ta := range []*model.LedgerAccount{ta1, ta2, ta3, ta4, ta5, ta6, ta7, ta8, ta9} {
+		codes[ta.ID] = ta.Code
+	}
+	for _, tx := range append(txOrg1, txOrg2...) {
+		tx.JournalKey = model.ComputeTransactionJournalKey(
+			tx.BookedAt, tx.DocumentDate,
+			codes[tx.CreditLedgerAccountID], codes[tx.DebitLedgerAccountID],
+			tx.Amount, tx.Reference, tx.Description,
+		)
 	}
 	for _, v := range txOrg1 {
 		if err := cr(db, v); err != nil {

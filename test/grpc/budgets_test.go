@@ -289,3 +289,119 @@ var _ = Describe("BudgetService", func() {
 		})
 	})
 })
+
+var _ = Describe("BudgetAccountValueService ListBudgetAccountValues (org-wide)", func() {
+	var ctx context.Context
+	var orgName string
+	var budgetA *gen.Budget
+	var budgetB *gen.Budget
+
+	createAccountValue := func(budget *gen.Budget, accountName string, value string) {
+		_, err := BudgetAccountValueClient.CreateBudgetAccountValue(ctx, &gen.CreateBudgetAccountValueRequest{
+			Parent: budget.Name,
+			AccountValue: &gen.BudgetAccountValue{
+				Account: accountName,
+				Value:   &gen.Decimal{Value: value},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	BeforeEach(func() {
+		ctx = context.Background()
+
+		org, err := OrgClient.CreateOrganization(ctx, &gen.CreateOrganizationRequest{
+			Organization: &gen.Organization{DisplayName: "Test Org for Org-Wide Account Values"},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		orgName = org.Name
+
+		budgetA, err = BudgetClient.CreateBudget(ctx, &gen.CreateBudgetRequest{
+			Parent: orgName,
+			Budget: &gen.Budget{
+				DisplayName: "Budget A",
+				PeriodStart: &date.Date{Year: 2024, Month: 1, Day: 1},
+				PeriodEnd:   &date.Date{Year: 2024, Month: 12, Day: 31},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		budgetB, err = BudgetClient.CreateBudget(ctx, &gen.CreateBudgetRequest{
+			Parent: orgName,
+			Budget: &gen.Budget{
+				DisplayName: "Budget B",
+				PeriodStart: &date.Date{Year: 2025, Month: 1, Day: 1},
+				PeriodEnd:   &date.Date{Year: 2025, Month: 12, Day: 31},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		account1, err := AccountClient.CreateAccount(ctx, &gen.CreateAccountRequest{
+			Parent:  orgName,
+			Account: &gen.Account{DisplayName: "Account 1"},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		account2, err := AccountClient.CreateAccount(ctx, &gen.CreateAccountRequest{
+			Parent:  orgName,
+			Account: &gen.Account{DisplayName: "Account 2"},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		createAccountValue(budgetA, account1.Name, "100.00")
+		createAccountValue(budgetA, account2.Name, "200.00")
+		createAccountValue(budgetB, account1.Name, "300.00")
+	})
+
+	It("lists the account values of every budget in one request and returns real resource names", func() {
+		resp, err := BudgetAccountValueClient.ListBudgetAccountValues(ctx, &gen.ListBudgetAccountValuesRequest{
+			Parent: orgName + "/budgets/-",
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resp.TotalSize).To(Equal(int64(3)))
+
+		valueNames := make([]string, 0, len(resp.AccountValues))
+		for _, av := range resp.AccountValues {
+			valueNames = append(valueNames, av.Name)
+			Expect(av.Name).NotTo(ContainSubstring("/budgets/-/"))
+			Expect(av.Budget).To(SatisfyAny(Equal(budgetA.Name), Equal(budgetB.Name)))
+		}
+		Expect(valueNames).To(HaveLen(3))
+	})
+
+	It("restricts a wildcard request to the budgets named in the budget filter", func() {
+		resp, err := BudgetAccountValueClient.ListBudgetAccountValues(ctx, &gen.ListBudgetAccountValuesRequest{
+			Parent: orgName + "/budgets/-",
+			Filter: `budget="` + budgetB.Name + `"`,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resp.TotalSize).To(Equal(int64(1)))
+		Expect(resp.AccountValues).To(HaveLen(1))
+		Expect(resp.AccountValues[0].Budget).To(Equal(budgetB.Name))
+	})
+
+	It("keeps listing a single budget with a concrete parent", func() {
+		resp, err := BudgetAccountValueClient.ListBudgetAccountValues(ctx, &gen.ListBudgetAccountValuesRequest{
+			Parent: budgetA.Name,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resp.TotalSize).To(Equal(int64(2)))
+	})
+
+	It("returns InvalidArgument for a literal * budget segment", func() {
+		_, err := BudgetAccountValueClient.ListBudgetAccountValues(ctx, &gen.ListBudgetAccountValuesRequest{
+			Parent: orgName + "/budgets/*",
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+	})
+
+	It("returns InvalidArgument when the budget filter is combined with a concrete parent", func() {
+		_, err := BudgetAccountValueClient.ListBudgetAccountValues(ctx, &gen.ListBudgetAccountValuesRequest{
+			Parent: budgetA.Name,
+			Filter: `budget="` + budgetB.Name + `"`,
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+	})
+})

@@ -25,72 +25,64 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AccountType defines the classification of a ledger account for transaction interpretation.
-type AccountType int32
+// LedgerAccountType classifies a ledger account for the budget-plan
+// actual-value computation. Unmarked accounts are plain income/expense-side
+// accounts.
+type LedgerAccountType int32
 
 const (
-	// Default value. Not specified.
-	AccountType_ACCOUNT_TYPE_UNSPECIFIED AccountType = 0
-	// Asset account (e.g., bank accounts, receivables).
-	AccountType_ACCOUNT_TYPE_ASSET AccountType = 1
-	// Liability account (e.g., loans, payables).
-	AccountType_ACCOUNT_TYPE_LIABILITY AccountType = 2
-	// Equity account (e.g., capital, retained earnings). Treated as LIABILITY for calculations.
-	AccountType_ACCOUNT_TYPE_EQUITY AccountType = 3
-	// Revenue account (e.g., sales, interest income).
-	AccountType_ACCOUNT_TYPE_REVENUE AccountType = 4
-	// Expense account (e.g., rent, salaries, utilities).
-	AccountType_ACCOUNT_TYPE_EXPENSE AccountType = 5
-	// System account for internal calculations. Special internal use only.
-	AccountType_ACCOUNT_TYPE_SYSTEM AccountType = 6
+	// Default value. The account carries no special balance role.
+	LedgerAccountType_LEDGER_ACCOUNT_TYPE_UNSPECIFIED LedgerAccountType = 0
+	// Liquidity accounts (bank/cash). Value moving to/from them is plan-relevant.
+	LedgerAccountType_LEDGER_ACCOUNT_TYPE_LIQUIDITY LedgerAccountType = 1
+	// Counter accounts (Debitoren, Darlehen, Kreditoren). Value only becomes
+	// plan-relevant when booked against an income/expense account.
+	LedgerAccountType_LEDGER_ACCOUNT_TYPE_COUNTER LedgerAccountType = 2
+	// Opening-balance accounts (Eröffnungsbilanz). Value booked from them
+	// represents the carried-over reserve.
+	LedgerAccountType_LEDGER_ACCOUNT_TYPE_START_ACCOUNT LedgerAccountType = 3
 )
 
-// Enum value maps for AccountType.
+// Enum value maps for LedgerAccountType.
 var (
-	AccountType_name = map[int32]string{
-		0: "ACCOUNT_TYPE_UNSPECIFIED",
-		1: "ACCOUNT_TYPE_ASSET",
-		2: "ACCOUNT_TYPE_LIABILITY",
-		3: "ACCOUNT_TYPE_EQUITY",
-		4: "ACCOUNT_TYPE_REVENUE",
-		5: "ACCOUNT_TYPE_EXPENSE",
-		6: "ACCOUNT_TYPE_SYSTEM",
+	LedgerAccountType_name = map[int32]string{
+		0: "LEDGER_ACCOUNT_TYPE_UNSPECIFIED",
+		1: "LEDGER_ACCOUNT_TYPE_LIQUIDITY",
+		2: "LEDGER_ACCOUNT_TYPE_COUNTER",
+		3: "LEDGER_ACCOUNT_TYPE_START_ACCOUNT",
 	}
-	AccountType_value = map[string]int32{
-		"ACCOUNT_TYPE_UNSPECIFIED": 0,
-		"ACCOUNT_TYPE_ASSET":       1,
-		"ACCOUNT_TYPE_LIABILITY":   2,
-		"ACCOUNT_TYPE_EQUITY":      3,
-		"ACCOUNT_TYPE_REVENUE":     4,
-		"ACCOUNT_TYPE_EXPENSE":     5,
-		"ACCOUNT_TYPE_SYSTEM":      6,
+	LedgerAccountType_value = map[string]int32{
+		"LEDGER_ACCOUNT_TYPE_UNSPECIFIED":   0,
+		"LEDGER_ACCOUNT_TYPE_LIQUIDITY":     1,
+		"LEDGER_ACCOUNT_TYPE_COUNTER":       2,
+		"LEDGER_ACCOUNT_TYPE_START_ACCOUNT": 3,
 	}
 )
 
-func (x AccountType) Enum() *AccountType {
-	p := new(AccountType)
+func (x LedgerAccountType) Enum() *LedgerAccountType {
+	p := new(LedgerAccountType)
 	*p = x
 	return p
 }
 
-func (x AccountType) String() string {
+func (x LedgerAccountType) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (AccountType) Descriptor() protoreflect.EnumDescriptor {
+func (LedgerAccountType) Descriptor() protoreflect.EnumDescriptor {
 	return file_pixlcrashr_vsfv_v1_ledger_account_proto_enumTypes[0].Descriptor()
 }
 
-func (AccountType) Type() protoreflect.EnumType {
+func (LedgerAccountType) Type() protoreflect.EnumType {
 	return &file_pixlcrashr_vsfv_v1_ledger_account_proto_enumTypes[0]
 }
 
-func (x AccountType) Number() protoreflect.EnumNumber {
+func (x LedgerAccountType) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use AccountType.Descriptor instead.
-func (AccountType) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use LedgerAccountType.Descriptor instead.
+func (LedgerAccountType) EnumDescriptor() ([]byte, []int) {
 	return file_pixlcrashr_vsfv_v1_ledger_account_proto_rawDescGZIP(), []int{0}
 }
 
@@ -105,8 +97,8 @@ type LedgerAccount struct {
 	Uid string `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
 	// Unique account code (e.g., from the Kontenrahmen).
 	Code string `protobuf:"bytes,3,opt,name=code,proto3" json:"code,omitempty"`
-	// The type of account for transaction interpretation.
-	AccountType AccountType `protobuf:"varint,4,opt,name=account_type,json=accountType,proto3,enum=pixlcrashr.vsfv.v1.AccountType" json:"account_type,omitempty"`
+	// The type of the account for budget-plan value interpretation.
+	Type LedgerAccountType `protobuf:"varint,10,opt,name=type,proto3,enum=pixlcrashr.vsfv.v1.LedgerAccountType" json:"type,omitempty"`
 	// Human-readable name.
 	DisplayName string `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Optional free-text description.
@@ -172,11 +164,11 @@ func (x *LedgerAccount) GetCode() string {
 	return ""
 }
 
-func (x *LedgerAccount) GetAccountType() AccountType {
+func (x *LedgerAccount) GetType() LedgerAccountType {
 	if x != nil {
-		return x.AccountType
+		return x.Type
 	}
-	return AccountType_ACCOUNT_TYPE_UNSPECIFIED
+	return LedgerAccountType_LEDGER_ACCOUNT_TYPE_UNSPECIFIED
 }
 
 func (x *LedgerAccount) GetDisplayName() string {
@@ -271,8 +263,8 @@ type ListLedgerAccountsRequest struct {
 	// A page token from a previous ListLedgerAccounts call.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Filter expression conforming to AIP-160.
-	// Supported fields: code, account_type, display_name.
-	// Example: "account_type=ASSET" or "code:\"1000\"".
+	// Supported fields: code, type, display_name.
+	// Example: "type=LIQUIDITY" or "code:\"1000\"".
 	Filter string `protobuf:"bytes,4,opt,name=filter,proto3" json:"filter,omitempty"`
 	// Order by expression (e.g. "code", "display_name", "create_time desc").
 	OrderBy string `protobuf:"bytes,5,opt,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`
@@ -623,12 +615,13 @@ var File_pixlcrashr_vsfv_v1_ledger_account_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_ledger_account_proto_rawDesc = "" +
 	"\n" +
-	"'pixlcrashr/vsfv/v1/ledger_account.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x04\n" +
+	"'pixlcrashr/vsfv/v1/ledger_account.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x04\n" +
 	"\rLedgerAccount\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12\x17\n" +
-	"\x04code\x18\x03 \x01(\tB\x03\xe0A\x02R\x04code\x12G\n" +
-	"\faccount_type\x18\x04 \x01(\x0e2\x1f.pixlcrashr.vsfv.v1.AccountTypeB\x03\xe0A\x02R\vaccountType\x12&\n" +
+	"\x04code\x18\x03 \x01(\tB\x03\xe0A\x03R\x04code\x12>\n" +
+	"\x04type\x18\n" +
+	" \x01(\x0e2%.pixlcrashr.vsfv.v1.LedgerAccountTypeB\x03\xe0A\x01R\x04type\x12&\n" +
 	"\fdisplay_name\x18\x05 \x01(\tB\x03\xe0A\x01R\vdisplayName\x124\n" +
 	"\x13display_description\x18\x06 \x01(\tB\x03\xe0A\x01R\x12displayDescription\x12@\n" +
 	"\vupdate_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
@@ -636,7 +629,7 @@ const file_pixlcrashr_vsfv_v1_ledger_account_proto_rawDesc = "" +
 	"\vcreate_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"createTime\x12\x17\n" +
 	"\x04etag\x18\t \x01(\tB\x03\xe0A\x03R\x04etag:d\xeaAa\n" +
-	"!vsfv.pixlcrashr.dev/LedgerAccount\x12<organizations/{organization}/ledgerAccounts/{ledger_account}\"X\n" +
+	"!vsfv.pixlcrashr.dev/LedgerAccount\x12<organizations/{organization}/ledgerAccounts/{ledger_account}J\x04\b\x04\x10\x05R\faccount_type\"X\n" +
 	"\x17GetLedgerAccountRequest\x12=\n" +
 	"\x04name\x18\x01 \x01(\tB)\xe0A\x02\xfaA#\n" +
 	"!vsfv.pixlcrashr.dev/LedgerAccountR\x04name\"\x88\x02\n" +
@@ -666,15 +659,12 @@ const file_pixlcrashr_vsfv_v1_ledger_account_proto_rawDesc = "" +
 	"updateMask\"[\n" +
 	"\x1aDeleteLedgerAccountRequest\x12=\n" +
 	"\x04name\x18\x01 \x01(\tB)\xe0A\x02\xfaA#\n" +
-	"!vsfv.pixlcrashr.dev/LedgerAccountR\x04name*\xc5\x01\n" +
-	"\vAccountType\x12\x1c\n" +
-	"\x18ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
-	"\x12ACCOUNT_TYPE_ASSET\x10\x01\x12\x1a\n" +
-	"\x16ACCOUNT_TYPE_LIABILITY\x10\x02\x12\x17\n" +
-	"\x13ACCOUNT_TYPE_EQUITY\x10\x03\x12\x18\n" +
-	"\x14ACCOUNT_TYPE_REVENUE\x10\x04\x12\x18\n" +
-	"\x14ACCOUNT_TYPE_EXPENSE\x10\x05\x12\x17\n" +
-	"\x13ACCOUNT_TYPE_SYSTEM\x10\x062\xca\a\n" +
+	"!vsfv.pixlcrashr.dev/LedgerAccountR\x04name*\xa3\x01\n" +
+	"\x11LedgerAccountType\x12#\n" +
+	"\x1fLEDGER_ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dLEDGER_ACCOUNT_TYPE_LIQUIDITY\x10\x01\x12\x1f\n" +
+	"\x1bLEDGER_ACCOUNT_TYPE_COUNTER\x10\x02\x12%\n" +
+	"!LEDGER_ACCOUNT_TYPE_START_ACCOUNT\x10\x032\xca\a\n" +
 	"\x14LedgerAccountService\x12\x9e\x01\n" +
 	"\x10GetLedgerAccount\x12+.pixlcrashr.vsfv.v1.GetLedgerAccountRequest\x1a!.pixlcrashr.vsfv.v1.LedgerAccount\":\xdaA\x04name\x82\xd3\xe4\x93\x02-\x12+/v1/{name=organizations/*/ledgerAccounts/*}\x12\xb1\x01\n" +
 	"\x12ListLedgerAccounts\x12-.pixlcrashr.vsfv.v1.ListLedgerAccountsRequest\x1a..pixlcrashr.vsfv.v1.ListLedgerAccountsResponse\"<\xdaA\x06parent\x82\xd3\xe4\x93\x02-\x12+/v1/{parent=organizations/*}/ledgerAccounts\x12\xcc\x01\n" +
@@ -698,7 +688,7 @@ func file_pixlcrashr_vsfv_v1_ledger_account_proto_rawDescGZIP() []byte {
 var file_pixlcrashr_vsfv_v1_ledger_account_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_pixlcrashr_vsfv_v1_ledger_account_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_pixlcrashr_vsfv_v1_ledger_account_proto_goTypes = []any{
-	(AccountType)(0),                       // 0: pixlcrashr.vsfv.v1.AccountType
+	(LedgerAccountType)(0),                 // 0: pixlcrashr.vsfv.v1.LedgerAccountType
 	(*LedgerAccount)(nil),                  // 1: pixlcrashr.vsfv.v1.LedgerAccount
 	(*GetLedgerAccountRequest)(nil),        // 2: pixlcrashr.vsfv.v1.GetLedgerAccountRequest
 	(*ListLedgerAccountsRequest)(nil),      // 3: pixlcrashr.vsfv.v1.ListLedgerAccountsRequest
@@ -712,7 +702,7 @@ var file_pixlcrashr_vsfv_v1_ledger_account_proto_goTypes = []any{
 	(*emptypb.Empty)(nil),                  // 11: google.protobuf.Empty
 }
 var file_pixlcrashr_vsfv_v1_ledger_account_proto_depIdxs = []int32{
-	0,  // 0: pixlcrashr.vsfv.v1.LedgerAccount.account_type:type_name -> pixlcrashr.vsfv.v1.AccountType
+	0,  // 0: pixlcrashr.vsfv.v1.LedgerAccount.type:type_name -> pixlcrashr.vsfv.v1.LedgerAccountType
 	9,  // 1: pixlcrashr.vsfv.v1.LedgerAccount.update_time:type_name -> google.protobuf.Timestamp
 	9,  // 2: pixlcrashr.vsfv.v1.LedgerAccount.create_time:type_name -> google.protobuf.Timestamp
 	1,  // 3: pixlcrashr.vsfv.v1.ListLedgerAccountsResponse.ledger_accounts:type_name -> pixlcrashr.vsfv.v1.LedgerAccount

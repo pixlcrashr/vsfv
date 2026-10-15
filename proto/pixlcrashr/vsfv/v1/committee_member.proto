@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// CommitteeMember assigns a user to a committee. Members of a committee may
+// create submissions on behalf of the committee.
+message CommitteeMember {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/CommitteeMember"
+    pattern: "organizations/{organization}/committees/{committee}/members/{member}"
+  };
+
+  // The resource name of the membership.
+  // Format: organizations/{organization}/committees/{committee}/members/{member}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the membership.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // The resource name of the parent committee.
+  // Format: organizations/{organization}/committees/{committee}
+  string committee = 3 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Committee"}
+  ];
+
+  // The resource name of the assigned user.
+  // Format: users/{user}
+  string user = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+
+  // Display name of the assigned user. Denormalized for display purposes.
+  string user_display_name = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // E-mail address of the assigned user. Denormalized for display purposes.
+  string user_email = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+message GetCommitteeMemberRequest {
+  // The resource name of the membership.
+  // Format: organizations/{organization}/committees/{committee}/members/{member}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/CommitteeMember"}
+  ];
+}
+
+message ListCommitteeMembersRequest {
+  // The parent committee resource name.
+  // Format: organizations/{organization}/committees/{committee}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Committee"}
+  ];
+
+  // Maximum number of memberships to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListCommitteeMembers call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListCommitteeMembersResponse {
+  // The memberships returned.
+  repeated CommitteeMember members = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+
+  // Total number of memberships matching the filter (may be an estimate).
+  int64 total_size = 3;
+}
+
+message CreateCommitteeMemberRequest {
+  // The parent committee resource name.
+  // Format: organizations/{organization}/committees/{committee}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Committee"}
+  ];
+
+  // The membership to create. Only `user` is evaluated; all other fields are
+  // managed by the service.
+  CommitteeMember member = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the membership. If not provided, a system-generated
+  // UUID will be used. Must be unique within the parent committee.
+  string member_id = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteCommitteeMemberRequest {
+  // The resource name of the membership.
+  // Format: organizations/{organization}/committees/{committee}/members/{member}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/CommitteeMember"}
+  ];
+}
+
+// CommitteeMemberService manages the users assigned to a committee.
+service CommitteeMemberService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Gets a single membership by resource name.
+  // Authorization:
+  //   Scope: committees:read
+  //   Permission: committees:read
+  //   Domain: organization-scoped
+  rpc GetCommitteeMember(GetCommitteeMemberRequest) returns (CommitteeMember) {
+    option (google.api.http) = {get: "/v1/{name=organizations/*/committees/*/members/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the memberships of a committee.
+  // Authorization:
+  //   Scope: committees:read
+  //   Permission: committees:read
+  //   Domain: organization-scoped
+  rpc ListCommitteeMembers(ListCommitteeMembersRequest) returns (ListCommitteeMembersResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*/committees/*}/members"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Assigns a user to a committee.
+  // Authorization:
+  //   Scope: committees:write
+  //   Permission: committees:update
+  //   Domain: organization-scoped
+  rpc CreateCommitteeMember(CreateCommitteeMemberRequest) returns (CommitteeMember) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*/committees/*}/members"
+      body: "member"
+    };
+    option (google.api.method_signature) = "parent,member,member_id";
+  }
+
+  // Removes a user from a committee.
+  // Authorization:
+  //   Scope: committees:write
+  //   Permission: committees:update
+  //   Domain: organization-scoped
+  rpc DeleteCommitteeMember(DeleteCommitteeMemberRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/{name=organizations/*/committees/*/members/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}

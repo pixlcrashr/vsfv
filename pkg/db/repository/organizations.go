@@ -211,25 +211,25 @@ func (r *OrganizationRepository) Update(ctx context.Context, id uuid.UUID, param
 }
 
 // Delete removes the organization with the given ID and all associated data.
+// The caller is responsible for the surrounding transaction.
 func (r *OrganizationRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var count int64
-		if err := tx.Model(&model.Organization{}).Where("id = ?", id).Count(&count).Error; err != nil {
-			return fmt.Errorf("check organization id=%s: %w", id, err)
-		}
-		if count == 0 {
-			return errors.Join(ErrOrganizationNotFound, fmt.Errorf("id=%s: %w", id, gorm.ErrRecordNotFound))
-		}
+	db := r.db.WithContext(ctx)
+	var count int64
+	if err := db.Model(&model.Organization{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		return fmt.Errorf("check organization id=%s: %w", id, err)
+	}
+	if count == 0 {
+		return errors.Join(ErrOrganizationNotFound, fmt.Errorf("id=%s: %w", id, gorm.ErrRecordNotFound))
+	}
 
-		// Break account self-references so GORM's association cascade can delete
-		// the account hierarchy without violating the parent_account_id FK.
-		if err := tx.Model(&model.Account{}).Where("organization_id = ?", id).Update("parent_account_id", nil).Error; err != nil {
-			return fmt.Errorf("clear account parents for organization id=%s: %w", id, err)
-		}
+	// Break account self-references so GORM's association cascade can delete
+	// the account hierarchy without violating the parent_account_id FK.
+	if err := db.Model(&model.Account{}).Where("organization_id = ?", id).Update("parent_account_id", nil).Error; err != nil {
+		return fmt.Errorf("clear account parents for organization id=%s: %w", id, err)
+	}
 
-		if err := tx.Select(clause.Associations).Delete(&model.Organization{ID: id}).Error; err != nil {
-			return fmt.Errorf("delete organization id=%s: %w", id, err)
-		}
-		return nil
-	})
+	if err := db.Select(clause.Associations).Delete(&model.Organization{ID: id}).Error; err != nil {
+		return fmt.Errorf("delete organization id=%s: %w", id, err)
+	}
+	return nil
 }

@@ -8,6 +8,7 @@ package gen
 
 import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
+	date "google.golang.org/genproto/googleapis/type/date"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -25,6 +26,53 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// OrganizationSubmissionSettings hold the per-organization submission configuration.
+type OrganizationSubmissionSettings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Organization-wide submission deadline. Pending submissions are
+	// automatically rejected once this date is reached. Unset means no deadline.
+	SubmissionDeadline *date.Date `protobuf:"bytes,2,opt,name=submission_deadline,json=submissionDeadline,proto3" json:"submission_deadline,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *OrganizationSubmissionSettings) Reset() {
+	*x = OrganizationSubmissionSettings{}
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrganizationSubmissionSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrganizationSubmissionSettings) ProtoMessage() {}
+
+func (x *OrganizationSubmissionSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrganizationSubmissionSettings.ProtoReflect.Descriptor instead.
+func (*OrganizationSubmissionSettings) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *OrganizationSubmissionSettings) GetSubmissionDeadline() *date.Date {
+	if x != nil {
+		return x.SubmissionDeadline
+	}
+	return nil
+}
+
 // Organization is the top-level resource that owns all other resources.
 type Organization struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -40,7 +88,7 @@ type Organization struct {
 	// The start month of ledger years for this organization. It is assumed that the start date is the 1st of the month.
 	StartMonth Month `protobuf:"varint,7,opt,name=start_month,json=startMonth,proto3,enum=pixlcrashr.vsfv.v1.Month" json:"start_month,omitempty"`
 	// Submission settings for this organization.
-	SubmissionSettings *SubmissionSettings `protobuf:"bytes,9,opt,name=submission_settings,json=submissionSettings,proto3" json:"submission_settings,omitempty"`
+	SubmissionSettings *OrganizationSubmissionSettings `protobuf:"bytes,9,opt,name=submission_settings,json=submissionSettings,proto3" json:"submission_settings,omitempty"`
 	// Last modification timestamp.
 	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	// Creation timestamp.
@@ -53,7 +101,7 @@ type Organization struct {
 
 func (x *Organization) Reset() {
 	*x = Organization{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[0]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -65,7 +113,7 @@ func (x *Organization) String() string {
 func (*Organization) ProtoMessage() {}
 
 func (x *Organization) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[0]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -78,7 +126,7 @@ func (x *Organization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Organization.ProtoReflect.Descriptor instead.
 func (*Organization) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{0}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Organization) GetName() string {
@@ -116,7 +164,7 @@ func (x *Organization) GetStartMonth() Month {
 	return Month_MONTH_UNSPECIFIED
 }
 
-func (x *Organization) GetSubmissionSettings() *SubmissionSettings {
+func (x *Organization) GetSubmissionSettings() *OrganizationSubmissionSettings {
 	if x != nil {
 		return x.SubmissionSettings
 	}
@@ -155,7 +203,7 @@ type GetOrganizationRequest struct {
 
 func (x *GetOrganizationRequest) Reset() {
 	*x = GetOrganizationRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[1]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -167,7 +215,7 @@ func (x *GetOrganizationRequest) String() string {
 func (*GetOrganizationRequest) ProtoMessage() {}
 
 func (x *GetOrganizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[1]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -180,7 +228,7 @@ func (x *GetOrganizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrganizationRequest.ProtoReflect.Descriptor instead.
 func (*GetOrganizationRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{1}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetOrganizationRequest) GetName() string {
@@ -209,7 +257,7 @@ type ListOrganizationsRequest struct {
 
 func (x *ListOrganizationsRequest) Reset() {
 	*x = ListOrganizationsRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[2]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -221,7 +269,7 @@ func (x *ListOrganizationsRequest) String() string {
 func (*ListOrganizationsRequest) ProtoMessage() {}
 
 func (x *ListOrganizationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[2]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -234,7 +282,7 @@ func (x *ListOrganizationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrganizationsRequest.ProtoReflect.Descriptor instead.
 func (*ListOrganizationsRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{2}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListOrganizationsRequest) GetPageSize() int32 {
@@ -279,7 +327,7 @@ type ListOrganizationsResponse struct {
 
 func (x *ListOrganizationsResponse) Reset() {
 	*x = ListOrganizationsResponse{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[3]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -291,7 +339,7 @@ func (x *ListOrganizationsResponse) String() string {
 func (*ListOrganizationsResponse) ProtoMessage() {}
 
 func (x *ListOrganizationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[3]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -304,7 +352,7 @@ func (x *ListOrganizationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrganizationsResponse.ProtoReflect.Descriptor instead.
 func (*ListOrganizationsResponse) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{3}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListOrganizationsResponse) GetOrganizations() []*Organization {
@@ -341,7 +389,7 @@ type CreateOrganizationRequest struct {
 
 func (x *CreateOrganizationRequest) Reset() {
 	*x = CreateOrganizationRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[4]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -353,7 +401,7 @@ func (x *CreateOrganizationRequest) String() string {
 func (*CreateOrganizationRequest) ProtoMessage() {}
 
 func (x *CreateOrganizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[4]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +414,7 @@ func (x *CreateOrganizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateOrganizationRequest.ProtoReflect.Descriptor instead.
 func (*CreateOrganizationRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{4}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateOrganizationRequest) GetOrganization() *Organization {
@@ -395,7 +443,7 @@ type UpdateOrganizationRequest struct {
 
 func (x *UpdateOrganizationRequest) Reset() {
 	*x = UpdateOrganizationRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[5]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +455,7 @@ func (x *UpdateOrganizationRequest) String() string {
 func (*UpdateOrganizationRequest) ProtoMessage() {}
 
 func (x *UpdateOrganizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[5]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +468,7 @@ func (x *UpdateOrganizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrganizationRequest.ProtoReflect.Descriptor instead.
 func (*UpdateOrganizationRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{5}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpdateOrganizationRequest) GetOrganization() *Organization {
@@ -447,7 +495,7 @@ type CheckOrganizationIdRequest struct {
 
 func (x *CheckOrganizationIdRequest) Reset() {
 	*x = CheckOrganizationIdRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[6]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -459,7 +507,7 @@ func (x *CheckOrganizationIdRequest) String() string {
 func (*CheckOrganizationIdRequest) ProtoMessage() {}
 
 func (x *CheckOrganizationIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[6]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -472,7 +520,7 @@ func (x *CheckOrganizationIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckOrganizationIdRequest.ProtoReflect.Descriptor instead.
 func (*CheckOrganizationIdRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{6}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CheckOrganizationIdRequest) GetOrganizationId() string {
@@ -492,7 +540,7 @@ type CheckOrganizationIdResponse struct {
 
 func (x *CheckOrganizationIdResponse) Reset() {
 	*x = CheckOrganizationIdResponse{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[7]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -504,7 +552,7 @@ func (x *CheckOrganizationIdResponse) String() string {
 func (*CheckOrganizationIdResponse) ProtoMessage() {}
 
 func (x *CheckOrganizationIdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[7]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -517,7 +565,7 @@ func (x *CheckOrganizationIdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckOrganizationIdResponse.ProtoReflect.Descriptor instead.
 func (*CheckOrganizationIdResponse) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{7}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CheckOrganizationIdResponse) GetAvailable() bool {
@@ -538,7 +586,7 @@ type DeleteOrganizationRequest struct {
 
 func (x *DeleteOrganizationRequest) Reset() {
 	*x = DeleteOrganizationRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[8]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -550,7 +598,7 @@ func (x *DeleteOrganizationRequest) String() string {
 func (*DeleteOrganizationRequest) ProtoMessage() {}
 
 func (x *DeleteOrganizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[8]
+	mi := &file_pixlcrashr_vsfv_v1_organization_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -563,7 +611,7 @@ func (x *DeleteOrganizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteOrganizationRequest.ProtoReflect.Descriptor instead.
 func (*DeleteOrganizationRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{8}
+	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeleteOrganizationRequest) GetName() string {
@@ -577,15 +625,17 @@ var File_pixlcrashr_vsfv_v1_organization_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_organization_proto_rawDesc = "" +
 	"\n" +
-	"%pixlcrashr/vsfv/v1/organization.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fpixlcrashr/vsfv/v1/common.proto\x1a#pixlcrashr/vsfv/v1/submission.proto\"\xa5\x04\n" +
+	"%pixlcrashr/vsfv/v1/organization.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\x1a\x1fpixlcrashr/vsfv/v1/common.proto\x1a#pixlcrashr/vsfv/v1/submission.proto\"i\n" +
+	"\x1eOrganizationSubmissionSettings\x12G\n" +
+	"\x13submission_deadline\x18\x02 \x01(\v2\x11.google.type.DateB\x03\xe0A\x01R\x12submissionDeadline\"\xb1\x04\n" +
 	"\fOrganization\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12&\n" +
 	"\fdisplay_name\x18\x03 \x01(\tB\x03\xe0A\x02R\vdisplayName\x124\n" +
 	"\x13display_description\x18\b \x01(\tB\x03\xe0A\x01R\x12displayDescription\x12?\n" +
 	"\vstart_month\x18\a \x01(\x0e2\x19.pixlcrashr.vsfv.v1.MonthB\x03\xe0A\x02R\n" +
-	"startMonth\x12\\\n" +
-	"\x13submission_settings\x18\t \x01(\v2&.pixlcrashr.vsfv.v1.SubmissionSettingsB\x03\xe0A\x01R\x12submissionSettings\x12@\n" +
+	"startMonth\x12h\n" +
+	"\x13submission_settings\x18\t \x01(\v22.pixlcrashr.vsfv.v1.OrganizationSubmissionSettingsB\x03\xe0A\x01R\x12submissionSettings\x12@\n" +
 	"\vupdate_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"updateTime\x12@\n" +
 	"\vcreate_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
@@ -641,49 +691,51 @@ func file_pixlcrashr_vsfv_v1_organization_proto_rawDescGZIP() []byte {
 	return file_pixlcrashr_vsfv_v1_organization_proto_rawDescData
 }
 
-var file_pixlcrashr_vsfv_v1_organization_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_pixlcrashr_vsfv_v1_organization_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_pixlcrashr_vsfv_v1_organization_proto_goTypes = []any{
-	(*Organization)(nil),                // 0: pixlcrashr.vsfv.v1.Organization
-	(*GetOrganizationRequest)(nil),      // 1: pixlcrashr.vsfv.v1.GetOrganizationRequest
-	(*ListOrganizationsRequest)(nil),    // 2: pixlcrashr.vsfv.v1.ListOrganizationsRequest
-	(*ListOrganizationsResponse)(nil),   // 3: pixlcrashr.vsfv.v1.ListOrganizationsResponse
-	(*CreateOrganizationRequest)(nil),   // 4: pixlcrashr.vsfv.v1.CreateOrganizationRequest
-	(*UpdateOrganizationRequest)(nil),   // 5: pixlcrashr.vsfv.v1.UpdateOrganizationRequest
-	(*CheckOrganizationIdRequest)(nil),  // 6: pixlcrashr.vsfv.v1.CheckOrganizationIdRequest
-	(*CheckOrganizationIdResponse)(nil), // 7: pixlcrashr.vsfv.v1.CheckOrganizationIdResponse
-	(*DeleteOrganizationRequest)(nil),   // 8: pixlcrashr.vsfv.v1.DeleteOrganizationRequest
-	(Month)(0),                          // 9: pixlcrashr.vsfv.v1.Month
-	(*SubmissionSettings)(nil),          // 10: pixlcrashr.vsfv.v1.SubmissionSettings
-	(*timestamppb.Timestamp)(nil),       // 11: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),       // 12: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),               // 13: google.protobuf.Empty
+	(*OrganizationSubmissionSettings)(nil), // 0: pixlcrashr.vsfv.v1.OrganizationSubmissionSettings
+	(*Organization)(nil),                   // 1: pixlcrashr.vsfv.v1.Organization
+	(*GetOrganizationRequest)(nil),         // 2: pixlcrashr.vsfv.v1.GetOrganizationRequest
+	(*ListOrganizationsRequest)(nil),       // 3: pixlcrashr.vsfv.v1.ListOrganizationsRequest
+	(*ListOrganizationsResponse)(nil),      // 4: pixlcrashr.vsfv.v1.ListOrganizationsResponse
+	(*CreateOrganizationRequest)(nil),      // 5: pixlcrashr.vsfv.v1.CreateOrganizationRequest
+	(*UpdateOrganizationRequest)(nil),      // 6: pixlcrashr.vsfv.v1.UpdateOrganizationRequest
+	(*CheckOrganizationIdRequest)(nil),     // 7: pixlcrashr.vsfv.v1.CheckOrganizationIdRequest
+	(*CheckOrganizationIdResponse)(nil),    // 8: pixlcrashr.vsfv.v1.CheckOrganizationIdResponse
+	(*DeleteOrganizationRequest)(nil),      // 9: pixlcrashr.vsfv.v1.DeleteOrganizationRequest
+	(*date.Date)(nil),                      // 10: google.type.Date
+	(Month)(0),                             // 11: pixlcrashr.vsfv.v1.Month
+	(*timestamppb.Timestamp)(nil),          // 12: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),          // 13: google.protobuf.FieldMask
+	(*emptypb.Empty)(nil),                  // 14: google.protobuf.Empty
 }
 var file_pixlcrashr_vsfv_v1_organization_proto_depIdxs = []int32{
-	9,  // 0: pixlcrashr.vsfv.v1.Organization.start_month:type_name -> pixlcrashr.vsfv.v1.Month
-	10, // 1: pixlcrashr.vsfv.v1.Organization.submission_settings:type_name -> pixlcrashr.vsfv.v1.SubmissionSettings
-	11, // 2: pixlcrashr.vsfv.v1.Organization.update_time:type_name -> google.protobuf.Timestamp
-	11, // 3: pixlcrashr.vsfv.v1.Organization.create_time:type_name -> google.protobuf.Timestamp
-	0,  // 4: pixlcrashr.vsfv.v1.ListOrganizationsResponse.organizations:type_name -> pixlcrashr.vsfv.v1.Organization
-	0,  // 5: pixlcrashr.vsfv.v1.CreateOrganizationRequest.organization:type_name -> pixlcrashr.vsfv.v1.Organization
-	0,  // 6: pixlcrashr.vsfv.v1.UpdateOrganizationRequest.organization:type_name -> pixlcrashr.vsfv.v1.Organization
-	12, // 7: pixlcrashr.vsfv.v1.UpdateOrganizationRequest.update_mask:type_name -> google.protobuf.FieldMask
-	1,  // 8: pixlcrashr.vsfv.v1.OrganizationService.GetOrganization:input_type -> pixlcrashr.vsfv.v1.GetOrganizationRequest
-	2,  // 9: pixlcrashr.vsfv.v1.OrganizationService.ListOrganizations:input_type -> pixlcrashr.vsfv.v1.ListOrganizationsRequest
-	4,  // 10: pixlcrashr.vsfv.v1.OrganizationService.CreateOrganization:input_type -> pixlcrashr.vsfv.v1.CreateOrganizationRequest
-	5,  // 11: pixlcrashr.vsfv.v1.OrganizationService.UpdateOrganization:input_type -> pixlcrashr.vsfv.v1.UpdateOrganizationRequest
-	8,  // 12: pixlcrashr.vsfv.v1.OrganizationService.DeleteOrganization:input_type -> pixlcrashr.vsfv.v1.DeleteOrganizationRequest
-	6,  // 13: pixlcrashr.vsfv.v1.OrganizationService.CheckOrganizationId:input_type -> pixlcrashr.vsfv.v1.CheckOrganizationIdRequest
-	0,  // 14: pixlcrashr.vsfv.v1.OrganizationService.GetOrganization:output_type -> pixlcrashr.vsfv.v1.Organization
-	3,  // 15: pixlcrashr.vsfv.v1.OrganizationService.ListOrganizations:output_type -> pixlcrashr.vsfv.v1.ListOrganizationsResponse
-	0,  // 16: pixlcrashr.vsfv.v1.OrganizationService.CreateOrganization:output_type -> pixlcrashr.vsfv.v1.Organization
-	0,  // 17: pixlcrashr.vsfv.v1.OrganizationService.UpdateOrganization:output_type -> pixlcrashr.vsfv.v1.Organization
-	13, // 18: pixlcrashr.vsfv.v1.OrganizationService.DeleteOrganization:output_type -> google.protobuf.Empty
-	7,  // 19: pixlcrashr.vsfv.v1.OrganizationService.CheckOrganizationId:output_type -> pixlcrashr.vsfv.v1.CheckOrganizationIdResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	10, // 0: pixlcrashr.vsfv.v1.OrganizationSubmissionSettings.submission_deadline:type_name -> google.type.Date
+	11, // 1: pixlcrashr.vsfv.v1.Organization.start_month:type_name -> pixlcrashr.vsfv.v1.Month
+	0,  // 2: pixlcrashr.vsfv.v1.Organization.submission_settings:type_name -> pixlcrashr.vsfv.v1.OrganizationSubmissionSettings
+	12, // 3: pixlcrashr.vsfv.v1.Organization.update_time:type_name -> google.protobuf.Timestamp
+	12, // 4: pixlcrashr.vsfv.v1.Organization.create_time:type_name -> google.protobuf.Timestamp
+	1,  // 5: pixlcrashr.vsfv.v1.ListOrganizationsResponse.organizations:type_name -> pixlcrashr.vsfv.v1.Organization
+	1,  // 6: pixlcrashr.vsfv.v1.CreateOrganizationRequest.organization:type_name -> pixlcrashr.vsfv.v1.Organization
+	1,  // 7: pixlcrashr.vsfv.v1.UpdateOrganizationRequest.organization:type_name -> pixlcrashr.vsfv.v1.Organization
+	13, // 8: pixlcrashr.vsfv.v1.UpdateOrganizationRequest.update_mask:type_name -> google.protobuf.FieldMask
+	2,  // 9: pixlcrashr.vsfv.v1.OrganizationService.GetOrganization:input_type -> pixlcrashr.vsfv.v1.GetOrganizationRequest
+	3,  // 10: pixlcrashr.vsfv.v1.OrganizationService.ListOrganizations:input_type -> pixlcrashr.vsfv.v1.ListOrganizationsRequest
+	5,  // 11: pixlcrashr.vsfv.v1.OrganizationService.CreateOrganization:input_type -> pixlcrashr.vsfv.v1.CreateOrganizationRequest
+	6,  // 12: pixlcrashr.vsfv.v1.OrganizationService.UpdateOrganization:input_type -> pixlcrashr.vsfv.v1.UpdateOrganizationRequest
+	9,  // 13: pixlcrashr.vsfv.v1.OrganizationService.DeleteOrganization:input_type -> pixlcrashr.vsfv.v1.DeleteOrganizationRequest
+	7,  // 14: pixlcrashr.vsfv.v1.OrganizationService.CheckOrganizationId:input_type -> pixlcrashr.vsfv.v1.CheckOrganizationIdRequest
+	1,  // 15: pixlcrashr.vsfv.v1.OrganizationService.GetOrganization:output_type -> pixlcrashr.vsfv.v1.Organization
+	4,  // 16: pixlcrashr.vsfv.v1.OrganizationService.ListOrganizations:output_type -> pixlcrashr.vsfv.v1.ListOrganizationsResponse
+	1,  // 17: pixlcrashr.vsfv.v1.OrganizationService.CreateOrganization:output_type -> pixlcrashr.vsfv.v1.Organization
+	1,  // 18: pixlcrashr.vsfv.v1.OrganizationService.UpdateOrganization:output_type -> pixlcrashr.vsfv.v1.Organization
+	14, // 19: pixlcrashr.vsfv.v1.OrganizationService.DeleteOrganization:output_type -> google.protobuf.Empty
+	8,  // 20: pixlcrashr.vsfv.v1.OrganizationService.CheckOrganizationId:output_type -> pixlcrashr.vsfv.v1.CheckOrganizationIdResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_pixlcrashr_vsfv_v1_organization_proto_init() }
@@ -699,7 +751,7 @@ func file_pixlcrashr_vsfv_v1_organization_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pixlcrashr_vsfv_v1_organization_proto_rawDesc), len(file_pixlcrashr_vsfv_v1_organization_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

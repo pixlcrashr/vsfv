@@ -45,8 +45,11 @@ gotenberg:
   url: "http://127.0.0.1:3000"
 
 storage:
-  # Directory where submission attachment binaries are stored.
-  attachments-path: "attachments"
+  # Root directory of the global file storage. All binary blobs (e.g.
+  # submission attachments) are stored here under their UUID as file name,
+  # sharded into sub-directories named after the first two hex digits of
+  # the UUID.
+  data-path: "data"
 
 submission-decay:
   # Interval between deadline sweeps that auto-reject pending submissions

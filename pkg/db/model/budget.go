@@ -11,7 +11,7 @@ import (
 type Budget struct {
 	ID                       uuid.UUID    `gorm:"type:uuid;primaryKey;uniqueIndex:idx_budgets_org_id,priority:1"`
 	CustomID                 string       `gorm:"uniqueIndex:idx_budgets_custom_id_org,priority:1"`
-	OrganizationID           uuid.UUID    `gorm:"type:uuid;not null;uniqueIndex:idx_budgets_org_id,priority:2;uniqueIndex:idx_budgets_custom_id_org,priority:2"`
+	OrganizationID           uuid.UUID    `gorm:"type:uuid;not null;uniqueIndex:idx_budgets_org_id,priority:2;uniqueIndex:idx_budgets_custom_id_org,priority:2;index:idx_budgets_org_order,priority:1"`
 	DisplayName              string       `gorm:"not null;default:'';index:idx_budgets_display_name"`
 	DisplayDescription       string       `gorm:"not null;default:''"`
 	IsClosed                 bool         `gorm:"not null;default:false"`
@@ -20,6 +20,7 @@ type Budget struct {
 	PublishActualValuesUntil sql.NullTime `gorm:"default:null"`
 	PeriodStart              time.Time    `gorm:"not null"`
 	PeriodEnd                time.Time    `gorm:"not null"`
+	Order                    int32        `gorm:"column:sort_order;not null;default:0;index:idx_budgets_org_order,priority:2"`
 	UpdatedAt                time.Time    `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	CreatedAt                time.Time    `gorm:"not null;default:CURRENT_TIMESTAMP"`
 

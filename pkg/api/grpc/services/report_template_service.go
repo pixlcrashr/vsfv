@@ -9,6 +9,7 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/reporttemplate"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"github.com/pixlcrashr/vsfv/pkg/query/order"
@@ -17,6 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -33,13 +35,12 @@ var (
 
 type reportTemplateServiceServer struct {
 	gen.UnimplementedReportTemplateServiceServer
-	repo     *repository.ReportTemplateRepository
-	audits   *auditWriter
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newReportTemplateServiceServer(repo *repository.ReportTemplateRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.ReportTemplateServiceServer {
-	return &reportTemplateServiceServer{repo: repo, audits: audits, enforcer: enforcer}
+func newReportTemplateServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.ReportTemplateServiceServer {
+	return &reportTemplateServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *reportTemplateServiceServer) GetReportTemplate(ctx context.Context, req *gen.GetReportTemplateRequest) (*gen.ReportTemplate, error) {
@@ -58,16 +59,20 @@ func (s *reportTemplateServiceServer) GetReportTemplate(ctx context.Context, req
 		return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrReportTemplateNotFound) {
-			return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ReportTemplate, error) {
+		repo := repository.NewFactory(tx, s.enforcer).ReportTemplate()
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrReportTemplateNotFound) {
+				return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetReportTemplate}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetReportTemplate}
-	}
-
-	return ReportTemplateToProto(n.OrganizationResourceName(), m), nil
+		return ReportTemplateToProto(n.OrganizationResourceName(), m), nil
+	})
 }
 
 func (s *reportTemplateServiceServer) ListReportTemplates(ctx context.Context, req *gen.ListReportTemplatesRequest) (*gen.ListReportTemplatesResponse, error) {
@@ -108,22 +113,26 @@ func (s *reportTemplateServiceServer) ListReportTemplates(ctx context.Context, r
 		OrderBy:  orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListReportTemplates}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListReportTemplatesResponse, error) {
+		repo := repository.NewFactory(tx, s.enforcer).ReportTemplate()
 
-	resp := &gen.ListReportTemplatesResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.ReportTemplates = append(resp.ReportTemplates, ReportTemplateToProto(pn, m))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListReportTemplates}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListReportTemplatesResponse{TotalSize: total}
+		for _, m := range ms {
+			resp.ReportTemplates = append(resp.ReportTemplates, ReportTemplateToProto(pn, m))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *reportTemplateServiceServer) CreateReportTemplate(ctx context.Context, req *gen.CreateReportTemplateRequest) (*gen.ReportTemplate, error) {
@@ -146,31 +155,37 @@ func (s *reportTemplateServiceServer) CreateReportTemplate(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidParent}
 	}
 
-	m, err := s.repo.Create(ctx, repository.CreateReportTemplateParams{
-		OrganizationID: orgID,
-		DisplayName:    req.ReportTemplate.DisplayName,
-		Template:       req.ReportTemplate.Template,
-		CustomID:       req.ReportTemplateId,
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ReportTemplate, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.ReportTemplate()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.Create(ctx, repository.CreateReportTemplateParams{
+			OrganizationID: orgID,
+			DisplayName:    req.ReportTemplate.DisplayName,
+			Template:       req.ReportTemplate.Template,
+			CustomID:       req.ReportTemplateId,
+		})
+		if err != nil {
+			if errors.Is(err, repository.ErrReportTemplateAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusReportTemplateAlreadyExists}
+			}
+
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateReportTemplate}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			pn.ReportTemplateResourceName(m.CustomID).String(), orgID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return ReportTemplateToProto(pn, m), nil
 	})
-	if err != nil {
-		if errors.Is(err, repository.ErrReportTemplateAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusReportTemplateAlreadyExists}
-		}
-
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
-		}
-
-		return nil, &ServerError{Err: err, Status: statusFailedCreateReportTemplate}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		pn.ReportTemplateResourceName(m.CustomID).String(), orgID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return ReportTemplateToProto(pn, m), nil
 }
 
 func (s *reportTemplateServiceServer) UpdateReportTemplate(ctx context.Context, req *gen.UpdateReportTemplateRequest) (*gen.ReportTemplate, error) {
@@ -193,44 +208,50 @@ func (s *reportTemplateServiceServer) UpdateReportTemplate(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrReportTemplateNotFound) {
-			return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ReportTemplate, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.ReportTemplate()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrReportTemplateNotFound) {
+				return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetReportTemplate}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetReportTemplate}
-	}
+		before := *m
 
-	before := *m
+		updateParams := repository.UpdateReportTemplateParams{
+			DisplayName: optional.From(req.ReportTemplate.DisplayName),
+			Template:    optional.From(req.ReportTemplate.Template),
+		}
 
-	updateParams := repository.UpdateReportTemplateParams{
-		DisplayName: optional.From(req.ReportTemplate.DisplayName),
-		Template:    optional.From(req.ReportTemplate.Template),
-	}
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateReportTemplate}
+		}
 
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateReportTemplate}
-	}
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateReportTemplate}
+		}
 
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateReportTemplate}
-	}
+		orgID, err := uuid.Parse(n.Organization)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
+		}
 
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return ReportTemplateToProto(n.OrganizationResourceName(), m), nil
+		return ReportTemplateToProto(n.OrganizationResourceName(), m), nil
+	})
 }
 
 func (s *reportTemplateServiceServer) DeleteReportTemplate(ctx context.Context, req *gen.DeleteReportTemplateRequest) (*emptypb.Empty, error) {
@@ -249,35 +270,41 @@ func (s *reportTemplateServiceServer) DeleteReportTemplate(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrReportTemplateNotFound) {
-			return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.ReportTemplate()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrReportTemplateNotFound) {
+				return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetReportTemplate}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetReportTemplate}
-	}
+		if err := repo.Delete(ctx, id); err != nil {
+			if errors.Is(err, repository.ErrReportTemplateNotFound) {
+				return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+			}
 
-	if err := s.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrReportTemplateNotFound) {
-			return nil, &ServerError{Err: err, Status: statusReportTemplateNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteReportTemplate}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteReportTemplate}
-	}
+		orgID, err := uuid.Parse(n.Organization)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
+		}
 
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidReportTemplateName}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionDelete, m, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionDelete, m, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return &emptypb.Empty{}, nil
+		return &emptypb.Empty{}, nil
+	})
 }
 
 func (s *reportTemplateServiceServer) GenerateHtmlPreview(ctx context.Context, req *gen.GenerateHtmlPreviewRequest) (*gen.GenerateHtmlPreviewResponse, error) {

@@ -73,6 +73,11 @@ message Budget {
   // Must lie within the budget period. If unset, the end of the budget period
   // is assumed.
   google.type.Date publish_actual_values_until = 13 [(google.api.field_behavior) = OPTIONAL];
+
+  // Position of the budget in the organization's custom ordering. A lower
+  // value means a higher position; the first budget has the lowest value.
+  // Assigned automatically; modified only via ReorderBudgets.
+  int32 order = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
 message GetBudgetRequest {
@@ -108,6 +113,7 @@ message ListBudgetsRequest {
   bool show_deleted = 5 [(google.api.field_behavior) = OPTIONAL];
 
   // Order by expression (e.g. "display_name", "period_start desc").
+  // If unspecified, budgets are returned in their custom order.
   string order_by = 6 [(google.api.field_behavior) = OPTIONAL];
 }
 
@@ -159,6 +165,23 @@ message CloseBudgetRequest {
   // The resource name of the budget to close.
   // Format: organizations/{organization}/budgets/{budget}
   string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Budget"}
+  ];
+}
+
+message ReorderBudgetsRequest {
+  // The parent organization resource name.
+  // Format: organizations/{organization}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Organization"}
+  ];
+
+  // The budget resource names in their desired order, from first (top of
+  // lists) to last (bottom of lists). Must contain every budget of the
+  // organization exactly once.
+  repeated string budgets = 2 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Budget"}
   ];
@@ -225,6 +248,21 @@ service BudgetService {
       body: "*"
     };
     option (google.api.method_signature) = "name";
+  }
+
+  // Reorders the budgets of an organization. The custom order determines the
+  // position of budgets in lists: the first budget in the request is listed
+  // first, the last one last. Newly created budgets are appended at the end.
+  // Authorization:
+  //   Scope: budgets:write
+  //   Permission: budgets:update
+  //   Domain: organization-scoped
+  rpc ReorderBudgets(ReorderBudgetsRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*}/budgets:reorder"
+      body: "*"
+    };
+    option (google.api.method_signature) = "parent,budgets";
   }
 
   // Permanently deletes a budget.

@@ -101,9 +101,11 @@ var (
 	)
 	budgetRevisionAccountValueDecls = mustDecls(
 		filtering.DeclareIdent("account", filtering.TypeString),
+		filtering.DeclareIdent("revision", filtering.TypeString),
 	)
 	budgetAccountValueDecls = mustDecls(
 		filtering.DeclareIdent("account", filtering.TypeString),
+		filtering.DeclareIdent("budget", filtering.TypeString),
 	)
 	budgetActualAccountValueDecls = mustDecls(
 		filtering.DeclareIdent("account", filtering.TypeString),
@@ -125,7 +127,7 @@ var (
 	)
 	ledgerAccountDecls = mustDecls(
 		filtering.DeclareIdent("code", filtering.TypeString),
-		filtering.DeclareIdent("account_type", filtering.TypeString),
+		filtering.DeclareIdent("type", filtering.TypeString),
 		filtering.DeclareIdent("display_name", filtering.TypeString),
 	)
 	transactionAssignmentDecls = mustDecls(
@@ -418,6 +420,74 @@ func ParseBudgetRevisionAccountValueFilter(raw string) (cond.Cond, error) {
 	return buildCond(f.CheckedExpr.GetExpr(), 0)
 }
 
+// BudgetRevisionAccountValueFilters holds the special filter parameters that
+// are resolved at the service level for BudgetRevisionAccountValue queries.
+type BudgetRevisionAccountValueFilters struct {
+	// Revisions holds the revision resource names from equality filters.
+	Revisions []string
+}
+
+// ExtractBudgetRevisionAccountValueFilters parses the supported special
+// filters (revision) out of a condition chain and returns the remaining
+// account-level condition for SQL evaluation.
+func ExtractBudgetRevisionAccountValueFilters(c cond.Cond) (*BudgetRevisionAccountValueFilters, cond.Cond, error) {
+	filters := &BudgetRevisionAccountValueFilters{}
+
+	var extract func(c cond.Cond) error
+	extract = func(c cond.Cond) error {
+		if c == nil || c.IsEmpty() {
+			return nil
+		}
+
+		switch cc := c.(type) {
+		case cond.FieldCond:
+			s, ok := cc.Value.(string)
+			if !ok {
+				return nil
+			}
+			if cc.Field == "revision" {
+				if cc.Op != cond.OpEq {
+					return fmt.Errorf("revision filter only supports equality")
+				}
+				filters.Revisions = append(filters.Revisions, s)
+			}
+			return nil
+		case cond.AndCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.OrCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.NotCond:
+			if err := extract(cc.Inner); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := extract(c); err != nil {
+		return nil, nil, err
+	}
+
+	remaining := cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+		if field == "revision" {
+			return "", nil, false
+		}
+		return field, value, true
+	})
+	if remaining != nil && remaining.IsEmpty() {
+		remaining = nil
+	}
+
+	return filters, remaining, nil
+}
+
 // ── BudgetAccountValue ───────────────────────────────────────────────────────
 
 // ParseBudgetAccountValueFilter parses an AIP-160 filter string into an abstract condition chain.
@@ -427,6 +497,74 @@ func ParseBudgetAccountValueFilter(raw string) (cond.Cond, error) {
 		return nil, err
 	}
 	return buildCond(f.CheckedExpr.GetExpr(), 0)
+}
+
+// BudgetAccountValueFilters holds the special filter parameters that are
+// resolved at the service level for BudgetAccountValue queries.
+type BudgetAccountValueFilters struct {
+	// Budgets holds the budget resource names from equality filters.
+	Budgets []string
+}
+
+// ExtractBudgetAccountValueFilters parses the supported special filters
+// (budget) out of a condition chain and returns the remaining
+// account-level condition for SQL evaluation.
+func ExtractBudgetAccountValueFilters(c cond.Cond) (*BudgetAccountValueFilters, cond.Cond, error) {
+	filters := &BudgetAccountValueFilters{}
+
+	var extract func(c cond.Cond) error
+	extract = func(c cond.Cond) error {
+		if c == nil || c.IsEmpty() {
+			return nil
+		}
+
+		switch cc := c.(type) {
+		case cond.FieldCond:
+			s, ok := cc.Value.(string)
+			if !ok {
+				return nil
+			}
+			if cc.Field == "budget" {
+				if cc.Op != cond.OpEq {
+					return fmt.Errorf("budget filter only supports equality")
+				}
+				filters.Budgets = append(filters.Budgets, s)
+			}
+			return nil
+		case cond.AndCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.OrCond:
+			for _, inner := range cc.Conds {
+				if err := extract(inner); err != nil {
+					return err
+				}
+			}
+		case cond.NotCond:
+			if err := extract(cc.Inner); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := extract(c); err != nil {
+		return nil, nil, err
+	}
+
+	remaining := cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+		if field == "budget" {
+			return "", nil, false
+		}
+		return field, value, true
+	})
+	if remaining != nil && remaining.IsEmpty() {
+		remaining = nil
+	}
+
+	return filters, remaining, nil
 }
 
 // ── BudgetActualAccountValue ──────────────────────────────────────────────────

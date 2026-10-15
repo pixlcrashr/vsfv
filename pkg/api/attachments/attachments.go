@@ -7,20 +7,23 @@ package attachments
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"github.com/pixlcrashr/vsfv/pkg/api/humax"
+	"github.com/pixlcrashr/vsfv/pkg/audit"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
+	"github.com/pixlcrashr/vsfv/pkg/storage"
 	"gorm.io/gorm"
 )
 
@@ -34,27 +37,24 @@ var allowedMimeTypes = map[string]bool{
 	"image/png":       true,
 }
 
-var mimeExtensions = map[string]string{
-	"application/pdf": ".pdf",
-	"image/jpeg":      ".jpg",
-	"image/png":       ".png",
-}
-
 // Deps bundles everything the attachment endpoints need.
 type Deps struct {
-	Auth        *humax.AuthDeps
-	Enforcer    *authz.Enforcer
-	StoragePath string
+	Auth     *humax.AuthDeps
+	Enforcer *authz.Enforcer
+	Storage  *storage.FileStorage
+	Audits   *audit.Writer
 }
 
 // RegisterRoutes wires the attachment endpoints onto the given Huma API. The
 // routes must be registered before the grpc-gateway's /api/v1/* catch-all.
 func RegisterRoutes(api huma.API, db *gorm.DB, deps *Deps) {
 	h := &handlers{
-		repo:        repository.NewSubmissionRepository(db),
-		auth:        deps.Auth,
-		enforcer:    deps.Enforcer,
-		storagePath: deps.StoragePath,
+		db:       db,
+		repo:     repository.NewSubmissionRepository(db),
+		auth:     deps.Auth,
+		enforcer: deps.Enforcer,
+		storage:  deps.Storage,
+		audits:   deps.Audits,
 	}
 
 	huma.Register(api, huma.Operation{
@@ -103,10 +103,12 @@ func RegisterRoutes(api huma.API, db *gorm.DB, deps *Deps) {
 }
 
 type handlers struct {
-	repo        *repository.SubmissionRepository
-	auth        *humax.AuthDeps
-	enforcer    *authz.Enforcer
-	storagePath string
+	db       *gorm.DB
+	repo     *repository.SubmissionRepository
+	auth     *humax.AuthDeps
+	enforcer *authz.Enforcer
+	storage  *storage.FileStorage
+	audits   *audit.Writer
 }
 
 // Attachment metadata as returned by the JSON endpoints.
@@ -116,6 +118,7 @@ type attachmentBody struct {
 	FileName         string `json:"file_name"`
 	MimeType         string `json:"mime_type"`
 	FileSize         int64  `json:"file_size"`
+	Sha256Sum        string `json:"sha256_sum"`
 	CreateTime       string `json:"create_time"`
 }
 
@@ -133,7 +136,12 @@ type downloadOutput struct {
 	ContentDisposition string `header:"Content-Disposition"`
 }
 
-type listInput struct {
+// ListInput carries the parameters shared by all attachment endpoints. Huma
+// only descends into embedded structs whose type name is exported (an
+// embedded field's name is its type name; unexported fields are skipped), so
+// embedding the previously unexported type silently dropped the Authorization
+// header and path parameters from every route that reused it.
+type ListInput struct {
 	Authorization  string `header:"Authorization" doc:"Bearer access token"`
 	OrganizationID string `path:"organization_id"`
 	SubmissionID   string `path:"submission_id"`
@@ -141,12 +149,12 @@ type listInput struct {
 }
 
 type attachmentInput struct {
-	listInput
+	ListInput
 	AttachmentID string `path:"attachment_id"`
 }
 
 type createInput struct {
-	listInput
+	ListInput
 	RawBody multipart.Form
 }
 
@@ -154,11 +162,57 @@ func (h *handlers) toBody(m *model.SubmissionAttachment) attachmentBody {
 	return attachmentBody{
 		ID:               m.ID.String(),
 		SubmissionItemID: m.SubmissionItemID.String(),
-		FileName:         m.FileName,
-		MimeType:         m.MimeType,
-		FileSize:         m.FileSize,
+		FileName:         m.DataItem.FileName,
+		MimeType:         m.DataItem.MimeType,
+		FileSize:         m.DataItem.FileSize,
+		Sha256Sum:        m.DataItem.Sha256Sum,
 		CreateTime:       m.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
+}
+
+// attachmentAuditChanges builds the audit change list for an attachment
+// mutation. It combines the relation diff with the data item's file metadata,
+// because the data item row is deleted alongside the relation and its
+// metadata would otherwise be unrecoverable from the log.
+func attachmentAuditChanges(m *model.SubmissionAttachment, action string) ([]model.AuditLogEntryChange, error) {
+	creating := action == audit.ActionCreate
+	relBefore, relAfter := any(m), any(m)
+	itemBefore, itemAfter := any(&m.DataItem), any(&m.DataItem)
+	if creating {
+		relBefore, itemBefore = nil, nil
+	} else {
+		relAfter, itemAfter = nil, nil
+	}
+
+	relChanges, err := audit.DiffModels(relBefore, relAfter)
+	if err != nil {
+		return nil, fmt.Errorf("audit diff attachment: %w", err)
+	}
+	itemChanges, err := audit.DiffModels(itemBefore, itemAfter)
+	if err != nil {
+		return nil, fmt.Errorf("audit diff attachment data item: %w", err)
+	}
+	return append(relChanges, itemChanges...), nil
+}
+
+// recordAudit appends the audit log entry for an attachment mutation. The
+// writer determines which connection the entry is written through; pass a
+// tx-backed writer (audit.NewWriter(tx)) to make the entry part of the
+// caller's transaction.
+func (h *handlers) recordAudit(ctx context.Context, w *audit.Writer, orgSegment string, item *model.SubmissionItem, m *model.SubmissionAttachment, action string) error {
+	orgID, _ := uuid.Parse(orgSegment)
+	changes, err := attachmentAuditChanges(m, action)
+	if err != nil {
+		return err
+	}
+	return w.RecordChanges(ctx, audit.Subject{
+		ResourceName: fmt.Sprintf(
+			"organizations/%s/submissions/%s/items/%s/attachments/%s",
+			orgSegment, item.SubmissionID, item.ID, m.ID,
+		),
+		ResourceID:     m.ID,
+		OrganizationID: uuid.NullUUID{Valid: orgID != uuid.Nil, UUID: orgID},
+	}, action, changes)
 }
 
 // checkRead verifies read access to the parent submission.
@@ -267,44 +321,40 @@ func (h *handlers) create(ctx context.Context, input *createInput) (*attachmentO
 		return nil, humax.NewError(http.StatusUnprocessableEntity, "file exceeds the 10 MiB limit")
 	}
 
-	attachmentID := uuid.New()
-	ext := mimeExtensions[mimeType]
-	key := attachmentID.String() + ext
-	path := filepath.Join(h.storagePath, key)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
-	}
-	out, err := os.Create(path)
-	if err != nil {
-		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
-	}
-	defer out.Close()
-	written, err := io.Copy(out, io.LimitReader(file, maxAttachmentSize+1))
+	// The blob is stored under the data item's UUID as file name; the data
+	// item row and the attachment relation are created in one transaction.
+	dataItemID := uuid.New()
+	written, sum, err := h.storage.Store(dataItemID, io.LimitReader(file, maxAttachmentSize+1))
 	if err != nil {
 		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
 	}
 	if written > maxAttachmentSize {
-		_ = os.Remove(path)
+		_ = h.storage.Remove(dataItemID)
 		return nil, humax.NewError(http.StatusUnprocessableEntity, "file exceeds the 10 MiB limit")
 	}
 
 	m := &model.SubmissionAttachment{
-		ID:               attachmentID,
 		SubmissionItemID: item.ID,
-		FileName:         filepath.Base(fh.Filename),
-		MimeType:         mimeType,
-		FileSize:         written,
-		StorageKey:       key,
+		DataItem: model.DataItem{
+			ID:        dataItemID,
+			FileName:  filepath.Base(fh.Filename),
+			MimeType:  mimeType,
+			FileSize:  written,
+			Sha256Sum: hex.EncodeToString(sum),
+		},
 	}
 	if err := h.repo.CreateAttachment(ctx, m); err != nil {
-		_ = os.Remove(path)
+		_ = h.storage.Remove(dataItemID)
+		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
+	}
+	if err := h.recordAudit(ctx, h.audits, input.OrganizationID, item, m, audit.ActionCreate); err != nil {
 		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
 	}
 
 	return &attachmentOutput{Body: h.toBody(m)}, nil
 }
 
-func (h *handlers) list(ctx context.Context, input *listInput) (*attachmentListOutput, error) {
+func (h *handlers) list(ctx context.Context, input *ListInput) (*attachmentListOutput, error) {
 	authed, err := humax.Auth(ctx, h.auth, input.Authorization)
 	if err != nil {
 		return nil, err
@@ -359,15 +409,21 @@ func (h *handlers) download(ctx context.Context, input *attachmentInput) (*downl
 		return nil, err
 	}
 
-	data, err := os.ReadFile(filepath.Join(h.storagePath, m.StorageKey))
+	f, err := h.storage.Open(m.DataItem.ID)
+	if err != nil {
+		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
 	}
 
 	return &downloadOutput{
 		Body:               data,
-		ContentType:        m.MimeType,
-		ContentDisposition: fmt.Sprintf("attachment; filename=\"%s\"", m.FileName),
+		ContentType:        m.DataItem.MimeType,
+		ContentDisposition: fmt.Sprintf("attachment; filename=\"%s\"", m.DataItem.FileName),
 	}, nil
 }
 
@@ -400,10 +456,20 @@ func (h *handlers) remove(ctx context.Context, input *attachmentInput) (*struct{
 		return nil, humax.NewError(http.StatusNotFound, "attachment not found")
 	}
 
-	if _, err := h.repo.DeleteAttachment(ctx, attachmentID); err != nil {
+	// The DB deletes and the audit entry join one transaction so they commit
+	// or roll back together; the binary in storage cannot join it and is
+	// removed only after a successful commit.
+	if err := db.TransactVoid(ctx, h.db, func(tx *gorm.DB) error {
+		repo := repository.NewFactory(tx, h.enforcer).Submission()
+		audits := audit.NewWriter(tx)
+		if _, err := repo.DeleteAttachment(ctx, attachmentID); err != nil {
+			return err
+		}
+		return h.recordAudit(ctx, audits, input.OrganizationID, item, m, audit.ActionDelete)
+	}); err != nil {
 		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
 	}
-	if err := os.Remove(filepath.Join(h.storagePath, m.StorageKey)); err != nil && !os.IsNotExist(err) {
+	if err := h.storage.Remove(m.DataItem.ID); err != nil {
 		return nil, humax.NewError(http.StatusInternalServerError, "internal error")
 	}
 

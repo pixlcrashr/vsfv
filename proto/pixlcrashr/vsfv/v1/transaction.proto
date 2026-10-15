@@ -50,8 +50,12 @@ message Transaction {
   // Transaction amount.
   Decimal amount = 5 [(google.api.field_behavior) = REQUIRED];
 
-  // Human-readable transaction description.
-  string description = 6 [(google.api.field_behavior) = OPTIONAL];
+  // Human-readable transaction description. Immutable after creation;
+  // UpdateTransaction rejects update masks that include this field.
+  string description = 6 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
 
   // External reference identifier.
   string reference = 7 [(google.api.field_behavior) = OPTIONAL];

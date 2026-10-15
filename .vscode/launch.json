@@ -26,6 +26,7 @@
       "name": "Frontend: Serve API (Chrome)",
       "type": "chrome",
       "request": "launch",
+      "preLaunchTask": "web:serve:api",
       "url": "http://localhost:4200/",
       "webRoot": "${workspaceFolder}/web",
       "sourceMaps": true

@@ -39,3 +39,5 @@ logs
 
 **/*.confidental.*
 *.sqlite
+
+data/

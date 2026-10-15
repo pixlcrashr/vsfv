@@ -10,11 +10,13 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"github.com/pixlcrashr/vsfv/pkg/query/cond"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 var (
@@ -29,17 +31,40 @@ var (
 
 type budgetActualAccountValueServiceServer struct {
 	gen.UnimplementedBudgetActualAccountValueServiceServer
-	repo       *repository.BudgetActualAccountValueRepository
-	budgetRepo *repository.BudgetRepository
-	enforcer   *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newBudgetActualAccountValueServiceServer(
-	repo *repository.BudgetActualAccountValueRepository,
-	budgetRepo *repository.BudgetRepository,
-	enforcer *authz.Enforcer,
-) gen.BudgetActualAccountValueServiceServer {
-	return &budgetActualAccountValueServiceServer{repo: repo, budgetRepo: budgetRepo, enforcer: enforcer}
+func newBudgetActualAccountValueServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.BudgetActualAccountValueServiceServer {
+	return &budgetActualAccountValueServiceServer{db: db, enforcer: enforcer}
+}
+
+// applySignOrientation negates each value whose account effectively has sign
+// inversion enabled (own or inherited invert_sign), so expense-oriented
+// accounts are reported positive against positive plan targets. Values are
+// flipped in place.
+func applySignOrientation(ctx context.Context, accountRepo *repository.AccountRepository, orgID uuid.UUID, values []*repository.ActualAccountValue) error {
+	ids := make([]uuid.UUID, 0, len(values))
+	seen := make(map[uuid.UUID]struct{}, len(values))
+	for _, v := range values {
+		if _, ok := seen[v.AccountID]; ok {
+			continue
+		}
+		seen[v.AccountID] = struct{}{}
+		ids = append(ids, v.AccountID)
+	}
+
+	inverted, err := accountRepo.GetEffectiveInvertSigns(ctx, orgID, ids)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range values {
+		if inverted[v.AccountID] {
+			v.Value.Neg(&v.Value)
+		}
+	}
+	return nil
 }
 
 func (s *budgetActualAccountValueServiceServer) GetBudgetActualAccountValue(ctx context.Context, req *gen.GetBudgetActualAccountValueRequest) (*gen.BudgetActualAccountValue, error) {
@@ -58,23 +83,34 @@ func (s *budgetActualAccountValueServiceServer) GetBudgetActualAccountValue(ctx 
 		return nil, &ServerError{Err: err, Status: statusInvalidActualAccountValueName}
 	}
 
-	budget, err := s.budgetRepo.GetByCustomID(ctx, orgID, n.Budget)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetActualAccountValue}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BudgetActualAccountValue, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetActualAccountValue()
+		budgetRepo := f.Budget()
+		accountRepo := f.Account()
 
-	m, err := s.repo.GetByBudgetAndAccount(ctx, orgID, budget.PeriodStart, budget.PeriodEnd, n.Account)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetActualAccountValueNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetActualAccountValueNotFound}
+		budget, err := budgetRepo.GetByCustomID(ctx, orgID, n.Budget)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetActualAccountValue}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetActualAccountValue}
-	}
 
-	return BudgetActualAccountValueToProto(n.BudgetResourceName(), m), nil
+		m, err := repo.GetByBudgetAndAccount(ctx, orgID, budget.PeriodStart, budget.PeriodEnd, n.Account)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetActualAccountValueNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetActualAccountValueNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetActualAccountValue}
+		}
+
+		if err := applySignOrientation(ctx, accountRepo, orgID, []*repository.ActualAccountValue{m}); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetActualAccountValue}
+		}
+
+		return BudgetActualAccountValueToProto(n.BudgetResourceName(), m), nil
+	})
 }
 
 func (s *budgetActualAccountValueServiceServer) ListBudgetActualAccountValues(ctx context.Context, req *gen.ListBudgetActualAccountValuesRequest) (*gen.ListBudgetActualAccountValuesResponse, error) {
@@ -103,61 +139,88 @@ func (s *budgetActualAccountValueServiceServer) ListBudgetActualAccountValues(ct
 		return nil, &ServerError{Err: err, Status: statusInvalidFilter}
 	}
 
-	// The budget segment may be a wildcard ("-") to query across all budgets in
-	// the organization. Otherwise the query is scoped to that single budget.
-	var budgetCustomIDs []string
-	if budgetRN.Budget != "-" {
-		budgetCustomIDs = []string{budgetRN.Budget}
-	} else if len(filters.Budgets) > 0 {
-		budgetCustomIDs = filters.Budgets
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListBudgetActualAccountValuesResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetActualAccountValue()
+		budgetRepo := f.Budget()
+		accountRepo := f.Account()
 
-	allValues, err := s.repo.ListByBudgets(ctx, orgID, budgetCustomIDs, filters.DateFrom, filters.DateTo)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListBudgetActualAccountValues}
-	}
-
-	filtered := make([]*repository.ActualAccountValue, 0, len(allValues))
-	for _, v := range allValues {
-		if v.Value.Sign() <= 0 {
-			continue
+		// The budget segment may be a wildcard ("-") to query across all budgets in
+		// the organization. Otherwise the query is scoped to that single budget.
+		var budgetCustomIDs []string
+		if budgetRN.Budget != "-" {
+			// A named budget must exist so an unknown one yields NotFound instead
+			// of an empty result.
+			if _, err := budgetRepo.GetByCustomID(ctx, orgID, budgetRN.Budget); err != nil {
+				if errors.Is(err, repository.ErrBudgetNotFound) {
+					return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+				}
+				return nil, &ServerError{Err: err, Status: statusFailedListBudgetActualAccountValues}
+			}
+			budgetCustomIDs = []string{budgetRN.Budget}
+		} else if len(filters.Budgets) > 0 {
+			// The "budget" filter carries full resource names while the query
+			// below matches on the budget custom ID, so keep only the ID
+			// segments. Budgets of other organizations are excluded by the
+			// query's organization join.
+			budgetCustomIDs = make([]string, 0, len(filters.Budgets))
+			for _, name := range filters.Budgets {
+				var rn gen.BudgetResourceName
+				if err := rn.UnmarshalString(name); err != nil {
+					return nil, &ServerError{Err: err, Status: statusInvalidFilter}
+				}
+				budgetCustomIDs = append(budgetCustomIDs, rn.Budget)
+			}
 		}
-		if accountCond != nil && !evalActualAccountValueCond(accountCond, v) {
-			continue
+
+		allValues, err := repo.ListByBudgets(ctx, orgID, budgetCustomIDs, filters.DateFrom, filters.DateTo)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListBudgetActualAccountValues}
 		}
-		filtered = append(filtered, v)
-	}
 
-	total := int64(len(filtered))
+		filtered := make([]*repository.ActualAccountValue, 0, len(allValues))
+		for _, v := range allValues {
+			if accountCond != nil && !evalActualAccountValueCond(accountCond, v) {
+				continue
+			}
+			filtered = append(filtered, v)
+		}
 
-	offset, err := pagetoken.Decode(req.PageToken)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
-	}
+		if err := applySignOrientation(ctx, accountRepo, orgID, filtered); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListBudgetActualAccountValues}
+		}
 
-	pageSize := normalizePageSize(req.PageSize)
-	start := int(offset)
-	if start > len(filtered) {
-		start = len(filtered)
-	}
-	end := start + pageSize
-	if end > len(filtered) {
-		end = len(filtered)
-	}
-	page := filtered[start:end]
+		total := int64(len(filtered))
 
-	resp := &gen.ListBudgetActualAccountValuesResponse{TotalSize: total}
-	for _, m := range page {
-		respBudgetRN := budgetRN.OrganizationResourceName().BudgetResourceName(m.BudgetCustomID)
-		resp.ActualAccountValues = append(resp.ActualAccountValues, BudgetActualAccountValueToProto(respBudgetRN, m))
-	}
+		offset, err := pagetoken.Decode(req.PageToken)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
+		}
 
-	nextOffset := offset + int64(len(page))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		pageSize := normalizePageSizeMax(req.PageSize, 500)
+		start := int(offset)
+		if start > len(filtered) {
+			start = len(filtered)
+		}
+		end := start + pageSize
+		if end > len(filtered) {
+			end = len(filtered)
+		}
+		page := filtered[start:end]
 
-	return resp, nil
+		resp := &gen.ListBudgetActualAccountValuesResponse{TotalSize: total}
+		for _, m := range page {
+			respBudgetRN := budgetRN.OrganizationResourceName().BudgetResourceName(m.BudgetCustomID)
+			resp.ActualAccountValues = append(resp.ActualAccountValues, BudgetActualAccountValueToProto(respBudgetRN, m))
+		}
+
+		nextOffset := offset + int64(len(page))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *budgetActualAccountValueServiceServer) BatchGetBudgetActualAccountValues(ctx context.Context, req *gen.BatchGetBudgetActualAccountValuesRequest) (*gen.BatchGetBudgetActualAccountValuesResponse, error) {
@@ -199,37 +262,48 @@ func (s *budgetActualAccountValueServiceServer) BatchGetBudgetActualAccountValue
 		budgetIDs = append(budgetIDs, id)
 	}
 
-	allValues, err := s.repo.ListByBudgets(ctx, orgID, budgetIDs, nil, nil)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedBatchGetBudgetActualAccountValues}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BatchGetBudgetActualAccountValuesResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetActualAccountValue()
+		accountRepo := f.Account()
 
-	resultByKey := make(map[string]*repository.ActualAccountValue, len(allValues))
-	for _, v := range allValues {
-		if v.Value.Sign() <= 0 {
-			continue
+		allValues, err := repo.ListByBudgets(ctx, orgID, budgetIDs, nil, nil)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedBatchGetBudgetActualAccountValues}
 		}
-		if _, ok := accountCustomIDs[v.AccountCustomID]; !ok {
-			continue
-		}
-		key := fmt.Sprintf("%s/%s", v.BudgetCustomID, v.AccountCustomID)
-		resultByKey[key] = v
-	}
 
-	resp := &gen.BatchGetBudgetActualAccountValuesResponse{}
-	for _, name := range req.Names {
-		var n gen.BudgetActualAccountValueResourceName
-		if err := n.UnmarshalString(name); err != nil {
-			continue
+		resultByKey := make(map[string]*repository.ActualAccountValue, len(allValues))
+		for _, v := range allValues {
+			if _, ok := accountCustomIDs[v.AccountCustomID]; !ok {
+				continue
+			}
+			key := fmt.Sprintf("%s/%s", v.BudgetCustomID, v.AccountCustomID)
+			resultByKey[key] = v
 		}
-		key := fmt.Sprintf("%s/%s", n.Budget, n.Account)
-		if v, ok := resultByKey[key]; ok {
-			budgetRN := orgRN.BudgetResourceName(v.BudgetCustomID)
-			resp.ActualAccountValues = append(resp.ActualAccountValues, BudgetActualAccountValueToProto(budgetRN, v))
-		}
-	}
 
-	return resp, nil
+		values := make([]*repository.ActualAccountValue, 0, len(resultByKey))
+		for _, v := range resultByKey {
+			values = append(values, v)
+		}
+		if err := applySignOrientation(ctx, accountRepo, orgID, values); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedBatchGetBudgetActualAccountValues}
+		}
+
+		resp := &gen.BatchGetBudgetActualAccountValuesResponse{}
+		for _, name := range req.Names {
+			var n gen.BudgetActualAccountValueResourceName
+			if err := n.UnmarshalString(name); err != nil {
+				continue
+			}
+			key := fmt.Sprintf("%s/%s", n.Budget, n.Account)
+			if v, ok := resultByKey[key]; ok {
+				budgetRN := orgRN.BudgetResourceName(v.BudgetCustomID)
+				resp.ActualAccountValues = append(resp.ActualAccountValues, BudgetActualAccountValueToProto(budgetRN, v))
+			}
+		}
+
+		return resp, nil
+	})
 }
 
 func evalActualAccountValueCond(c cond.Cond, v *repository.ActualAccountValue) bool {

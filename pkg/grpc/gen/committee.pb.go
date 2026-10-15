@@ -25,124 +25,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// PaymentAccountKind describes the kind of payment account held by a committee.
-type PaymentAccountKind int32
-
-const (
-	PaymentAccountKind_PAYMENT_ACCOUNT_KIND_UNSPECIFIED  PaymentAccountKind = 0
-	PaymentAccountKind_PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT PaymentAccountKind = 1
-	PaymentAccountKind_PAYMENT_ACCOUNT_KIND_CASH_BOX     PaymentAccountKind = 2
-)
-
-// Enum value maps for PaymentAccountKind.
-var (
-	PaymentAccountKind_name = map[int32]string{
-		0: "PAYMENT_ACCOUNT_KIND_UNSPECIFIED",
-		1: "PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT",
-		2: "PAYMENT_ACCOUNT_KIND_CASH_BOX",
-	}
-	PaymentAccountKind_value = map[string]int32{
-		"PAYMENT_ACCOUNT_KIND_UNSPECIFIED":  0,
-		"PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT": 1,
-		"PAYMENT_ACCOUNT_KIND_CASH_BOX":     2,
-	}
-)
-
-func (x PaymentAccountKind) Enum() *PaymentAccountKind {
-	p := new(PaymentAccountKind)
-	*p = x
-	return p
-}
-
-func (x PaymentAccountKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PaymentAccountKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_committee_proto_enumTypes[0].Descriptor()
-}
-
-func (PaymentAccountKind) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_committee_proto_enumTypes[0]
-}
-
-func (x PaymentAccountKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PaymentAccountKind.Descriptor instead.
-func (PaymentAccountKind) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{0}
-}
-
-// CommitteePaymentAccount describes a payment account held by a committee
-// (e.g. the committee's own bank account or an independently organized cash
-// box). Committees with at least one payment account may pay expenses from
-// these accounts and submit the bills for documentation.
-type CommitteePaymentAccount struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The UUID of the payment account. Used by submissions to reference the
-	// account they were paid from.
-	Uid string `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
-	// The kind of payment account.
-	Kind PaymentAccountKind `protobuf:"varint,2,opt,name=kind,proto3,enum=pixlcrashr.vsfv.v1.PaymentAccountKind" json:"kind,omitempty"`
-	// Human-readable label of the payment account (e.g. "Gremiumskonto").
-	DisplayLabel  string `protobuf:"bytes,3,opt,name=display_label,json=displayLabel,proto3" json:"display_label,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CommitteePaymentAccount) Reset() {
-	*x = CommitteePaymentAccount{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CommitteePaymentAccount) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CommitteePaymentAccount) ProtoMessage() {}
-
-func (x *CommitteePaymentAccount) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CommitteePaymentAccount.ProtoReflect.Descriptor instead.
-func (*CommitteePaymentAccount) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *CommitteePaymentAccount) GetUid() string {
-	if x != nil {
-		return x.Uid
-	}
-	return ""
-}
-
-func (x *CommitteePaymentAccount) GetKind() PaymentAccountKind {
-	if x != nil {
-		return x.Kind
-	}
-	return PaymentAccountKind_PAYMENT_ACCOUNT_KIND_UNSPECIFIED
-}
-
-func (x *CommitteePaymentAccount) GetDisplayLabel() string {
-	if x != nil {
-		return x.DisplayLabel
-	}
-	return ""
-}
-
 // Committee is an organizational unit (e.g. a student committee) that submits
 // expense submissions and income documents.
 type Committee struct {
@@ -160,20 +42,22 @@ type Committee struct {
 	// commercial scope when creating submissions. If false, submissions of this
 	// committee are always created with the nonprofit scope.
 	AllowScopeSelection bool `protobuf:"varint,5,opt,name=allow_scope_selection,json=allowScopeSelection,proto3" json:"allow_scope_selection,omitempty"`
-	// Payment accounts held by this committee. If empty, committee members
-	// cannot pay from a committee account and must use the person settlement.
-	PaymentAccounts []*CommitteePaymentAccount `protobuf:"bytes,6,rep,name=payment_accounts,json=paymentAccounts,proto3" json:"payment_accounts,omitempty"`
 	// Last modification timestamp.
 	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	// Creation timestamp.
-	CreateTime    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	CreateTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	// Whether the committee is referenced by other resources (currently
+	// submissions, including soft-deleted ones). A referenced committee cannot
+	// be deleted; DeleteCommittee fails with FAILED_PRECONDITION. Clients can
+	// use this to disable delete actions.
+	IsReferenced  bool `protobuf:"varint,9,opt,name=is_referenced,json=isReferenced,proto3" json:"is_referenced,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Committee) Reset() {
 	*x = Committee{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[1]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -185,7 +69,7 @@ func (x *Committee) String() string {
 func (*Committee) ProtoMessage() {}
 
 func (x *Committee) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[1]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -198,7 +82,7 @@ func (x *Committee) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Committee.ProtoReflect.Descriptor instead.
 func (*Committee) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{1}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Committee) GetName() string {
@@ -236,13 +120,6 @@ func (x *Committee) GetAllowScopeSelection() bool {
 	return false
 }
 
-func (x *Committee) GetPaymentAccounts() []*CommitteePaymentAccount {
-	if x != nil {
-		return x.PaymentAccounts
-	}
-	return nil
-}
-
 func (x *Committee) GetUpdateTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdateTime
@@ -257,6 +134,13 @@ func (x *Committee) GetCreateTime() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Committee) GetIsReferenced() bool {
+	if x != nil {
+		return x.IsReferenced
+	}
+	return false
+}
+
 type GetCommitteeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The resource name of the committee.
@@ -268,7 +152,7 @@ type GetCommitteeRequest struct {
 
 func (x *GetCommitteeRequest) Reset() {
 	*x = GetCommitteeRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[2]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -280,7 +164,7 @@ func (x *GetCommitteeRequest) String() string {
 func (*GetCommitteeRequest) ProtoMessage() {}
 
 func (x *GetCommitteeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[2]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -293,7 +177,7 @@ func (x *GetCommitteeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCommitteeRequest.ProtoReflect.Descriptor instead.
 func (*GetCommitteeRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{2}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetCommitteeRequest) GetName() string {
@@ -325,7 +209,7 @@ type ListCommitteesRequest struct {
 
 func (x *ListCommitteesRequest) Reset() {
 	*x = ListCommitteesRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[3]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +221,7 @@ func (x *ListCommitteesRequest) String() string {
 func (*ListCommitteesRequest) ProtoMessage() {}
 
 func (x *ListCommitteesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[3]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +234,7 @@ func (x *ListCommitteesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommitteesRequest.ProtoReflect.Descriptor instead.
 func (*ListCommitteesRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{3}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListCommitteesRequest) GetParent() string {
@@ -402,7 +286,7 @@ type ListCommitteesResponse struct {
 
 func (x *ListCommitteesResponse) Reset() {
 	*x = ListCommitteesResponse{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[4]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +298,7 @@ func (x *ListCommitteesResponse) String() string {
 func (*ListCommitteesResponse) ProtoMessage() {}
 
 func (x *ListCommitteesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[4]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +311,7 @@ func (x *ListCommitteesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommitteesResponse.ProtoReflect.Descriptor instead.
 func (*ListCommitteesResponse) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{4}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListCommitteesResponse) GetCommittees() []*Committee {
@@ -467,7 +351,7 @@ type CreateCommitteeRequest struct {
 
 func (x *CreateCommitteeRequest) Reset() {
 	*x = CreateCommitteeRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[5]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +363,7 @@ func (x *CreateCommitteeRequest) String() string {
 func (*CreateCommitteeRequest) ProtoMessage() {}
 
 func (x *CreateCommitteeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[5]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +376,7 @@ func (x *CreateCommitteeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommitteeRequest.ProtoReflect.Descriptor instead.
 func (*CreateCommitteeRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{5}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateCommitteeRequest) GetParent() string {
@@ -520,8 +404,7 @@ type UpdateCommitteeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The committee to update.
 	Committee *Committee `protobuf:"bytes,1,opt,name=committee,proto3" json:"committee,omitempty"`
-	// The list of fields to update. Updating `payment_accounts` replaces the
-	// entire list.
+	// The list of fields to update.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -529,7 +412,7 @@ type UpdateCommitteeRequest struct {
 
 func (x *UpdateCommitteeRequest) Reset() {
 	*x = UpdateCommitteeRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[6]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -541,7 +424,7 @@ func (x *UpdateCommitteeRequest) String() string {
 func (*UpdateCommitteeRequest) ProtoMessage() {}
 
 func (x *UpdateCommitteeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[6]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -554,7 +437,7 @@ func (x *UpdateCommitteeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCommitteeRequest.ProtoReflect.Descriptor instead.
 func (*UpdateCommitteeRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{6}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateCommitteeRequest) GetCommittee() *Committee {
@@ -582,7 +465,7 @@ type DeleteCommitteeRequest struct {
 
 func (x *DeleteCommitteeRequest) Reset() {
 	*x = DeleteCommitteeRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[7]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -594,7 +477,7 @@ func (x *DeleteCommitteeRequest) String() string {
 func (*DeleteCommitteeRequest) ProtoMessage() {}
 
 func (x *DeleteCommitteeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[7]
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -607,7 +490,7 @@ func (x *DeleteCommitteeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommitteeRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCommitteeRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{7}
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DeleteCommitteeRequest) GetName() string {
@@ -617,27 +500,163 @@ func (x *DeleteCommitteeRequest) GetName() string {
 	return ""
 }
 
+type ListUserCommitteesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The parent organization resource name.
+	// Format: organizations/{organization}
+	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
+	// The user to list committees for.
+	// Format: users/{user}
+	// Defaults to the calling user. Listing the committees of another user
+	// requires the committees:read permission.
+	User string `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	// Maximum number of committees to return. The service may return fewer.
+	// If unspecified, at most 20 are returned. Maximum value is 100.
+	PageSize int32 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// A page token from a previous ListUserCommittees call.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserCommitteesRequest) Reset() {
+	*x = ListUserCommitteesRequest{}
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserCommitteesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserCommitteesRequest) ProtoMessage() {}
+
+func (x *ListUserCommitteesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserCommitteesRequest.ProtoReflect.Descriptor instead.
+func (*ListUserCommitteesRequest) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListUserCommitteesRequest) GetParent() string {
+	if x != nil {
+		return x.Parent
+	}
+	return ""
+}
+
+func (x *ListUserCommitteesRequest) GetUser() string {
+	if x != nil {
+		return x.User
+	}
+	return ""
+}
+
+func (x *ListUserCommitteesRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListUserCommitteesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ListUserCommitteesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The committees the user is a member of.
+	Committees []*Committee `protobuf:"bytes,1,rep,name=committees,proto3" json:"committees,omitempty"`
+	// A token to retrieve the next page of results.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// Total number of committees the user is a member of.
+	TotalSize     int64 `protobuf:"varint,3,opt,name=total_size,json=totalSize,proto3" json:"total_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserCommitteesResponse) Reset() {
+	*x = ListUserCommitteesResponse{}
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserCommitteesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserCommitteesResponse) ProtoMessage() {}
+
+func (x *ListUserCommitteesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_committee_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserCommitteesResponse.ProtoReflect.Descriptor instead.
+func (*ListUserCommitteesResponse) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListUserCommitteesResponse) GetCommittees() []*Committee {
+	if x != nil {
+		return x.Committees
+	}
+	return nil
+}
+
+func (x *ListUserCommitteesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+func (x *ListUserCommitteesResponse) GetTotalSize() int64 {
+	if x != nil {
+		return x.TotalSize
+	}
+	return 0
+}
+
 var File_pixlcrashr_vsfv_v1_committee_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_committee_proto_rawDesc = "" +
 	"\n" +
-	"\"pixlcrashr/vsfv/v1/committee.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x01\n" +
-	"\x17CommitteePaymentAccount\x12\x1d\n" +
-	"\x03uid\x18\x01 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12?\n" +
-	"\x04kind\x18\x02 \x01(\x0e2&.pixlcrashr.vsfv.v1.PaymentAccountKindB\x03\xe0A\x02R\x04kind\x12(\n" +
-	"\rdisplay_label\x18\x03 \x01(\tB\x03\xe0A\x02R\fdisplayLabel\"\x94\x04\n" +
+	"\"pixlcrashr/vsfv/v1/committee.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe7\x03\n" +
 	"\tCommittee\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12&\n" +
 	"\fdisplay_name\x18\x03 \x01(\tB\x03\xe0A\x02R\vdisplayName\x124\n" +
 	"\x13display_description\x18\x04 \x01(\tB\x03\xe0A\x01R\x12displayDescription\x127\n" +
-	"\x15allow_scope_selection\x18\x05 \x01(\bB\x03\xe0A\x01R\x13allowScopeSelection\x12[\n" +
-	"\x10payment_accounts\x18\x06 \x03(\v2+.pixlcrashr.vsfv.v1.CommitteePaymentAccountB\x03\xe0A\x01R\x0fpaymentAccounts\x12@\n" +
+	"\x15allow_scope_selection\x18\x05 \x01(\bB\x03\xe0A\x01R\x13allowScopeSelection\x12@\n" +
 	"\vupdate_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"updateTime\x12@\n" +
 	"\vcreate_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime:W\xeaAT\n" +
-	"\x1dvsfv.pixlcrashr.dev/Committee\x123organizations/{organization}/committees/{committee}\"P\n" +
+	"createTime\x12(\n" +
+	"\ris_referenced\x18\t \x01(\bB\x03\xe0A\x03R\fisReferenced:W\xeaAT\n" +
+	"\x1dvsfv.pixlcrashr.dev/Committee\x123organizations/{organization}/committees/{committee}J\x04\b\x06\x10\a\"P\n" +
 	"\x13GetCommitteeRequest\x129\n" +
 	"\x04name\x18\x01 \x01(\tB%\xe0A\x02\xfaA\x1f\n" +
 	"\x1dvsfv.pixlcrashr.dev/CommitteeR\x04name\"\xdc\x01\n" +
@@ -667,17 +686,29 @@ const file_pixlcrashr_vsfv_v1_committee_proto_rawDesc = "" +
 	"updateMask\"S\n" +
 	"\x16DeleteCommitteeRequest\x129\n" +
 	"\x04name\x18\x01 \x01(\tB%\xe0A\x02\xfaA\x1f\n" +
-	"\x1dvsfv.pixlcrashr.dev/CommitteeR\x04name*\x84\x01\n" +
-	"\x12PaymentAccountKind\x12$\n" +
-	" PAYMENT_ACCOUNT_KIND_UNSPECIFIED\x10\x00\x12%\n" +
-	"!PAYMENT_ACCOUNT_KIND_BANK_ACCOUNT\x10\x01\x12!\n" +
-	"\x1dPAYMENT_ACCOUNT_KIND_CASH_BOX\x10\x022\xe7\x06\n" +
+	"\x1dvsfv.pixlcrashr.dev/CommitteeR\x04name\"\xd9\x01\n" +
+	"\x19ListUserCommitteesRequest\x12@\n" +
+	"\x06parent\x18\x01 \x01(\tB(\xe0A\x02\xfaA\"\n" +
+	" vsfv.pixlcrashr.dev/OrganizationR\x06parent\x124\n" +
+	"\x04user\x18\x02 \x01(\tB \xe0A\x01\xfaA\x1a\n" +
+	"\x18vsfv.pixlcrashr.dev/UserR\x04user\x12 \n" +
+	"\tpage_size\x18\x03 \x01(\x05B\x03\xe0A\x01R\bpageSize\x12\"\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\x03\xe0A\x01R\tpageToken\"\xa2\x01\n" +
+	"\x1aListUserCommitteesResponse\x12=\n" +
+	"\n" +
+	"committees\x18\x01 \x03(\v2\x1d.pixlcrashr.vsfv.v1.CommitteeR\n" +
+	"committees\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1d\n" +
+	"\n" +
+	"total_size\x18\x03 \x01(\x03R\ttotalSize2\x9a\b\n" +
 	"\x10CommitteeService\x12\x8e\x01\n" +
 	"\fGetCommittee\x12'.pixlcrashr.vsfv.v1.GetCommitteeRequest\x1a\x1d.pixlcrashr.vsfv.v1.Committee\"6\xdaA\x04name\x82\xd3\xe4\x93\x02)\x12'/v1/{name=organizations/*/committees/*}\x12\xa1\x01\n" +
 	"\x0eListCommittees\x12).pixlcrashr.vsfv.v1.ListCommitteesRequest\x1a*.pixlcrashr.vsfv.v1.ListCommitteesResponse\"8\xdaA\x06parent\x82\xd3\xe4\x93\x02)\x12'/v1/{parent=organizations/*}/committees\x12\xb8\x01\n" +
 	"\x0fCreateCommittee\x12*.pixlcrashr.vsfv.v1.CreateCommitteeRequest\x1a\x1d.pixlcrashr.vsfv.v1.Committee\"Z\xdaA\x1dparent,committee,committee_id\x82\xd3\xe4\x93\x024:\tcommittee\"'/v1/{parent=organizations/*}/committees\x12\xba\x01\n" +
 	"\x0fUpdateCommittee\x12*.pixlcrashr.vsfv.v1.UpdateCommitteeRequest\x1a\x1d.pixlcrashr.vsfv.v1.Committee\"\\\xdaA\x15committee,update_mask\x82\xd3\xe4\x93\x02>:\tcommittee21/v1/{committee.name=organizations/*/committees/*}\x12\x8d\x01\n" +
-	"\x0fDeleteCommittee\x12*.pixlcrashr.vsfv.v1.DeleteCommitteeRequest\x1a\x16.google.protobuf.Empty\"6\xdaA\x04name\x82\xd3\xe4\x93\x02)*'/v1/{name=organizations/*/committees/*}\x1a\x16\xcaA\x13vsfv.pixlcrashr.devB\xbb\x01\n" +
+	"\x0fDeleteCommittee\x12*.pixlcrashr.vsfv.v1.DeleteCommitteeRequest\x1a\x16.google.protobuf.Empty\"6\xdaA\x04name\x82\xd3\xe4\x93\x02)*'/v1/{name=organizations/*/committees/*}\x12\xb0\x01\n" +
+	"\x12ListUserCommittees\x12-.pixlcrashr.vsfv.v1.ListUserCommitteesRequest\x1a..pixlcrashr.vsfv.v1.ListUserCommitteesResponse\";\x82\xd3\xe4\x93\x025\x123/v1/{parent=organizations/*}/committees:listForUser\x1a\x16\xcaA\x13vsfv.pixlcrashr.devB\xbb\x01\n" +
 	"\x16com.pixlcrashr.vsfv.v1B\x0eCommitteeProtoP\x01Z'github.com/pixlcrashr/vsfv/pkg/grpc/gen\xa2\x02\x03PVX\xaa\x02\x12Pixlcrashr.Vsfv.V1\xca\x02\x12Pixlcrashr\\Vsfv\\V1\xe2\x02\x1ePixlcrashr\\Vsfv\\V1\\GPBMetadata\xea\x02\x14Pixlcrashr::Vsfv::V1b\x06proto3"
 
 var (
@@ -692,46 +723,46 @@ func file_pixlcrashr_vsfv_v1_committee_proto_rawDescGZIP() []byte {
 	return file_pixlcrashr_vsfv_v1_committee_proto_rawDescData
 }
 
-var file_pixlcrashr_vsfv_v1_committee_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pixlcrashr_vsfv_v1_committee_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_pixlcrashr_vsfv_v1_committee_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_pixlcrashr_vsfv_v1_committee_proto_goTypes = []any{
-	(PaymentAccountKind)(0),         // 0: pixlcrashr.vsfv.v1.PaymentAccountKind
-	(*CommitteePaymentAccount)(nil), // 1: pixlcrashr.vsfv.v1.CommitteePaymentAccount
-	(*Committee)(nil),               // 2: pixlcrashr.vsfv.v1.Committee
-	(*GetCommitteeRequest)(nil),     // 3: pixlcrashr.vsfv.v1.GetCommitteeRequest
-	(*ListCommitteesRequest)(nil),   // 4: pixlcrashr.vsfv.v1.ListCommitteesRequest
-	(*ListCommitteesResponse)(nil),  // 5: pixlcrashr.vsfv.v1.ListCommitteesResponse
-	(*CreateCommitteeRequest)(nil),  // 6: pixlcrashr.vsfv.v1.CreateCommitteeRequest
-	(*UpdateCommitteeRequest)(nil),  // 7: pixlcrashr.vsfv.v1.UpdateCommitteeRequest
-	(*DeleteCommitteeRequest)(nil),  // 8: pixlcrashr.vsfv.v1.DeleteCommitteeRequest
-	(*timestamppb.Timestamp)(nil),   // 9: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),   // 10: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),           // 11: google.protobuf.Empty
+	(*Committee)(nil),                  // 0: pixlcrashr.vsfv.v1.Committee
+	(*GetCommitteeRequest)(nil),        // 1: pixlcrashr.vsfv.v1.GetCommitteeRequest
+	(*ListCommitteesRequest)(nil),      // 2: pixlcrashr.vsfv.v1.ListCommitteesRequest
+	(*ListCommitteesResponse)(nil),     // 3: pixlcrashr.vsfv.v1.ListCommitteesResponse
+	(*CreateCommitteeRequest)(nil),     // 4: pixlcrashr.vsfv.v1.CreateCommitteeRequest
+	(*UpdateCommitteeRequest)(nil),     // 5: pixlcrashr.vsfv.v1.UpdateCommitteeRequest
+	(*DeleteCommitteeRequest)(nil),     // 6: pixlcrashr.vsfv.v1.DeleteCommitteeRequest
+	(*ListUserCommitteesRequest)(nil),  // 7: pixlcrashr.vsfv.v1.ListUserCommitteesRequest
+	(*ListUserCommitteesResponse)(nil), // 8: pixlcrashr.vsfv.v1.ListUserCommitteesResponse
+	(*timestamppb.Timestamp)(nil),      // 9: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),      // 10: google.protobuf.FieldMask
+	(*emptypb.Empty)(nil),              // 11: google.protobuf.Empty
 }
 var file_pixlcrashr_vsfv_v1_committee_proto_depIdxs = []int32{
-	0,  // 0: pixlcrashr.vsfv.v1.CommitteePaymentAccount.kind:type_name -> pixlcrashr.vsfv.v1.PaymentAccountKind
-	1,  // 1: pixlcrashr.vsfv.v1.Committee.payment_accounts:type_name -> pixlcrashr.vsfv.v1.CommitteePaymentAccount
-	9,  // 2: pixlcrashr.vsfv.v1.Committee.update_time:type_name -> google.protobuf.Timestamp
-	9,  // 3: pixlcrashr.vsfv.v1.Committee.create_time:type_name -> google.protobuf.Timestamp
-	2,  // 4: pixlcrashr.vsfv.v1.ListCommitteesResponse.committees:type_name -> pixlcrashr.vsfv.v1.Committee
-	2,  // 5: pixlcrashr.vsfv.v1.CreateCommitteeRequest.committee:type_name -> pixlcrashr.vsfv.v1.Committee
-	2,  // 6: pixlcrashr.vsfv.v1.UpdateCommitteeRequest.committee:type_name -> pixlcrashr.vsfv.v1.Committee
-	10, // 7: pixlcrashr.vsfv.v1.UpdateCommitteeRequest.update_mask:type_name -> google.protobuf.FieldMask
-	3,  // 8: pixlcrashr.vsfv.v1.CommitteeService.GetCommittee:input_type -> pixlcrashr.vsfv.v1.GetCommitteeRequest
-	4,  // 9: pixlcrashr.vsfv.v1.CommitteeService.ListCommittees:input_type -> pixlcrashr.vsfv.v1.ListCommitteesRequest
-	6,  // 10: pixlcrashr.vsfv.v1.CommitteeService.CreateCommittee:input_type -> pixlcrashr.vsfv.v1.CreateCommitteeRequest
-	7,  // 11: pixlcrashr.vsfv.v1.CommitteeService.UpdateCommittee:input_type -> pixlcrashr.vsfv.v1.UpdateCommitteeRequest
-	8,  // 12: pixlcrashr.vsfv.v1.CommitteeService.DeleteCommittee:input_type -> pixlcrashr.vsfv.v1.DeleteCommitteeRequest
-	2,  // 13: pixlcrashr.vsfv.v1.CommitteeService.GetCommittee:output_type -> pixlcrashr.vsfv.v1.Committee
-	5,  // 14: pixlcrashr.vsfv.v1.CommitteeService.ListCommittees:output_type -> pixlcrashr.vsfv.v1.ListCommitteesResponse
-	2,  // 15: pixlcrashr.vsfv.v1.CommitteeService.CreateCommittee:output_type -> pixlcrashr.vsfv.v1.Committee
-	2,  // 16: pixlcrashr.vsfv.v1.CommitteeService.UpdateCommittee:output_type -> pixlcrashr.vsfv.v1.Committee
+	9,  // 0: pixlcrashr.vsfv.v1.Committee.update_time:type_name -> google.protobuf.Timestamp
+	9,  // 1: pixlcrashr.vsfv.v1.Committee.create_time:type_name -> google.protobuf.Timestamp
+	0,  // 2: pixlcrashr.vsfv.v1.ListCommitteesResponse.committees:type_name -> pixlcrashr.vsfv.v1.Committee
+	0,  // 3: pixlcrashr.vsfv.v1.CreateCommitteeRequest.committee:type_name -> pixlcrashr.vsfv.v1.Committee
+	0,  // 4: pixlcrashr.vsfv.v1.UpdateCommitteeRequest.committee:type_name -> pixlcrashr.vsfv.v1.Committee
+	10, // 5: pixlcrashr.vsfv.v1.UpdateCommitteeRequest.update_mask:type_name -> google.protobuf.FieldMask
+	0,  // 6: pixlcrashr.vsfv.v1.ListUserCommitteesResponse.committees:type_name -> pixlcrashr.vsfv.v1.Committee
+	1,  // 7: pixlcrashr.vsfv.v1.CommitteeService.GetCommittee:input_type -> pixlcrashr.vsfv.v1.GetCommitteeRequest
+	2,  // 8: pixlcrashr.vsfv.v1.CommitteeService.ListCommittees:input_type -> pixlcrashr.vsfv.v1.ListCommitteesRequest
+	4,  // 9: pixlcrashr.vsfv.v1.CommitteeService.CreateCommittee:input_type -> pixlcrashr.vsfv.v1.CreateCommitteeRequest
+	5,  // 10: pixlcrashr.vsfv.v1.CommitteeService.UpdateCommittee:input_type -> pixlcrashr.vsfv.v1.UpdateCommitteeRequest
+	6,  // 11: pixlcrashr.vsfv.v1.CommitteeService.DeleteCommittee:input_type -> pixlcrashr.vsfv.v1.DeleteCommitteeRequest
+	7,  // 12: pixlcrashr.vsfv.v1.CommitteeService.ListUserCommittees:input_type -> pixlcrashr.vsfv.v1.ListUserCommitteesRequest
+	0,  // 13: pixlcrashr.vsfv.v1.CommitteeService.GetCommittee:output_type -> pixlcrashr.vsfv.v1.Committee
+	3,  // 14: pixlcrashr.vsfv.v1.CommitteeService.ListCommittees:output_type -> pixlcrashr.vsfv.v1.ListCommitteesResponse
+	0,  // 15: pixlcrashr.vsfv.v1.CommitteeService.CreateCommittee:output_type -> pixlcrashr.vsfv.v1.Committee
+	0,  // 16: pixlcrashr.vsfv.v1.CommitteeService.UpdateCommittee:output_type -> pixlcrashr.vsfv.v1.Committee
 	11, // 17: pixlcrashr.vsfv.v1.CommitteeService.DeleteCommittee:output_type -> google.protobuf.Empty
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	8,  // 18: pixlcrashr.vsfv.v1.CommitteeService.ListUserCommittees:output_type -> pixlcrashr.vsfv.v1.ListUserCommitteesResponse
+	13, // [13:19] is the sub-list for method output_type
+	7,  // [7:13] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_pixlcrashr_vsfv_v1_committee_proto_init() }
@@ -744,14 +775,13 @@ func file_pixlcrashr_vsfv_v1_committee_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pixlcrashr_vsfv_v1_committee_proto_rawDesc), len(file_pixlcrashr_vsfv_v1_committee_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   8,
+			NumEnums:      0,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_pixlcrashr_vsfv_v1_committee_proto_goTypes,
 		DependencyIndexes: file_pixlcrashr_vsfv_v1_committee_proto_depIdxs,
-		EnumInfos:         file_pixlcrashr_vsfv_v1_committee_proto_enumTypes,
 		MessageInfos:      file_pixlcrashr_vsfv_v1_committee_proto_msgTypes,
 	}.Build()
 	File_pixlcrashr_vsfv_v1_committee_proto = out.File

@@ -90,7 +90,7 @@ UUID as `id`, so cross-references inside the document are stable.
 <account id="uuid" customId="string" parentAccountId="uuid"
          displayName="string" displayCode="string"
          displayDescription="string" isContainer="false"
-         isArchived="false">
+         invertSign="false" isArchived="false">
   <children>
     <account>...</account>
   </children>
@@ -106,6 +106,7 @@ UUID as `id`, so cross-references inside the document are stable.
 | `displayCode` | no | Account code/number. |
 | `displayDescription` | no | Optional description. |
 | `isContainer` | yes | `true` when the account may only hold children. |
+| `invertSign` | yes | `true` when actual values of this account (and, inherited, of its descendants) are reported with a reversed sign so expense-oriented accounts display positive against positive targets. |
 | `isArchived` | yes | `true` when the account is archived. |
 
 ### `<accountGroups>` (inside `<organization>`)
@@ -127,12 +128,19 @@ Ledger accounts used by transactions.
 
 ```xml
 <ledgerAccount id="uuid" customId="string" code="1000"
-               accountType="asset" displayName="string"
+               type="liquidity" displayName="string"
                displayDescription="string"/>
 ```
 
-`accountType` values: `unspecified`, `asset`, `liability`, `equity`, `revenue`,
-`expense`, `system`. Defaults to `unspecified` when missing.
+`type` (ledger account type) values: `liquidity` (bank/cash accounts), `counter`
+(Debitoren, Darlehen, Kreditoren), `startAccount` (opening-balance accounts).
+Omitted means an unmarked plain income/expense-side account. The budget-plan
+actual-value computation only counts assignments whose transaction crosses
+between a marked account and an unmarked one.
+
+> **Breaking change:** older exports carry an `accountType` attribute
+> (`asset`, `liability`, …) which is ignored on import; ledger account types of
+> previously exported charts must be re-marked after import.
 
 ### `<ledgerYears>` (inside `<organization>`)
 

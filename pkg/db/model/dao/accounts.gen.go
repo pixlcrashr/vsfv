@@ -35,6 +35,7 @@ func newAccount(db *gorm.DB, opts ...gen.DOOption) account {
 	_account.DisplayCode = field.NewString(tableName, "display_code")
 	_account.DisplayDescription = field.NewString(tableName, "display_description")
 	_account.IsContainer = field.NewBool(tableName, "is_container")
+	_account.InvertSign = field.NewBool(tableName, "invert_sign")
 	_account.IsArchived = field.NewBool(tableName, "is_archived")
 	_account.UpdatedAt = field.NewTime(tableName, "updated_at")
 	_account.CreatedAt = field.NewTime(tableName, "created_at")
@@ -813,6 +814,7 @@ type account struct {
 	DisplayCode        field.String
 	DisplayDescription field.String
 	IsContainer        field.Bool
+	InvertSign         field.Bool
 	IsArchived         field.Bool
 	UpdatedAt          field.Time
 	CreatedAt          field.Time
@@ -853,6 +855,7 @@ func (a *account) updateTableName(table string) *account {
 	a.DisplayCode = field.NewString(table, "display_code")
 	a.DisplayDescription = field.NewString(table, "display_description")
 	a.IsContainer = field.NewBool(table, "is_container")
+	a.InvertSign = field.NewBool(table, "invert_sign")
 	a.IsArchived = field.NewBool(table, "is_archived")
 	a.UpdatedAt = field.NewTime(table, "updated_at")
 	a.CreatedAt = field.NewTime(table, "created_at")
@@ -880,7 +883,7 @@ func (a *account) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (a *account) fillFieldMap() {
-	a.fieldMap = make(map[string]field.Expr, 18)
+	a.fieldMap = make(map[string]field.Expr, 19)
 	a.fieldMap["id"] = a.ID
 	a.fieldMap["custom_id"] = a.CustomID
 	a.fieldMap["organization_id"] = a.OrganizationID
@@ -889,6 +892,7 @@ func (a *account) fillFieldMap() {
 	a.fieldMap["display_code"] = a.DisplayCode
 	a.fieldMap["display_description"] = a.DisplayDescription
 	a.fieldMap["is_container"] = a.IsContainer
+	a.fieldMap["invert_sign"] = a.InvertSign
 	a.fieldMap["is_archived"] = a.IsArchived
 	a.fieldMap["updated_at"] = a.UpdatedAt
 	a.fieldMap["created_at"] = a.CreatedAt

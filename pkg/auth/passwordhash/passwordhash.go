@@ -1,34 +1,40 @@
 // Package passwordhash implements password hashing and verification for the
-// users.password_hash column. Hashes are stored in the
-// "<hash-name>:<hash>" format, e.g.
-// "argon2id:$argon2id$v=19$m=19456,t=2,p=1$<salt>$<key>", so future
-// algorithms can replace argon2id without a schema migration.
+// users.password_hash column. Hashing and verification are delegated to
+// github.com/theater-improrama/go-utils/password, which provides multiple
+// algorithms (argon2id, pbkdf2-sha512); argon2id is the default for new
+// hashes. Hashes are stored in the "<algorithm>:<hash>" format, e.g.
+// "argon2id:<base64-encoded JSON payload>", so algorithms can be replaced
+// without a schema migration.
 package passwordhash
 
 import (
-	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/theater-improrama/go-utils/password"
+	"github.com/theater-improrama/go-utils/password/argon2id"
+	"github.com/theater-improrama/go-utils/password/pbkdf2"
 	"golang.org/x/crypto/argon2"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Hashing parameters follow the OWASP Password Storage Cheat Sheet
 // recommendation for argon2id (19 MiB memory, 2 iterations, 1 thread).
 const (
-	argon2IDHashName = "argon2id"
-	argon2IDMemory   = 19456 // KiB
-	argon2IDTime     = 2
-	argon2IDThreads  = 1
-	argon2IDKeyLen   = 32
-	argon2IDSaltLen  = 16
+	argon2IDMemory  = 19456 // KiB
+	argon2IDTime    = 2
+	argon2IDThreads = 1
+	argon2IDKeyLen  = 32
 )
 
-const hashSeparator = ":"
+const (
+	saltLength    = 16
+	hashSeparator = ":"
+)
+
+var saltGenerator = password.NewDefaultSaltGenerator(saltLength)
 
 var phcBase64 = base64.RawStdEncoding
 
@@ -42,57 +48,109 @@ var (
 	ErrUnknownHashFormat = errors.New("unknown password hash format")
 )
 
-// Hash hashes password with argon2id and returns it in the
-// "<hash-name>:<hash>" storage format.
-func Hash(password string) (string, error) {
-	salt := make([]byte, argon2IDSaltLen)
-	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("generating salt: %w", err)
-	}
-
-	key := argon2.IDKey([]byte(password), salt, argon2IDTime, argon2IDMemory, argon2IDThreads, argon2IDKeyLen)
-
-	return fmt.Sprintf("%s%s$%s$v=%d$m=%d,t=%d,p=%d$%s$%s",
-		argon2IDHashName, hashSeparator, argon2IDHashName, argon2.Version,
-		argon2IDMemory, argon2IDTime, argon2IDThreads,
-		phcBase64.EncodeToString(salt), phcBase64.EncodeToString(key),
-	), nil
+// Hash hashes plaintext with argon2id, the default algorithm, and returns it
+// in the "<algorithm>:<hash>" storage format.
+func Hash(plaintext string) (string, error) {
+	return hashWith(argon2id.Provide(saltGenerator, argon2id.Params{
+		Time:    argon2IDTime,
+		Memory:  argon2IDMemory,
+		Threads: argon2IDThreads,
+		KeyLen:  argon2IDKeyLen,
+	}), plaintext)
 }
 
-// Verify checks password against the stored "<hash-name>:<hash>" value.
-// Bare bcrypt hashes without an algorithm prefix (created by earlier
-// versions of the adduser CLI) are still accepted as a legacy fallback; use
-// NeedsRehash to detect them for transparent upgrades.
-func Verify(stored, password string) error {
+// Verify checks plaintext against the stored "<algorithm>:<hash>" value.
+// PHC-style argon2id hashes written by earlier versions of the server are
+// still accepted as a legacy fallback; use NeedsRehash to detect them for
+// transparent upgrades.
+func Verify(stored, plaintext string) error {
 	name, encoded, found := strings.Cut(stored, hashSeparator)
 	if !found {
-		if isBcryptHash(stored) {
-			if err := bcrypt.CompareHashAndPassword([]byte(stored), []byte(password)); err != nil {
-				return ErrWrongPassword
-			}
-			return nil
-		}
 		return ErrUnknownHashFormat
 	}
 
-	if name != argon2IDHashName {
+	switch name {
+	case argon2id.Type:
+		if strings.HasPrefix(encoded, "$") {
+			// PHC-style argon2id hash written by earlier versions.
+			return verifyLegacyArgon2ID(encoded, plaintext)
+		}
+
+		key, salt, params, err := argon2id.Decode(encoded)
+		if err != nil {
+			return fmt.Errorf("%w: decoding argon2id hash: %v", ErrUnknownHashFormat, err)
+		}
+		if err := checkArgon2IDParams(params); err != nil {
+			return err
+		}
+		return validate(argon2id.New(salt, params), key, plaintext)
+
+	case pbkdf2.TypeSha512:
+		key, salt, params, err := pbkdf2.Decode(encoded)
+		if err != nil {
+			return fmt.Errorf("%w: decoding pbkdf2-sha512 hash: %v", ErrUnknownHashFormat, err)
+		}
+		if params.Iter < 1 || params.KeyLen < 1 {
+			return fmt.Errorf("%w: invalid pbkdf2-sha512 parameters", ErrUnknownHashFormat)
+		}
+		return validate(pbkdf2.NewSha512(salt, params), key, plaintext)
+
+	default:
 		return fmt.Errorf("%w: %q", ErrUnknownHashFormat, name)
 	}
-	return verifyArgon2ID(encoded, password)
 }
 
 // NeedsRehash reports whether the stored hash uses a legacy format that
 // should be upgraded to the current format after a successful verification.
 func NeedsRehash(stored string) bool {
-	if _, _, found := strings.Cut(stored, hashSeparator); !found {
-		return isBcryptHash(stored)
+	name, encoded, found := strings.Cut(stored, hashSeparator)
+	if !found {
+		return false
 	}
-	return false
+	// PHC-style argon2id hashes written by earlier versions.
+	return name == argon2id.Type && strings.HasPrefix(encoded, "$")
 }
 
-func verifyArgon2ID(encoded, password string) error {
+func hashWith(provide password.ProviderFn, plaintext string) (string, error) {
+	provider, err := provide()
+	if err != nil {
+		return "", fmt.Errorf("creating hash provider: %w", err)
+	}
+
+	encoded, err := provider.HashEncode([]byte(plaintext))
+	if err != nil {
+		return "", fmt.Errorf("hashing password: %w", err)
+	}
+
+	return provider.Type() + hashSeparator + encoded, nil
+}
+
+// validate reports ErrWrongPassword unless provider validates key against
+// plaintext.
+func validate(provider password.Provider, key []byte, plaintext string) error {
+	ok, err := provider.Validate(key, []byte(plaintext))
+	if err != nil {
+		return fmt.Errorf("validating password: %w", err)
+	}
+	if !ok {
+		return ErrWrongPassword
+	}
+	return nil
+}
+
+// checkArgon2IDParams rejects degenerate parameters. x/crypto/argon2 panics
+// on time < 1 or threads < 1, and an empty derivative would validate any
+// password, so corrupt stored hashes must not reach it.
+func checkArgon2IDParams(p argon2id.Params) error {
+	if p.Time < 1 || p.Threads < 1 || p.KeyLen < 16 {
+		return fmt.Errorf("%w: invalid argon2id parameters", ErrUnknownHashFormat)
+	}
+	return nil
+}
+
+func verifyLegacyArgon2ID(encoded, plaintext string) error {
 	parts := strings.Split(encoded, "$")
-	if len(parts) != 6 || parts[0] != "" || parts[1] != argon2IDHashName {
+	if len(parts) != 6 || parts[0] != "" || parts[1] != argon2id.Type {
 		return ErrUnknownHashFormat
 	}
 
@@ -118,14 +176,13 @@ func verifyArgon2ID(encoded, password string) error {
 	if err != nil {
 		return fmt.Errorf("%w: decoding key: %v", ErrUnknownHashFormat, err)
 	}
+	if err := checkArgon2IDParams(argon2id.Params{Time: time, Threads: threads, KeyLen: uint32(len(key))}); err != nil {
+		return err
+	}
 
-	computed := argon2.IDKey([]byte(password), salt, time, memory, threads, uint32(len(key)))
+	computed := argon2.IDKey([]byte(plaintext), salt, time, memory, threads, uint32(len(key)))
 	if subtle.ConstantTimeCompare(computed, key) != 1 {
 		return ErrWrongPassword
 	}
 	return nil
-}
-
-func isBcryptHash(s string) bool {
-	return strings.HasPrefix(s, "$2a$") || strings.HasPrefix(s, "$2b$") || strings.HasPrefix(s, "$2y$")
 }

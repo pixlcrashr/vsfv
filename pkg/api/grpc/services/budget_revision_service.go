@@ -3,10 +3,13 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
+	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"github.com/pixlcrashr/vsfv/pkg/query/order"
@@ -14,6 +17,7 @@ import (
 	"go.einride.tech/aip/ordering"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 var (
@@ -31,24 +35,12 @@ var (
 
 type budgetRevisionServiceServer struct {
 	gen.UnimplementedBudgetRevisionServiceServer
-	repo       *repository.BudgetRevisionRepository
-	budgetRepo *repository.BudgetRepository
-	audits     *auditWriter
-	enforcer   *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newBudgetRevisionServiceServer(
-	repo *repository.BudgetRevisionRepository,
-	budgetRepo *repository.BudgetRepository,
-	audits *auditWriter,
-	enforcer *authz.Enforcer,
-) gen.BudgetRevisionServiceServer {
-	return &budgetRevisionServiceServer{
-		repo:       repo,
-		budgetRepo: budgetRepo,
-		audits:     audits,
-		enforcer:   enforcer,
-	}
+func newBudgetRevisionServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.BudgetRevisionServiceServer {
+	return &budgetRevisionServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *budgetRevisionServiceServer) GetBudgetRevision(ctx context.Context, req *gen.GetBudgetRevisionRequest) (*gen.BudgetRevision, error) {
@@ -67,16 +59,21 @@ func (s *budgetRevisionServiceServer) GetBudgetRevision(ctx context.Context, req
 		return nil, &ServerError{Err: err, Status: statusInvalidBudgetRevisionName}
 	}
 
-	m, err := s.repo.GetByID(ctx, revisionID)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BudgetRevision, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetRevision()
+
+		m, err := repo.GetByID(ctx, revisionID)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
-	}
-
-	return BudgetRevisionToProto(n.BudgetResourceName(), m), nil
+		return BudgetRevisionToProto(n.BudgetResourceName(), m), nil
+	})
 }
 
 func (s *budgetRevisionServiceServer) ListBudgetRevisions(ctx context.Context, req *gen.ListBudgetRevisionsRequest) (*gen.ListBudgetRevisionsResponse, error) {
@@ -86,13 +83,25 @@ func (s *budgetRevisionServiceServer) ListBudgetRevisions(ctx context.Context, r
 		return nil, &ServerError{Err: err, Status: statusInvalidParentBudgetRevisionName}
 	}
 
+	orgID, err := uuid.Parse(pn.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidParentBudgetRevisionName}
+	}
+
 	if err := authz.CheckOrg(ctx, s.enforcer, authz.ResourceBudgets, authz.ActionRead, authz.OrgDomain(pn.Organization)); err != nil {
 		return nil, authError(err)
 	}
 
-	budgetID, err := uuid.Parse(pn.Budget)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidParentBudgetRevisionName}
+	// Strict parent validation: the dash "-" is the only wildcard marker and
+	// it is accepted for the budget segment only. A literal "*" or any other
+	// non-UUID segment is never treated as a wildcard.
+	orgWide := pn.Budget == "-"
+	var budgetID uuid.UUID
+	if !orgWide {
+		budgetID, err = uuid.Parse(pn.Budget)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidParentBudgetRevisionName}
+		}
 	}
 
 	offset, err := pagetoken.Decode(req.PageToken)
@@ -110,28 +119,60 @@ func (s *budgetRevisionServiceServer) ListBudgetRevisions(ctx context.Context, r
 	orderExprs, _ := order.Resolve(orderBy, repository.BudgetRevisionOrderFieldMapper)
 
 	params := repository.ListBudgetRevisionsParams{
-		BudgetID: budgetID,
-		Page:     int(offset/int64(pageSize)) + 1,
-		PageSize: pageSize,
-		OrderBy:  orderExprs,
+		BudgetID:       budgetID,
+		OrganizationID: orgID,
+		Page:           int(offset/int64(pageSize)) + 1,
+		PageSize:       pageSize,
+		OrderBy:        orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListBudgetRevisions}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListBudgetRevisionsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetRevision()
+		budgetRepo := f.Budget()
 
-	resp := &gen.ListBudgetRevisionsResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.Revisions = append(resp.Revisions, BudgetRevisionToProto(pn, m))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListBudgetRevisions}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		// Resource names carry the real budget segment: the concrete parent,
+		// or the owning budget's name in wildcard mode.
+		budgetCustomIDs := make(map[uuid.UUID]string)
+		budgetRN := func(m *model.BudgetRevision) (gen.BudgetResourceName, error) {
+			if !orgWide {
+				return pn, nil
+			}
+			if customID, ok := budgetCustomIDs[m.BudgetID]; ok {
+				return gen.BudgetResourceName{Organization: pn.Organization, Budget: customID}, nil
+			}
+			budget, err := budgetRepo.GetByID(ctx, m.BudgetID)
+			if err != nil {
+				if errors.Is(err, repository.ErrBudgetNotFound) {
+					return gen.BudgetResourceName{}, fmt.Errorf("budget of revision %s: %w", m.ID, err)
+				}
+				return gen.BudgetResourceName{}, fmt.Errorf("get budget of revision %s: %w", m.ID, err)
+			}
+			budgetCustomIDs[m.BudgetID] = budget.CustomID
+			return gen.BudgetResourceName{Organization: pn.Organization, Budget: budget.CustomID}, nil
+		}
 
-	return resp, nil
+		resp := &gen.ListBudgetRevisionsResponse{TotalSize: total}
+		for _, m := range ms {
+			rn, err := budgetRN(m)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedListBudgetRevisions}
+			}
+			resp.Revisions = append(resp.Revisions, BudgetRevisionToProto(rn, m))
+		}
+
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *budgetRevisionServiceServer) GetLatestBudgetRevision(ctx context.Context, req *gen.GetLatestBudgetRevisionRequest) (*gen.BudgetRevision, error) {
@@ -145,26 +186,32 @@ func (s *budgetRevisionServiceServer) GetLatestBudgetRevision(ctx context.Contex
 		return nil, authError(err)
 	}
 
-	budget, err := s.budgetRepo.GetByResourceName(ctx, pn.Organization, pn.Budget)
-	if err != nil {
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusInvalidParentBudgetRevisionName}
-		}
-		if errors.Is(err, repository.ErrBudgetNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BudgetRevision, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetRevision()
+		budgetRepo := f.Budget()
 
-	m, err := s.repo.GetLatest(ctx, budget.ID)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+		budget, err := budgetRepo.GetByResourceName(ctx, pn.Organization, pn.Budget)
+		if err != nil {
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusInvalidParentBudgetRevisionName}
+			}
+			if errors.Is(err, repository.ErrBudgetNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
-	}
 
-	return BudgetRevisionToProto(pn, m), nil
+		m, err := repo.GetLatest(ctx, budget.ID)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
+		}
+
+		return BudgetRevisionToProto(pn, m), nil
+	})
 }
 
 func (s *budgetRevisionServiceServer) UpdateBudgetRevision(ctx context.Context, req *gen.UpdateBudgetRevisionRequest) (*gen.BudgetRevision, error) {
@@ -192,61 +239,68 @@ func (s *budgetRevisionServiceServer) UpdateBudgetRevision(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidBudgetRevisionName}
 	}
 
-	// A revision can only be published if its parent budget is published.
-	if req.Revision.IsPublished {
-		budget, err := s.budgetRepo.GetByID(ctx, budgetID)
-		if err != nil {
-			if errors.Is(err, repository.ErrBudgetNotFound) {
-				return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BudgetRevision, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetRevision()
+		budgetRepo := f.Budget()
+		audits := newAuditWriter(tx)
+
+		// A revision can only be published if its parent budget is published.
+		if req.Revision.IsPublished {
+			budget, err := budgetRepo.GetByID(ctx, budgetID)
+			if err != nil {
+				if errors.Is(err, repository.ErrBudgetNotFound) {
+					return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+				}
+
+				return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
 			}
 
-			return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
+			if !budget.IsPublished {
+				return nil, &ServerError{Status: statusBudgetNotPublished}
+			}
 		}
 
-		if !budget.IsPublished {
-			return nil, &ServerError{Status: statusBudgetNotPublished}
-		}
-	}
+		before, err := repo.GetByID(ctx, revisionID)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+			}
 
-	before, err := s.repo.GetByID(ctx, revisionID)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
-	}
-
-	updateParams := repository.UpdateBudgetRevisionParams{
-		IsPublished: optional.From(req.Revision.IsPublished),
-	}
-
-	if err := s.repo.Update(ctx, revisionID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateBudgetRevision}
-	}
-
-	// Refresh the model after update
-	m, err := s.repo.GetByID(ctx, revisionID)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+		updateParams := repository.UpdateBudgetRevisionParams{
+			IsPublished: optional.From(req.Revision.IsPublished),
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
-	}
+		if err := repo.Update(ctx, revisionID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateBudgetRevision}
+		}
 
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidBudgetRevisionName}
-	}
+		// Refresh the model after update
+		m, err := repo.GetByID(ctx, revisionID)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetRevisionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetRevisionNotFound}
+			}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudgetRevision}
+		}
 
-	return BudgetRevisionToProto(n.BudgetResourceName(), m), nil
+		orgID, err := uuid.Parse(n.Organization)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidBudgetRevisionName}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return BudgetRevisionToProto(n.BudgetResourceName(), m), nil
+	})
 }
 
 func (s *budgetRevisionServiceServer) CreateBudgetRevision(ctx context.Context, req *gen.CreateBudgetRevisionRequest) (*gen.BudgetRevision, error) {
@@ -269,44 +323,51 @@ func (s *budgetRevisionServiceServer) CreateBudgetRevision(ctx context.Context, 
 		return nil, &ServerError{Status: statusRevisionRequired}
 	}
 
-	budget, err := s.budgetRepo.GetByID(ctx, budgetID)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BudgetRevision, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.BudgetRevision()
+		budgetRepo := f.Budget()
+		audits := newAuditWriter(tx)
+
+		budget, err := budgetRepo.GetByID(ctx, budgetID)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetBudget}
-	}
-
-	params := repository.CreateWithSnapshotParams{
-		OrganizationID:     budget.OrganizationID,
-		BudgetID:           budgetID,
-		DisplayName:        req.Revision.DisplayName,
-		DisplayDescription: req.Revision.DisplayDescription,
-		CustomID:           req.BudgetRevisionId,
-	}
-	if req.Revision.Date != nil {
-		params.Date = protoDateToTime(req.Revision.Date)
-	}
-
-	m, err := s.repo.CreateWithSnapshot(ctx, params)
-	if err != nil {
-		if errors.Is(err, repository.ErrBudgetRevisionAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusBudgetRevisionAlreadyExists}
+		params := repository.CreateWithSnapshotParams{
+			OrganizationID:     budget.OrganizationID,
+			BudgetID:           budgetID,
+			DisplayName:        req.Revision.DisplayName,
+			DisplayDescription: req.Revision.DisplayDescription,
+			CustomID:           req.BudgetRevisionId,
+		}
+		if req.Revision.Date != nil {
+			params.Date = protoDateToTime(req.Revision.Date)
 		}
 
-		if errors.Is(err, repository.ErrBudgetNotFound) {
-			return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+		m, err := repo.CreateWithSnapshot(ctx, params)
+		if err != nil {
+			if errors.Is(err, repository.ErrBudgetRevisionAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusBudgetRevisionAlreadyExists}
+			}
+
+			if errors.Is(err, repository.ErrBudgetNotFound) {
+				return nil, &ServerError{Err: err, Status: statusBudgetNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateBudgetRevision}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedCreateBudgetRevision}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			pn.BudgetRevisionResourceName(m.CustomID).String(), budget.OrganizationID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		pn.BudgetRevisionResourceName(m.CustomID).String(), budget.OrganizationID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return BudgetRevisionToProto(pn, m), nil
+		return BudgetRevisionToProto(pn, m), nil
+	})
 }

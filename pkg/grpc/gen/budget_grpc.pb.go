@@ -20,12 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BudgetService_GetBudget_FullMethodName    = "/pixlcrashr.vsfv.v1.BudgetService/GetBudget"
-	BudgetService_ListBudgets_FullMethodName  = "/pixlcrashr.vsfv.v1.BudgetService/ListBudgets"
-	BudgetService_CreateBudget_FullMethodName = "/pixlcrashr.vsfv.v1.BudgetService/CreateBudget"
-	BudgetService_UpdateBudget_FullMethodName = "/pixlcrashr.vsfv.v1.BudgetService/UpdateBudget"
-	BudgetService_CloseBudget_FullMethodName  = "/pixlcrashr.vsfv.v1.BudgetService/CloseBudget"
-	BudgetService_DeleteBudget_FullMethodName = "/pixlcrashr.vsfv.v1.BudgetService/DeleteBudget"
+	BudgetService_GetBudget_FullMethodName      = "/pixlcrashr.vsfv.v1.BudgetService/GetBudget"
+	BudgetService_ListBudgets_FullMethodName    = "/pixlcrashr.vsfv.v1.BudgetService/ListBudgets"
+	BudgetService_CreateBudget_FullMethodName   = "/pixlcrashr.vsfv.v1.BudgetService/CreateBudget"
+	BudgetService_UpdateBudget_FullMethodName   = "/pixlcrashr.vsfv.v1.BudgetService/UpdateBudget"
+	BudgetService_CloseBudget_FullMethodName    = "/pixlcrashr.vsfv.v1.BudgetService/CloseBudget"
+	BudgetService_ReorderBudgets_FullMethodName = "/pixlcrashr.vsfv.v1.BudgetService/ReorderBudgets"
+	BudgetService_DeleteBudget_FullMethodName   = "/pixlcrashr.vsfv.v1.BudgetService/DeleteBudget"
 )
 
 // BudgetServiceClient is the client API for BudgetService service.
@@ -69,6 +70,15 @@ type BudgetServiceClient interface {
 	//	Permission: budgets:close
 	//	Domain: organization-scoped
 	CloseBudget(ctx context.Context, in *CloseBudgetRequest, opts ...grpc.CallOption) (*Budget, error)
+	// Reorders the budgets of an organization. The custom order determines the
+	// position of budgets in lists: the first budget in the request is listed
+	// first, the last one last. Newly created budgets are appended at the end.
+	// Authorization:
+	//
+	//	Scope: budgets:write
+	//	Permission: budgets:update
+	//	Domain: organization-scoped
+	ReorderBudgets(ctx context.Context, in *ReorderBudgetsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Permanently deletes a budget.
 	// Authorization:
 	//
@@ -136,6 +146,16 @@ func (c *budgetServiceClient) CloseBudget(ctx context.Context, in *CloseBudgetRe
 	return out, nil
 }
 
+func (c *budgetServiceClient) ReorderBudgets(ctx context.Context, in *ReorderBudgetsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, BudgetService_ReorderBudgets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *budgetServiceClient) DeleteBudget(ctx context.Context, in *DeleteBudgetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -187,6 +207,15 @@ type BudgetServiceServer interface {
 	//	Permission: budgets:close
 	//	Domain: organization-scoped
 	CloseBudget(context.Context, *CloseBudgetRequest) (*Budget, error)
+	// Reorders the budgets of an organization. The custom order determines the
+	// position of budgets in lists: the first budget in the request is listed
+	// first, the last one last. Newly created budgets are appended at the end.
+	// Authorization:
+	//
+	//	Scope: budgets:write
+	//	Permission: budgets:update
+	//	Domain: organization-scoped
+	ReorderBudgets(context.Context, *ReorderBudgetsRequest) (*emptypb.Empty, error)
 	// Permanently deletes a budget.
 	// Authorization:
 	//
@@ -217,6 +246,9 @@ func (UnimplementedBudgetServiceServer) UpdateBudget(context.Context, *UpdateBud
 }
 func (UnimplementedBudgetServiceServer) CloseBudget(context.Context, *CloseBudgetRequest) (*Budget, error) {
 	return nil, status.Error(codes.Unimplemented, "method CloseBudget not implemented")
+}
+func (UnimplementedBudgetServiceServer) ReorderBudgets(context.Context, *ReorderBudgetsRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReorderBudgets not implemented")
 }
 func (UnimplementedBudgetServiceServer) DeleteBudget(context.Context, *DeleteBudgetRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteBudget not implemented")
@@ -331,6 +363,24 @@ func _BudgetService_CloseBudget_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BudgetService_ReorderBudgets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReorderBudgetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BudgetServiceServer).ReorderBudgets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BudgetService_ReorderBudgets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BudgetServiceServer).ReorderBudgets(ctx, req.(*ReorderBudgetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BudgetService_DeleteBudget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteBudgetRequest)
 	if err := dec(in); err != nil {
@@ -375,6 +425,10 @@ var BudgetService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CloseBudget",
 			Handler:    _BudgetService_CloseBudget_Handler,
+		},
+		{
+			MethodName: "ReorderBudgets",
+			Handler:    _BudgetService_ReorderBudgets_Handler,
 		},
 		{
 			MethodName: "DeleteBudget",

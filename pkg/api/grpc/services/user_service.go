@@ -8,6 +8,7 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -15,6 +16,7 @@ import (
 	"go.einride.tech/aip/ordering"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 var (
@@ -30,13 +32,12 @@ var (
 
 type userServiceServer struct {
 	gen.UnimplementedUserServiceServer
-	repo          *repository.UserRepository
-	userGroupRepo *repository.UserGroupRepository
-	enforcer      *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newUserServiceServer(repo *repository.UserRepository, userGroupRepo *repository.UserGroupRepository, enforcer *authz.Enforcer) gen.UserServiceServer {
-	return &userServiceServer{repo: repo, userGroupRepo: userGroupRepo, enforcer: enforcer}
+func newUserServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.UserServiceServer {
+	return &userServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *userServiceServer) GetUser(ctx context.Context, req *gen.GetUserRequest) (*gen.User, error) {
@@ -54,15 +55,19 @@ func (s *userServiceServer) GetUser(ctx context.Context, req *gen.GetUserRequest
 		return nil, &ServerError{Err: err, Status: statusInvalidUserName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
-			return nil, &ServerError{Err: err, Status: statusUserNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetUser}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.User, error) {
+		repo := repository.NewFactory(tx, s.enforcer).User()
 
-	return UserToProto(m), nil
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrUserNotFound) {
+				return nil, &ServerError{Err: err, Status: statusUserNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetUser}
+		}
+
+		return UserToProto(m), nil
+	})
 }
 
 func (s *userServiceServer) ListUsers(ctx context.Context, req *gen.ListUsersRequest) (*gen.ListUsersResponse, error) {
@@ -96,32 +101,39 @@ func (s *userServiceServer) ListUsers(ctx context.Context, req *gen.ListUsersReq
 		OrderBy:  orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListUsers}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListUsersResponse, error) {
+		repo := repository.NewFactory(tx, s.enforcer).User()
 
-	resp := &gen.ListUsersResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.Users = append(resp.Users, UserToProto(m))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListUsers}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListUsersResponse{TotalSize: total}
+		for _, m := range ms {
+			resp.Users = append(resp.Users, UserToProto(m))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *userServiceServer) CheckUserPermissions(ctx context.Context, req *gen.CheckUserPermissionsRequest) (*gen.CheckUserPermissionsResponse, error) {
-	if err := authz.CheckGlobal(ctx, s.enforcer, authz.ResourceUsers, authz.ActionRead); err != nil {
-		return nil, authError(err)
-	}
-
 	var un gen.UserResourceName
 	if err := un.UnmarshalString(req.Name); err != nil {
 		return nil, &ServerError{Err: err, Status: statusInvalidUserName}
+	}
+
+	// The SPA route guards check the current user's permissions on every
+	// navigation, so self-checks must not require user-management rights.
+	// Checking another user's permissions requires users:read.
+	if err := s.checkPermissionsCaller(ctx, un.User); err != nil {
+		return nil, authError(err)
 	}
 
 	// Domain is optional. When empty, permissions are checked globally.
@@ -141,13 +153,30 @@ func (s *userServiceServer) CheckUserPermissions(ctx context.Context, req *gen.C
 	}, nil
 }
 
-func (s *userServiceServer) BatchCheckUserPermissions(ctx context.Context, req *gen.BatchCheckUserPermissionsRequest) (*gen.BatchCheckUserPermissionsResponse, error) {
-	if err := authz.CheckGlobal(ctx, s.enforcer, authz.ResourceUsers, authz.ActionRead); err != nil {
-		return nil, authError(err)
+// checkPermissionsCaller authorizes a CheckUserPermissions call for the given
+// target user: every user may check their own permissions; checking another
+// user's permissions requires users:read.
+func (s *userServiceServer) checkPermissionsCaller(ctx context.Context, targetUserID string) error {
+	callerID, ok := authz.UserIDFromContext(ctx)
+	if ok && callerID == targetUserID {
+		return nil
 	}
+	return authz.CheckGlobal(ctx, s.enforcer, authz.ResourceUsers, authz.ActionRead)
+}
 
+func (s *userServiceServer) BatchCheckUserPermissions(ctx context.Context, req *gen.BatchCheckUserPermissionsRequest) (*gen.BatchCheckUserPermissionsResponse, error) {
 	if len(req.Requests) > 100 {
 		return nil, &ServerError{Status: statusTooManyBatchEntries}
+	}
+
+	for _, r := range req.Requests {
+		var un gen.UserResourceName
+		if err := un.UnmarshalString(r.Name); err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidUserName}
+		}
+		if err := s.checkPermissionsCaller(ctx, un.User); err != nil {
+			return nil, authError(err)
+		}
 	}
 
 	resp := &gen.BatchCheckUserPermissionsResponse{
@@ -188,40 +217,44 @@ func (s *userServiceServer) ListUserGroups(ctx context.Context, req *gen.ListUse
 		return nil, authError(err)
 	}
 
-	groupIDs, err := s.enforcer.GetGlobalRolesForUser(n.User)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListUsers}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListUserGroupsResponse, error) {
+		userGroupRepo := repository.NewFactory(tx, s.enforcer).UserGroup()
 
-	resp := &gen.ListUserGroupsResponse{}
-	for _, gid := range groupIDs {
-		id, err := uuid.Parse(gid)
-		if err != nil {
-			continue
-		}
-		m, err := s.userGroupRepo.GetByID(ctx, id)
-		if err != nil {
-			continue
-		}
-		orgs, perms, err := s.buildUserGroupPermissions(ctx, m)
+		groupIDs, err := s.enforcer.GetGlobalRolesForUser(n.User)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedListUsers}
 		}
-		resp.Groups = append(resp.Groups, UserGroupToProto(m, orgs, perms))
-	}
 
-	return resp, nil
+		resp := &gen.ListUserGroupsResponse{}
+		for _, gid := range groupIDs {
+			id, err := uuid.Parse(gid)
+			if err != nil {
+				continue
+			}
+			m, err := userGroupRepo.GetByID(ctx, id)
+			if err != nil {
+				continue
+			}
+			orgs, perms, err := s.buildUserGroupPermissions(ctx, userGroupRepo, m)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedListUsers}
+			}
+			resp.Groups = append(resp.Groups, UserGroupToProto(m, orgs, perms))
+		}
+
+		return resp, nil
+	})
 }
 
 // buildUserGroupPermissions reads the organization assignments and permissions
 // for a group from the repository. This is the same logic as
 // groupServiceServer.buildGroupPermissions but scoped to the user service.
-func (s *userServiceServer) buildUserGroupPermissions(ctx context.Context, m *model.UserGroup) (organizations, permissions []string, err error) {
-	organizations, err = s.userGroupRepo.GetOrganizations(ctx, m.ID)
+func (s *userServiceServer) buildUserGroupPermissions(ctx context.Context, userGroupRepo *repository.UserGroupRepository, m *model.UserGroup) (organizations, permissions []string, err error) {
+	organizations, err = userGroupRepo.GetOrganizations(ctx, m.ID)
 	if err != nil {
 		return nil, nil, err
 	}
-	permissions, err = s.userGroupRepo.GetPermissions(m.ID.String())
+	permissions, err = userGroupRepo.GetPermissions(m.ID.String())
 	if err != nil {
 		return nil, nil, err
 	}

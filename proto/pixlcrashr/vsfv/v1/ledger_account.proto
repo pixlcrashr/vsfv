@@ -14,28 +14,23 @@ import "google/protobuf/timestamp.proto";
 option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
 option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
 
-// AccountType defines the classification of a ledger account for transaction interpretation.
-enum AccountType {
-  // Default value. Not specified.
-  ACCOUNT_TYPE_UNSPECIFIED = 0;
+// LedgerAccountType classifies a ledger account for the budget-plan
+// actual-value computation. Unmarked accounts are plain income/expense-side
+// accounts.
+enum LedgerAccountType {
+  // Default value. The account carries no special balance role.
+  LEDGER_ACCOUNT_TYPE_UNSPECIFIED = 0;
 
-  // Asset account (e.g., bank accounts, receivables).
-  ACCOUNT_TYPE_ASSET = 1;
+  // Liquidity accounts (bank/cash). Value moving to/from them is plan-relevant.
+  LEDGER_ACCOUNT_TYPE_LIQUIDITY = 1;
 
-  // Liability account (e.g., loans, payables).
-  ACCOUNT_TYPE_LIABILITY = 2;
+  // Counter accounts (Debitoren, Darlehen, Kreditoren). Value only becomes
+  // plan-relevant when booked against an income/expense account.
+  LEDGER_ACCOUNT_TYPE_COUNTER = 2;
 
-  // Equity account (e.g., capital, retained earnings). Treated as LIABILITY for calculations.
-  ACCOUNT_TYPE_EQUITY = 3;
-
-  // Revenue account (e.g., sales, interest income).
-  ACCOUNT_TYPE_REVENUE = 4;
-
-  // Expense account (e.g., rent, salaries, utilities).
-  ACCOUNT_TYPE_EXPENSE = 5;
-
-  // System account for internal calculations. Special internal use only.
-  ACCOUNT_TYPE_SYSTEM = 6;
+  // Opening-balance accounts (Eröffnungsbilanz). Value booked from them
+  // represents the carried-over reserve.
+  LEDGER_ACCOUNT_TYPE_START_ACCOUNT = 3;
 }
 
 // LedgerAccount represents an account from a "Kontenrahmen" used for bookkeeping.
@@ -57,10 +52,13 @@ message LedgerAccount {
   ];
 
   // Unique account code (e.g., from the Kontenrahmen).
-  string code = 3 [(google.api.field_behavior) = REQUIRED];
+  string code = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The type of account for transaction interpretation.
-  AccountType account_type = 4 [(google.api.field_behavior) = REQUIRED];
+  reserved 4;
+  reserved "account_type";
+
+  // The type of the account for budget-plan value interpretation.
+  LedgerAccountType type = 10 [(google.api.field_behavior) = OPTIONAL];
 
   // Human-readable name.
   string display_name = 5 [(google.api.field_behavior) = OPTIONAL];
@@ -103,8 +101,8 @@ message ListLedgerAccountsRequest {
   string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
 
   // Filter expression conforming to AIP-160.
-  // Supported fields: code, account_type, display_name.
-  // Example: "account_type=ASSET" or "code:\"1000\"".
+  // Supported fields: code, type, display_name.
+  // Example: "type=LIQUIDITY" or "code:\"1000\"".
   string filter = 4 [(google.api.field_behavior) = OPTIONAL];
 
   // Order by expression (e.g. "code", "display_name", "create_time desc").

@@ -61,6 +61,13 @@ func main() {
 	}
 	defer sqlDB.Close()
 
+	// Bootstrap includes bringing the schema up to date: seeding (and every
+	// step below) fails with "no such table" on a database that has not been
+	// migrated yet.
+	if err := db.Run(sqlDB); err != nil {
+		log.Fatalf("migrate: %v", err)
+	}
+
 	enforcer, err := authz.NewEnforcer(gormDB)
 	if err != nil {
 		log.Fatalf("create enforcer: %v", err)
@@ -112,41 +119,43 @@ func validateConfig(cfg *Config) error {
 }
 
 func run(ctx context.Context, gormDB *gorm.DB, enforcer *authz.Enforcer, cfg *Config) error {
-	return gormDB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		org, orgCreated, err := ensureOrganization(ctx, tx, cfg)
-		if err != nil {
+	// The steps run without a wrapping transaction: the casbin enforcer writes
+	// through its own pooled connection, which would deadlock against the
+	// transaction's write lock on SQLite ("database is locked"). Each step is
+	// existence-checked and therefore safe to re-run after a partial failure.
+	org, orgCreated, err := ensureOrganization(ctx, gormDB, cfg)
+	if err != nil {
+		return err
+	}
+
+	user, userCreated, err := ensureUser(ctx, gormDB, cfg)
+	if err != nil {
+		return err
+	}
+
+	if cfg.AssignAdminGroup && userCreated {
+		if err := assignAdminGroup(ctx, gormDB, enforcer, user.ID); err != nil {
 			return err
 		}
+	}
 
-		user, userCreated, err := ensureUser(ctx, tx, cfg)
-		if err != nil {
-			return err
-		}
+	if orgCreated {
+		log.Printf("created organization %s (custom ID: %s, name: %s)", org.ID, org.CustomID, org.DisplayName)
+	} else {
+		log.Printf("organization already exists (custom ID: %s, name: %s); skipped", org.CustomID, org.DisplayName)
+	}
 
-		if cfg.AssignAdminGroup && userCreated {
-			if err := assignAdminGroup(ctx, tx, enforcer, user.ID); err != nil {
-				return err
-			}
-		}
+	if userCreated {
+		log.Printf("created user %s (email: %s)", user.ID, user.Email)
+	} else {
+		log.Printf("user already exists (email: %s); skipped", user.Email)
+	}
 
-		if orgCreated {
-			log.Printf("created organization %s (custom ID: %s, name: %s)", org.ID, org.CustomID, org.DisplayName)
-		} else {
-			log.Printf("organization already exists (custom ID: %s, name: %s); skipped", org.CustomID, org.DisplayName)
-		}
+	if cfg.AssignAdminGroup && userCreated {
+		log.Printf("assigned user %s to admin group", user.ID)
+	}
 
-		if userCreated {
-			log.Printf("created user %s (email: %s)", user.ID, user.Email)
-		} else {
-			log.Printf("user already exists (email: %s); skipped", user.Email)
-		}
-
-		if cfg.AssignAdminGroup && userCreated {
-			log.Printf("assigned user %s to admin group", user.ID)
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func ensureOrganization(ctx context.Context, tx *gorm.DB, cfg *Config) (*model.Organization, bool, error) {

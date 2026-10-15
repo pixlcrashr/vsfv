@@ -47,6 +47,12 @@ tags:
       service are immutable and server-managed.
   - name: CommitteeService
     description: CommitteeService manages committees.
+  - name: CommitteeMemberService
+    description: CommitteeMemberService manages the users assigned to a committee.
+  - name: CommitteePaymentAccountService
+    description: |-
+      CommitteePaymentAccountService manages the payment accounts held by a
+      committee.
   - name: GroupService
     description: GroupService manages groups and their per-organization permission policies.
   - name: LedgerAccountService
@@ -57,12 +63,6 @@ tags:
     description: LedgerYearService manages fiscal/economic years within an organization.
   - name: SubmissionService
     description: SubmissionService manages submissions (expense claims and income documents).
-  - name: SubmissionItemService
-    description: |-
-      SubmissionItemService manages the bills/receipts and income documents of a
-      submission.
-  - name: SubmissionCommentService
-    description: SubmissionCommentService manages the comments of a submission.
   - name: OrganizationService
     description: OrganizationService manages organizations.
   - name: ReportService
@@ -71,6 +71,12 @@ tags:
       Note: report file download is handled exclusively by the Huma HTTP API.
   - name: ReportTemplateService
     description: ReportTemplateService manages Handlebars templates used for report generation.
+  - name: SubmissionCommentService
+    description: SubmissionCommentService manages the comments of a submission.
+  - name: SubmissionItemService
+    description: |-
+      SubmissionItemService manages the bills/receipts and income documents of a
+      submission.
   - name: TransactionService
     description: TransactionService manages financial transactions.
   - name: TransactionAssignmentService
@@ -458,9 +464,12 @@ paths:
         Checks permissions for one or more users in one call, each optionally
         scoped to a different domain (batch custom method, AIP-231).
         Authorization:
-          Scope: users:read
-          Permission: users:read
-          Domain: global
+          Checking the calling user's own permissions:
+            Requires authentication only.
+          Checking another user's permissions:
+            Scope: users:read
+            Permission: users:read
+            Domain: global
       operationId: UserService_BatchCheckUserPermissions
       responses:
         "200":
@@ -554,6 +563,13 @@ paths:
                 description: |-
                   Whether this account is a container account (cannot hold values directly).
                   Immutable after creation.
+              invert_sign:
+                type: boolean
+                description: |-
+                  Whether actual values of this account (and, inherited, of its
+                  non-overriding descendants) are returned with a reversed sign, so
+                  expense-oriented accounts can display positive values against positive
+                  targets.
               is_archived:
                 type: boolean
                 description: Whether the account is archived (soft-deleted).
@@ -938,6 +954,14 @@ paths:
                   Optional date until which current actual values are publicly visible.
                   Must lie within the budget period. If unset, the end of the budget period
                   is assumed.
+              order:
+                type: integer
+                format: int32
+                description: |-
+                  Position of the budget in the organization's custom ordering. A lower
+                  value means a higher position; the first budget has the lowest value.
+                  Assigned automatically; modified only via ReorderBudgets.
+                readOnly: true
             title: The budget to update.
             required:
               - display_name
@@ -995,14 +1019,6 @@ paths:
                   Whether submitters of this committee may choose between the nonprofit and
                   commercial scope when creating submissions. If false, submissions of this
                   committee are always created with the nonprofit scope.
-              payment_accounts:
-                type: array
-                items:
-                  type: object
-                  $ref: '#/definitions/v1CommitteePaymentAccount'
-                description: |-
-                  Payment accounts held by this committee. If empty, committee members
-                  cannot pay from a committee account and must use the person settlement.
               update_time:
                 type: string
                 format: date-time
@@ -1012,6 +1028,14 @@ paths:
                 type: string
                 format: date-time
                 description: Creation timestamp.
+                readOnly: true
+              is_referenced:
+                type: boolean
+                description: |-
+                  Whether the committee is referenced by other resources (currently
+                  submissions, including soft-deleted ones). A referenced committee cannot
+                  be deleted; DeleteCommittee fails with FAILED_PRECONDITION. Clients can
+                  use this to disable delete actions.
                 readOnly: true
             title: The committee to update.
             required:
@@ -1224,9 +1248,10 @@ paths:
               code:
                 type: string
                 description: Unique account code (e.g., from the Kontenrahmen).
-              account_type:
-                $ref: '#/definitions/v1AccountType'
-                description: The type of account for transaction interpretation.
+                readOnly: true
+              type:
+                $ref: '#/definitions/v1LedgerAccountType'
+                description: The type of the account for budget-plan value interpretation.
               display_name:
                 type: string
                 description: Human-readable name.
@@ -1248,25 +1273,22 @@ paths:
                 description: Entity tag for optimistic concurrency control.
                 readOnly: true
             title: The ledger account to update.
-            required:
-              - code
-              - account_type
       tags:
         - LedgerAccountService
   /v1/{name_10}:
     get:
       summary: |-
-        Gets a single group by resource name.
+        Gets a single membership by resource name.
         Authorization:
-          Scope: groups:read
-          Permission: groups:read
-          Domain: global
-      operationId: GroupService_GetGroup
+          Scope: committees:read
+          Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteeMemberService_GetCommitteeMember
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1Group'
+            $ref: '#/definitions/v1CommitteeMember'
         default:
           description: An unexpected error response.
           schema:
@@ -1274,14 +1296,72 @@ paths:
       parameters:
         - name: name_10
           description: |-
-            The resource name of the group.
-            Format: groups/{group}
+            The resource name of the membership.
+            Format: organizations/{organization}/committees/{committee}/members/{member}
           in: path
           required: true
           type: string
-          pattern: groups/[^/]+
+          pattern: organizations/[^/]+/committees/[^/]+/members/[^/]+
       tags:
-        - GroupService
+        - CommitteeMemberService
+    delete:
+      summary: |-
+        Permanently deletes an organization.
+        Authorization:
+          Scope: organizations:write
+          Permission: organizations:delete
+          Domain: global
+      operationId: OrganizationService_DeleteOrganization
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            type: object
+            properties: {}
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_10
+          description: |-
+            The resource name of the organization.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+      tags:
+        - OrganizationService
+  /v1/{name_11}:
+    get:
+      summary: |-
+        Gets a single payment account by resource name.
+        Authorization:
+          Scope: committees:read
+          Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteePaymentAccountService_GetCommitteePaymentAccount
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1CommitteePaymentAccount'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_11
+          description: |-
+            The resource name of the payment account.
+            Format: organizations/{organization}/committees/{committee}/paymentAccounts/{payment_account}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+/paymentAccounts/[^/]+
+      tags:
+        - CommitteePaymentAccountService
     delete:
       summary: |-
         Permanently deletes a report.
@@ -1301,7 +1381,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_10
+        - name: name_11
           description: |-
             The resource name of the report.
             Format: organizations/{organization}/reports/{report}
@@ -1311,35 +1391,35 @@ paths:
           pattern: organizations/[^/]+/reports/[^/]+
       tags:
         - ReportService
-  /v1/{name_11}:
+  /v1/{name_12}:
     get:
       summary: |-
-        Gets a single ledger account by resource name.
+        Gets a single group by resource name.
         Authorization:
-          Scope: ledgerAccount:read
-          Permission: ledgerAccount:read
-          Domain: organization-scoped
-      operationId: LedgerAccountService_GetLedgerAccount
+          Scope: groups:read
+          Permission: groups:read
+          Domain: global
+      operationId: GroupService_GetGroup
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1LedgerAccount'
+            $ref: '#/definitions/v1Group'
         default:
           description: An unexpected error response.
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_11
+        - name: name_12
           description: |-
-            The resource name of the ledger account.
-            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+            The resource name of the group.
+            Format: groups/{group}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
+          pattern: groups/[^/]+
       tags:
-        - LedgerAccountService
+        - GroupService
     delete:
       summary: |-
         Permanently deletes a report template.
@@ -1359,7 +1439,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_11
+        - name: name_12
           description: |-
             The resource name of the report template.
             Format: organizations/{organization}/reportTemplates/{report_template}
@@ -1369,7 +1449,67 @@ paths:
           pattern: organizations/[^/]+/reportTemplates/[^/]+
       tags:
         - ReportTemplateService
-  /v1/{name_12}:
+  /v1/{name_13}:
+    get:
+      summary: |-
+        Gets a single ledger account by resource name.
+        Authorization:
+          Scope: ledgerAccount:read
+          Permission: ledgerAccount:read
+          Domain: organization-scoped
+      operationId: LedgerAccountService_GetLedgerAccount
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1LedgerAccount'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_13
+          description: |-
+            The resource name of the ledger account.
+            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
+      tags:
+        - LedgerAccountService
+    delete:
+      summary: |-
+        Removes an item from the submission. Only allowed while the submission is
+        in DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the
+        submitter or the treasury.
+        Authorization:
+          Scope: submissions:write
+          Permission: submissions:delete or submissions:update_own
+          Domain: organization-scoped
+      operationId: SubmissionItemService_DeleteSubmissionItem
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            type: object
+            properties: {}
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_13
+          description: |-
+            The resource name of the item.
+            Format: organizations/{organization}/submissions/{submission}/items/{item}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
+      tags:
+        - SubmissionItemService
+  /v1/{name_14}:
     get:
       summary: |-
         Gets a single ledger year by resource name.
@@ -1388,7 +1528,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_12
+        - name: name_14
           description: |-
             The resource name of the ledger year.
             Format: organizations/{organization}/ledgerYears/{ledger_year}
@@ -1417,7 +1557,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_12
+        - name: name_14
           description: |-
             The resource name of the transaction.
             Format: organizations/{organization}/transactions/{transaction}
@@ -1427,7 +1567,7 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+
       tags:
         - TransactionService
-  /v1/{name_13}:
+  /v1/{name_15}:
     get:
       summary: |-
         Gets a single submission by resource name.
@@ -1446,7 +1586,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_13
+        - name: name_15
           description: |-
             The resource name of the submission.
             Format: organizations/{organization}/submissions/{submission}
@@ -1475,7 +1615,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_13
+        - name: name_15
           description: |-
             The resource name of the transaction assignment.
             Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
@@ -1485,36 +1625,7 @@ paths:
           pattern: organizations/[^/]+/transactions/[^/]+/assignments/[^/]+
       tags:
         - TransactionAssignmentService
-  /v1/{name_14}:
-    get:
-      summary: |-
-        Gets a single item by resource name.
-        Authorization:
-          Scope: submissions:read
-          Permission: submissions:read or submissions:read_own
-          Domain: organization-scoped
-      operationId: SubmissionItemService_GetSubmissionItem
-      responses:
-        "200":
-          description: A successful response.
-          schema:
-            $ref: '#/definitions/v1SubmissionItem'
-        default:
-          description: An unexpected error response.
-          schema:
-            $ref: '#/definitions/rpcStatus'
-      parameters:
-        - name: name_14
-          description: |-
-            The resource name of the item.
-            Format: organizations/{organization}/submissions/{submission}/items/{item}
-          in: path
-          required: true
-          type: string
-          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
-      tags:
-        - SubmissionItemService
-  /v1/{name_15}:
+  /v1/{name_16}:
     get:
       summary: |-
         Gets a single organization by resource name.
@@ -1533,7 +1644,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_15
+        - name: name_16
           description: |-
             The resource name of the organization.
             Format: organizations/{organization}
@@ -1543,7 +1654,7 @@ paths:
           pattern: organizations/[^/]+
       tags:
         - OrganizationService
-  /v1/{name_16}:
+  /v1/{name_17}:
     get:
       summary: |-
         Gets report metadata by resource name.
@@ -1562,7 +1673,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_16
+        - name: name_17
           description: |-
             The resource name of the report.
             Format: organizations/{organization}/reports/{report}
@@ -1572,7 +1683,7 @@ paths:
           pattern: organizations/[^/]+/reports/[^/]+
       tags:
         - ReportService
-  /v1/{name_17}:
+  /v1/{name_18}:
     get:
       summary: |-
         Gets a single report template by resource name.
@@ -1591,7 +1702,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_17
+        - name: name_18
           description: |-
             The resource name of the report template.
             Format: organizations/{organization}/reportTemplates/{report_template}
@@ -1601,49 +1712,20 @@ paths:
           pattern: organizations/[^/]+/reportTemplates/[^/]+
       tags:
         - ReportTemplateService
-  /v1/{name_18}:
-    get:
-      summary: |-
-        Gets a single transaction by resource name.
-        Authorization:
-          Scope: transactions:read
-          Permission: transactions:read
-          Domain: organization-scoped
-      operationId: TransactionService_GetTransaction
-      responses:
-        "200":
-          description: A successful response.
-          schema:
-            $ref: '#/definitions/v1Transaction'
-        default:
-          description: An unexpected error response.
-          schema:
-            $ref: '#/definitions/rpcStatus'
-      parameters:
-        - name: name_18
-          description: |-
-            The resource name of the transaction.
-            Format: organizations/{organization}/transactions/{transaction}
-          in: path
-          required: true
-          type: string
-          pattern: organizations/[^/]+/transactions/[^/]+
-      tags:
-        - TransactionService
   /v1/{name_19}:
     get:
       summary: |-
-        Gets a single transaction assignment by resource name.
+        Gets a single item by resource name.
         Authorization:
-          Scope: transactions:read
-          Permission: transactions:read
+          Scope: submissions:read
+          Permission: submissions:read or submissions:read_own
           Domain: organization-scoped
-      operationId: TransactionAssignmentService_GetTransactionAssignment
+      operationId: SubmissionItemService_GetSubmissionItem
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1TransactionAssignment'
+            $ref: '#/definitions/v1SubmissionItem'
         default:
           description: An unexpected error response.
           schema:
@@ -1651,14 +1733,14 @@ paths:
       parameters:
         - name: name_19
           description: |-
-            The resource name of the transaction assignment.
-            Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
+            The resource name of the item.
+            Format: organizations/{organization}/submissions/{submission}/items/{item}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/transactions/[^/]+/assignments/[^/]+
+          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
       tags:
-        - TransactionAssignmentService
+        - SubmissionItemService
   /v1/{name_1}:
     get:
       summary: |-
@@ -1754,6 +1836,64 @@ paths:
   /v1/{name_20}:
     get:
       summary: |-
+        Gets a single transaction by resource name.
+        Authorization:
+          Scope: transactions:read
+          Permission: transactions:read
+          Domain: organization-scoped
+      operationId: TransactionService_GetTransaction
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Transaction'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_20
+          description: |-
+            The resource name of the transaction.
+            Format: organizations/{organization}/transactions/{transaction}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/transactions/[^/]+
+      tags:
+        - TransactionService
+  /v1/{name_21}:
+    get:
+      summary: |-
+        Gets a single transaction assignment by resource name.
+        Authorization:
+          Scope: transactions:read
+          Permission: transactions:read
+          Domain: organization-scoped
+      operationId: TransactionAssignmentService_GetTransactionAssignment
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1TransactionAssignment'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: name_21
+          description: |-
+            The resource name of the transaction assignment.
+            Format: organizations/{organization}/transactions/{transaction}/assignments/{assignment}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/transactions/[^/]+/assignments/[^/]+
+      tags:
+        - TransactionAssignmentService
+  /v1/{name_22}:
+    get:
+      summary: |-
         Gets a single user by resource name.
         Authorization:
           Scope: users:read
@@ -1770,7 +1910,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_20
+        - name: name_22
           description: |-
             The resource name of the user.
             Format: users/{user}
@@ -1780,7 +1920,7 @@ paths:
           pattern: users/[^/]+
       tags:
         - UserService
-  /v1/{name_21}:
+  /v1/{name_23}:
     get:
       summary: |-
         Gets a single identity record.
@@ -1799,7 +1939,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_21
+        - name: name_23
           description: |-
             The resource name of the identity.
             Format: users/{user}/identities/{identity}
@@ -1809,7 +1949,7 @@ paths:
           pattern: users/[^/]+/identities/[^/]+
       tags:
         - UserIdentityService
-  /v1/{name_22}:
+  /v1/{name_24}:
     get:
       summary: |-
         Gets the settings for a user.
@@ -1828,7 +1968,7 @@ paths:
           schema:
             $ref: '#/definitions/rpcStatus'
       parameters:
-        - name: name_22
+        - name: name_24
           description: |-
             The resource name of the user settings.
             Format: users/{user}/settings
@@ -2044,12 +2184,12 @@ paths:
         - BudgetAccountValueService
     delete:
       summary: |-
-        Permanently deletes a group.
+        Removes a user from a committee.
         Authorization:
-          Scope: groups:write
-          Permission: groups:delete
-          Domain: global
-      operationId: GroupService_DeleteGroup
+          Scope: committees:write
+          Permission: committees:update
+          Domain: organization-scoped
+      operationId: CommitteeMemberService_DeleteCommitteeMember
       responses:
         "200":
           description: A successful response.
@@ -2063,14 +2203,14 @@ paths:
       parameters:
         - name: name_5
           description: |-
-            The resource name of the group.
-            Format: groups/{group}
+            The resource name of the membership.
+            Format: organizations/{organization}/committees/{committee}/members/{member}
           in: path
           required: true
           type: string
-          pattern: groups/[^/]+
+          pattern: organizations/[^/]+/committees/[^/]+/members/[^/]+
       tags:
-        - GroupService
+        - CommitteeMemberService
   /v1/{name_6}:
     get:
       summary: |-
@@ -2102,12 +2242,13 @@ paths:
         - BudgetActualAccountValueService
     delete:
       summary: |-
-        Permanently deletes a ledger account.
+        Deletes a payment account. Submissions that reference the account keep
+        their stored label snapshot.
         Authorization:
-          Scope: ledgerAccount:write
-          Permission: ledgerAccount:delete
+          Scope: committees:write
+          Permission: committees:update
           Domain: organization-scoped
-      operationId: LedgerAccountService_DeleteLedgerAccount
+      operationId: CommitteePaymentAccountService_DeleteCommitteePaymentAccount
       responses:
         "200":
           description: A successful response.
@@ -2121,14 +2262,14 @@ paths:
       parameters:
         - name: name_6
           description: |-
-            The resource name of the ledger account.
-            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
+            The resource name of the payment account.
+            Format: organizations/{organization}/committees/{committee}/paymentAccounts/{payment_account}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
+          pattern: organizations/[^/]+/committees/[^/]+/paymentAccounts/[^/]+
       tags:
-        - LedgerAccountService
+        - CommitteePaymentAccountService
   /v1/{name_7}:
     get:
       summary: |-
@@ -2160,18 +2301,18 @@ paths:
         - BudgetRevisionService
     delete:
       summary: |-
-        Soft-deletes a submission. The submission is purged automatically after
-        the retention period.
+        Permanently deletes a group.
         Authorization:
-          Scope: submissions:write
-          Permission: submissions:delete or submissions:update_own
-          Domain: organization-scoped
-      operationId: SubmissionService_DeleteSubmission
+          Scope: groups:write
+          Permission: groups:delete
+          Domain: global
+      operationId: GroupService_DeleteGroup
       responses:
         "200":
           description: A successful response.
           schema:
-            $ref: '#/definitions/v1Submission'
+            type: object
+            properties: {}
         default:
           description: An unexpected error response.
           schema:
@@ -2179,14 +2320,14 @@ paths:
       parameters:
         - name: name_7
           description: |-
-            The resource name of the submission.
-            Format: organizations/{organization}/submissions/{submission}
+            The resource name of the group.
+            Format: groups/{group}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/submissions/[^/]+
+          pattern: groups/[^/]+
       tags:
-        - SubmissionService
+        - GroupService
   /v1/{name_8}:
     get:
       summary: |-
@@ -2218,14 +2359,12 @@ paths:
         - BudgetRevisionAccountValueService
     delete:
       summary: |-
-        Removes an item from the submission. Only allowed while the submission is
-        in DRAFT, PENDING or FURTHER_INFO_REQUIRED state, and only by the
-        submitter or the treasury.
+        Permanently deletes a ledger account.
         Authorization:
-          Scope: submissions:write
-          Permission: submissions:delete or submissions:update_own
+          Scope: ledgerAccount:write
+          Permission: ledgerAccount:delete
           Domain: organization-scoped
-      operationId: SubmissionItemService_DeleteSubmissionItem
+      operationId: LedgerAccountService_DeleteLedgerAccount
       responses:
         "200":
           description: A successful response.
@@ -2239,14 +2378,14 @@ paths:
       parameters:
         - name: name_8
           description: |-
-            The resource name of the item.
-            Format: organizations/{organization}/submissions/{submission}/items/{item}
+            The resource name of the ledger account.
+            Format: organizations/{organization}/ledgerAccounts/{ledger_account}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+/submissions/[^/]+/items/[^/]+
+          pattern: organizations/[^/]+/ledgerAccounts/[^/]+
       tags:
-        - SubmissionItemService
+        - LedgerAccountService
   /v1/{name_9}:
     get:
       summary: |-
@@ -2278,18 +2417,18 @@ paths:
         - CommitteeService
     delete:
       summary: |-
-        Permanently deletes an organization.
+        Soft-deletes a submission. The submission is purged automatically after
+        the retention period.
         Authorization:
-          Scope: organizations:write
-          Permission: organizations:delete
-          Domain: global
-      operationId: OrganizationService_DeleteOrganization
+          Scope: submissions:write
+          Permission: submissions:delete or submissions:update_own
+          Domain: organization-scoped
+      operationId: SubmissionService_DeleteSubmission
       responses:
         "200":
           description: A successful response.
           schema:
-            type: object
-            properties: {}
+            $ref: '#/definitions/v1Submission'
         default:
           description: An unexpected error response.
           schema:
@@ -2297,14 +2436,14 @@ paths:
       parameters:
         - name: name_9
           description: |-
-            The resource name of the organization.
-            Format: organizations/{organization}
+            The resource name of the submission.
+            Format: organizations/{organization}/submissions/{submission}
           in: path
           required: true
           type: string
-          pattern: organizations/[^/]+
+          pattern: organizations/[^/]+/submissions/[^/]+
       tags:
-        - OrganizationService
+        - SubmissionService
   /v1/{name}:
     get:
       summary: |-
@@ -2476,9 +2615,13 @@ paths:
         When domain is empty, permissions are evaluated against the global
         domain. When set, permissions are evaluated against the specified domain.
         Authorization:
-          Scope: users:read
-          Permission: users:read
-          Domain: global
+          Checking the calling user's own permissions:
+            Requires authentication only (the SPA route guards call this on
+            every navigation).
+          Checking another user's permissions:
+            Scope: users:read
+            Permission: users:read
+            Domain: global
       operationId: UserService_CheckUserPermissions
       responses:
         "200":
@@ -2896,7 +3039,7 @@ paths:
                 $ref: '#/definitions/v1Month'
                 description: The start month of ledger years for this organization. It is assumed that the start date is the 1st of the month.
               submission_settings:
-                $ref: '#/definitions/v1SubmissionSettings'
+                $ref: '#/definitions/v1OrganizationSubmissionSettings'
                 description: Submission settings for this organization.
               update_time:
                 type: string
@@ -2921,7 +3064,10 @@ paths:
   /v1/{parent_1}/accountValues:
     get:
       summary: |-
-        Lists the account values captured in a revision, with pagination.
+        Lists the account values captured in a revision, with pagination. The
+        wildcard parent form (organizations/{organization}/budgets/-/revisions/-,
+        revisions selected via the `revision` filter) fetches values across
+        multiple revisions in a single request.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
@@ -2939,8 +3085,14 @@ paths:
       parameters:
         - name: parent_1
           description: |-
-            The parent revision resource name.
-            Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
+            The parent revision resource name. Two forms are accepted:
+             - A single revision:
+               organizations/{organization}/budgets/{budget}/revisions/{revision}
+             - The wildcard form organizations/{organization}/budgets/-/revisions/-,
+               which fetches the values of multiple revisions at once. The revisions
+               to fetch are selected via the `revision` filter field.
+            The dash "-" is the only wildcard marker; "*" is not supported. Mixed
+            forms (a concrete budget with a "-" revision or vice versa) are rejected.
           in: path
           required: true
           type: string
@@ -2948,7 +3100,7 @@ paths:
         - name: page_size
           description: |-
             Maximum number of account values to return. The service may return fewer.
-            If unspecified, at most 50 are returned. Maximum value is 200.
+            If unspecified, at most 100 are returned. Maximum value is 500.
           in: query
           required: false
           type: integer
@@ -2961,8 +3113,12 @@ paths:
         - name: filter
           description: |-
             Filter expression conforming to AIP-160.
-            Supported fields: account.
-            Example: "account=\"organizations/{organization}/accounts/{account}\"".
+            Supported fields:
+              - account:  the account resource name (e.g.
+                          "organizations/{organization}/accounts/{account}").
+              - revision: the revision resource name. Required (at least one) when the
+                          budget and revision segments of the parent are the wildcard
+                          "-", e.g.: revision="..." OR revision="...".
           in: query
           required: false
           type: string
@@ -3168,7 +3324,10 @@ paths:
   /v1/{parent}/accountValues:
     get:
       summary: |-
-        Lists account values for a budget.
+        Lists account values for a budget. The wildcard parent form
+        (organizations/{organization}/budgets/-) lists the values of every
+        budget of the organization in a single request, optionally restricted
+        via the `budget` filter.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
@@ -3186,8 +3345,12 @@ paths:
       parameters:
         - name: parent
           description: |-
-            The parent budget resource name.
-            Format: organizations/{organization}/budgets/{budget}
+            The parent budget resource name. Two forms are accepted:
+             - A single budget: organizations/{organization}/budgets/{budget}
+             - The wildcard form organizations/{organization}/budgets/- to list the
+               account values of every budget of the organization in one request;
+               the budgets can be selected via the `budget` filter field.
+            The dash "-" is the only wildcard marker; "*" is not supported.
           in: path
           required: true
           type: string
@@ -3195,7 +3358,7 @@ paths:
         - name: page_size
           description: |-
             Maximum number of values to return. The service may return fewer.
-            If unspecified, at most 20 are returned. Maximum value is 100.
+            If unspecified, at most 100 are returned. Maximum value is 500.
           in: query
           required: false
           type: integer
@@ -3208,8 +3371,12 @@ paths:
         - name: filter
           description: |-
             Filter expression conforming to AIP-160.
-            Supported fields: account.
-            Example: "account=\"organizations/{organization}/accounts/{account}\"".
+            Supported fields:
+              - account: the account resource name (e.g.
+                         "organizations/{organization}/accounts/{account}").
+              - budget:  the budget resource name. Only accepted when the budget
+                         segment of the parent is the wildcard "-", e.g.:
+                         budget="..." OR budget="...".
           in: query
           required: false
           type: string
@@ -3471,7 +3638,7 @@ paths:
         - name: page_size
           description: |-
             Maximum number of actual account values to return. The service may return
-            fewer. If unspecified, at most 50 are returned. Maximum value is 200.
+            fewer. If unspecified, at most 100 are returned. Maximum value is 500.
           in: query
           required: false
           type: integer
@@ -3653,7 +3820,9 @@ paths:
           required: false
           type: boolean
         - name: order_by
-          description: Order by expression (e.g. "display_name", "period_start desc").
+          description: |-
+            Order by expression (e.g. "display_name", "period_start desc").
+            If unspecified, budgets are returned in their custom order.
           in: query
           required: false
           type: string
@@ -3740,6 +3909,43 @@ paths:
           collectionFormat: multi
       tags:
         - BudgetActualAccountValueService
+  /v1/{parent}/budgets:reorder:
+    post:
+      summary: |-
+        Reorders the budgets of an organization. The custom order determines the
+        position of budgets in lists: the first budget in the request is listed
+        first, the last one last. Newly created budgets are appended at the end.
+        Authorization:
+          Scope: budgets:write
+          Permission: budgets:update
+          Domain: organization-scoped
+      operationId: BudgetService_ReorderBudgets
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            type: object
+            properties: {}
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent organization resource name.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/BudgetServiceReorderBudgetsBody'
+      tags:
+        - BudgetService
   /v1/{parent}/comments:
     get:
       summary: |-
@@ -3908,6 +4114,63 @@ paths:
           description: |-
             The ID to use for the committee. If not provided, a system-generated
             UUID will be used. Must be unique within the parent organization.
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteeService
+  /v1/{parent}/committees:listForUser:
+    get:
+      summary: |-
+        Lists the committees a user is a member of within an organization
+        (custom method, AIP-136). Only memberships are considered; committees
+        the user is not a member of are not returned.
+        Authorization:
+          Own committees (user empty or the calling user):
+            Permission: submissions:create or submissions:update or
+                        committees:read
+          Another user's committees:
+            Scope: committees:read
+            Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteeService_ListUserCommittees
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListUserCommitteesResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent organization resource name.
+            Format: organizations/{organization}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+
+        - name: user
+          description: |-
+            The user to list committees for.
+            Format: users/{user}
+            Defaults to the calling user. Listing the committees of another user
+            requires the committees:read permission.
+          in: query
+          required: false
+          type: string
+        - name: page_size
+          description: |-
+            Maximum number of committees to return. The service may return fewer.
+            If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListUserCommittees call.
           in: query
           required: false
           type: string
@@ -4083,8 +4346,8 @@ paths:
         - name: filter
           description: |-
             Filter expression conforming to AIP-160.
-            Supported fields: code, account_type, display_name.
-            Example: "account_type=ASSET" or "code:\"1000\"".
+            Supported fields: code, type, display_name.
+            Example: "type=LIQUIDITY" or "code:\"1000\"".
           in: query
           required: false
           type: string
@@ -4195,6 +4458,174 @@ paths:
           type: string
       tags:
         - LedgerYearService
+  /v1/{parent}/members:
+    get:
+      summary: |-
+        Lists the memberships of a committee.
+        Authorization:
+          Scope: committees:read
+          Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteeMemberService_ListCommitteeMembers
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListCommitteeMembersResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent committee resource name.
+            Format: organizations/{organization}/committees/{committee}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+
+        - name: page_size
+          description: |-
+            Maximum number of memberships to return. The service may return fewer.
+            If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListCommitteeMembers call.
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteeMemberService
+    post:
+      summary: |-
+        Assigns a user to a committee.
+        Authorization:
+          Scope: committees:write
+          Permission: committees:update
+          Domain: organization-scoped
+      operationId: CommitteeMemberService_CreateCommitteeMember
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1CommitteeMember'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent committee resource name.
+            Format: organizations/{organization}/committees/{committee}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+
+        - name: member
+          description: |-
+            The membership to create. Only `user` is evaluated; all other fields are
+            managed by the service.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1CommitteeMember'
+        - name: member_id
+          description: |-
+            The ID to use for the membership. If not provided, a system-generated
+            UUID will be used. Must be unique within the parent committee.
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteeMemberService
+  /v1/{parent}/paymentAccounts:
+    get:
+      summary: |-
+        Lists the payment accounts of a committee.
+        Authorization:
+          Scope: committees:read
+          Permission: committees:read
+          Domain: organization-scoped
+      operationId: CommitteePaymentAccountService_ListCommitteePaymentAccounts
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListCommitteePaymentAccountsResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent committee resource name.
+            Format: organizations/{organization}/committees/{committee}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+
+        - name: page_size
+          description: |-
+            Maximum number of payment accounts to return. The service may return
+            fewer. If unspecified, at most 20 are returned. Maximum value is 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: page_token
+          description: A page token from a previous ListCommitteePaymentAccounts call.
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteePaymentAccountService
+    post:
+      summary: |-
+        Creates a payment account held by a committee.
+        Authorization:
+          Scope: committees:write
+          Permission: committees:update
+          Domain: organization-scoped
+      operationId: CommitteePaymentAccountService_CreateCommitteePaymentAccount
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1CommitteePaymentAccount'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: parent
+          description: |-
+            The parent committee resource name.
+            Format: organizations/{organization}/committees/{committee}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+
+        - name: payment_account
+          description: The payment account to create.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v1CommitteePaymentAccount'
+        - name: payment_account_id
+          description: |-
+            The ID to use for the payment account. If not provided, a system-generated
+            UUID will be used. Must be unique within the parent committee.
+          in: query
+          required: false
+          type: string
+      tags:
+        - CommitteePaymentAccountService
   /v1/{parent}/reportTemplates:
     get:
       summary: |-
@@ -4390,7 +4821,9 @@ paths:
   /v1/{parent}/revisions:
     get:
       summary: |-
-        Lists revisions for a budget in reverse chronological order.
+        Lists revisions for a budget in reverse chronological order. The
+        wildcard parent form (organizations/{organization}/budgets/-) lists the
+        revisions of every budget of the organization in a single request.
         Authorization:
           Scope: budgets:read
           Permission: budgets:read
@@ -4408,8 +4841,11 @@ paths:
       parameters:
         - name: parent
           description: |-
-            The parent budget resource name.
-            Format: organizations/{organization}/budgets/{budget}
+            The parent budget resource name. Two forms are accepted:
+             - A single budget: organizations/{organization}/budgets/{budget}
+             - The wildcard form organizations/{organization}/budgets/- to list the
+               revisions of every budget of the organization in one request.
+            The dash "-" is the only wildcard marker; "*" is not supported.
           in: path
           required: true
           type: string
@@ -4713,6 +5149,69 @@ paths:
           type: string
       tags:
         - TransactionService
+  /v1/{payment_account.name}:
+    patch:
+      summary: |-
+        Updates an existing payment account.
+        Authorization:
+          Scope: committees:write
+          Permission: committees:update
+          Domain: organization-scoped
+      operationId: CommitteePaymentAccountService_UpdateCommitteePaymentAccount
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1CommitteePaymentAccount'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: payment_account.name
+          description: |-
+            The resource name of the payment account.
+            Format: organizations/{organization}/committees/{committee}/paymentAccounts/{payment_account}
+          in: path
+          required: true
+          type: string
+          pattern: organizations/[^/]+/committees/[^/]+/paymentAccounts/[^/]+
+        - name: payment_account
+          description: The payment account to update.
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              uid:
+                type: string
+                description: |-
+                  The UUID of the payment account. Used by submissions to reference the
+                  account they were paid from.
+                readOnly: true
+              committee:
+                type: string
+                title: |-
+                  The resource name of the parent committee.
+                  Format: organizations/{organization}/committees/{committee}
+                readOnly: true
+              kind:
+                $ref: '#/definitions/v1PaymentAccountKind'
+                description: The kind of payment account.
+              display_label:
+                type: string
+                description: Human-readable label of the payment account (e.g. "Gremiumskonto").
+              create_time:
+                type: string
+                format: date-time
+                description: Creation timestamp.
+                readOnly: true
+            title: The payment account to update.
+            required:
+              - kind
+              - display_label
+      tags:
+        - CommitteePaymentAccountService
   /v1/{report_template.name}:
     patch:
       summary: |-
@@ -4973,15 +5472,10 @@ paths:
                 title: |-
                   The committee the submission belongs to.
                   Format: organizations/{organization}/committees/{committee}
-              direction:
-                $ref: '#/definitions/v1Direction'
-                description: Whether this submission documents an expense or an income.
-              settlement:
-                $ref: '#/definitions/v1Settlement'
-                description: How the expense is settled. Must be unset for income submissions.
-              scope:
-                $ref: '#/definitions/v1Scope'
-                description: The nonprofit/commercial scope of the submission.
+              income_expense:
+                $ref: '#/definitions/v1SubmissionTypeIncomeExpenseDetails'
+              misc:
+                $ref: '#/definitions/v1SubmissionTypeMiscDetails'
               status:
                 $ref: '#/definitions/v1SubmissionStatus'
                 description: The lifecycle state of the submission.
@@ -4989,15 +5483,6 @@ paths:
               notice:
                 type: string
                 description: Free-text notice from the submitter.
-              person_details:
-                $ref: '#/definitions/v1PersonDetails'
-                description: Details for a person settlement.
-              committee_account_details:
-                $ref: '#/definitions/v1CommitteeAccountDetails'
-                description: Details for an already-paid committee account settlement.
-              payment_request_details:
-                $ref: '#/definitions/v1PaymentRequestDetails'
-                description: Details for a payment request to the treasury.
               total_amount:
                 $ref: '#/definitions/v1Decimal'
                 description: Sum of all item amounts (read-only derived value).
@@ -5024,13 +5509,11 @@ paths:
               create_time:
                 type: string
                 format: date-time
-                description: Creation timestamp.
+                title: Creation timestamp
                 readOnly: true
             title: The submission to update.
             required:
               - committee
-              - direction
-              - scope
       tags:
         - SubmissionService
   /v1/{transaction.name}:
@@ -5086,7 +5569,9 @@ paths:
                 description: Transaction amount.
               description:
                 type: string
-                description: Human-readable transaction description.
+                description: |-
+                  Human-readable transaction description. Immutable after creation;
+                  UpdateTransaction rejects update masks that include this field.
               reference:
                 type: string
                 description: External reference identifier.
@@ -5176,6 +5661,19 @@ definitions:
       - requests
   BudgetServiceCloseBudgetBody:
     type: object
+  BudgetServiceReorderBudgetsBody:
+    type: object
+    properties:
+      budgets:
+        type: array
+        items:
+          type: string
+        description: |-
+          The budget resource names in their desired order, from first (top of
+          lists) to last (bottom of lists). Must contain every budget of the
+          organization exactly once.
+    required:
+      - budgets
   GroupServiceAddUserToGroupBody:
     type: object
     properties:
@@ -5361,6 +5859,13 @@ definitions:
         description: |-
           Whether this account is a container account (cannot hold values directly).
           Immutable after creation.
+      invert_sign:
+        type: boolean
+        description: |-
+          Whether actual values of this account (and, inherited, of its
+          non-overriding descendants) are returned with a reversed sign, so
+          expense-oriented accounts can display positive values against positive
+          targets.
       is_archived:
         type: boolean
         description: Whether the account is archived (soft-deleted).
@@ -5461,27 +5966,6 @@ definitions:
     description: AccountGroupAssignment associates an account with an account group.
     required:
       - account_id
-  v1AccountType:
-    type: string
-    enum:
-      - ACCOUNT_TYPE_UNSPECIFIED
-      - ACCOUNT_TYPE_ASSET
-      - ACCOUNT_TYPE_LIABILITY
-      - ACCOUNT_TYPE_EQUITY
-      - ACCOUNT_TYPE_REVENUE
-      - ACCOUNT_TYPE_EXPENSE
-      - ACCOUNT_TYPE_SYSTEM
-    default: ACCOUNT_TYPE_UNSPECIFIED
-    description: |-
-      AccountType defines the classification of a ledger account for transaction interpretation.
-
-       - ACCOUNT_TYPE_UNSPECIFIED: Default value. Not specified.
-       - ACCOUNT_TYPE_ASSET: Asset account (e.g., bank accounts, receivables).
-       - ACCOUNT_TYPE_LIABILITY: Liability account (e.g., loans, payables).
-       - ACCOUNT_TYPE_EQUITY: Equity account (e.g., capital, retained earnings). Treated as LIABILITY for calculations.
-       - ACCOUNT_TYPE_REVENUE: Revenue account (e.g., sales, interest income).
-       - ACCOUNT_TYPE_EXPENSE: Expense account (e.g., rent, salaries, utilities).
-       - ACCOUNT_TYPE_SYSTEM: System account for internal calculations. Special internal use only.
   v1AuditLogEntry:
     type: object
     properties:
@@ -5544,7 +6028,7 @@ definitions:
       One entry is created per mutating API call: an update that changes multiple
       fields at once results in a single entry containing the per-field diff.
       Entries are append-only and can never be modified or deleted.
-  v1BankDetails:
+  v1BankAccount:
     type: object
     properties:
       account_holder:
@@ -5556,12 +6040,10 @@ definitions:
       bic:
         type: string
         description: BIC of the account (optional).
-    description: |-
-      BankDetails are the personal bank account details of the submitting person
-      for a person settlement payout.
-    required:
-      - account_holder
-      - iban
+      account_number:
+        type: string
+        title: Account number of the recipient (optional)
+    title: BankDetails represent bank account details
   v1BatchCheckUserPermissionsRequest:
     type: object
     properties:
@@ -5678,6 +6160,14 @@ definitions:
           Optional date until which current actual values are publicly visible.
           Must lie within the budget period. If unset, the end of the budget period
           is assumed.
+      order:
+        type: integer
+        format: int32
+        description: |-
+          Position of the budget in the organization's custom ordering. A lower
+          value means a higher position; the first budget has the lowest value.
+          Assigned automatically; modified only via ReorderBudgets.
+        readOnly: true
     description: Budget represents a financial budget with a defined period.
     required:
       - display_name
@@ -5943,14 +6433,6 @@ definitions:
           Whether submitters of this committee may choose between the nonprofit and
           commercial scope when creating submissions. If false, submissions of this
           committee are always created with the nonprofit scope.
-      payment_accounts:
-        type: array
-        items:
-          type: object
-          $ref: '#/definitions/v1CommitteePaymentAccount'
-        description: |-
-          Payment accounts held by this committee. If empty, committee members
-          cannot pay from a committee account and must use the person settlement.
       update_time:
         type: string
         format: date-time
@@ -5961,45 +6443,81 @@ definitions:
         format: date-time
         description: Creation timestamp.
         readOnly: true
+      is_referenced:
+        type: boolean
+        description: |-
+          Whether the committee is referenced by other resources (currently
+          submissions, including soft-deleted ones). A referenced committee cannot
+          be deleted; DeleteCommittee fails with FAILED_PRECONDITION. Clients can
+          use this to disable delete actions.
+        readOnly: true
     description: |-
       Committee is an organizational unit (e.g. a student committee) that submits
       expense submissions and income documents.
     required:
       - display_name
-  v1CommitteeAccountDetails:
+  v1CommitteeMember:
     type: object
     properties:
-      payment_account_uid:
+      name:
         type: string
-        description: |-
-          The UUID of the committee payment account the expense was paid from
-          (Committee.payment_accounts[].uid).
-      payment_account_label:
-        type: string
-        description: |-
-          Label of the payment account at the time of submission (snapshot, so
-          historical submissions stay readable if the account is renamed/removed).
+        title: |-
+          The resource name of the membership.
+          Format: organizations/{organization}/committees/{committee}/members/{member}
         readOnly: true
-      paid_date:
-        $ref: '#/definitions/typeDate'
-        description: The date the expense was paid.
-      payment_reference:
+      uid:
         type: string
-        description: Optional payment reference (e.g. mandate or booking reference).
+        description: The UUID of the membership.
+        readOnly: true
+      committee:
+        type: string
+        title: |-
+          The resource name of the parent committee.
+          Format: organizations/{organization}/committees/{committee}
+        readOnly: true
+      user:
+        type: string
+        title: |-
+          The resource name of the assigned user.
+          Format: users/{user}
+      user_display_name:
+        type: string
+        description: Display name of the assigned user. Denormalized for display purposes.
+        readOnly: true
+      user_email:
+        type: string
+        description: E-mail address of the assigned user. Denormalized for display purposes.
+        readOnly: true
+      create_time:
+        type: string
+        format: date-time
+        description: Creation timestamp.
+        readOnly: true
     description: |-
-      CommitteeAccountDetails are the settlement details for an expense that was
-      already paid from a committee-held payment account.
+      CommitteeMember assigns a user to a committee. Members of a committee may
+      create submissions on behalf of the committee.
     required:
-      - payment_account_uid
-      - paid_date
+      - user
   v1CommitteePaymentAccount:
     type: object
     properties:
+      name:
+        type: string
+        title: |-
+          The resource name of the payment account.
+          Format: organizations/{organization}/committees/{committee}/paymentAccounts/{payment_account}
+        readOnly: true
       uid:
         type: string
         description: |-
           The UUID of the payment account. Used by submissions to reference the
           account they were paid from.
+        readOnly: true
+      committee:
+        type: string
+        title: |-
+          The resource name of the parent committee.
+          Format: organizations/{organization}/committees/{committee}
         readOnly: true
       kind:
         $ref: '#/definitions/v1PaymentAccountKind'
@@ -6007,6 +6525,11 @@ definitions:
       display_label:
         type: string
         description: Human-readable label of the payment account (e.g. "Gremiumskonto").
+      create_time:
+        type: string
+        format: date-time
+        description: Creation timestamp.
+        readOnly: true
     description: |-
       CommitteePaymentAccount describes a payment account held by a committee
       (e.g. the committee's own bank account or an independently organized cash
@@ -6026,22 +6549,19 @@ definitions:
       monetary and other values where floating-point rounding is unacceptable.
 
       The value is a formatted decimal string, e.g. "1234.56", "-42", "0.001".
-  v1Direction:
-    type: string
-    enum:
-      - DIRECTION_UNSPECIFIED
-      - DIRECTION_EXPENSE
-      - DIRECTION_INCOME
-    default: DIRECTION_UNSPECIFIED
-    description: Direction describes whether a submission documents an expense or an income.
   v1DocumentForm:
     type: string
     enum:
       - DOCUMENT_FORM_UNSPECIFIED
       - DOCUMENT_FORM_PAPER_ORIGINAL
       - DOCUMENT_FORM_DIGITAL_ORIGINAL
+      - DOCUMENT_FORM_NONE
     default: DOCUMENT_FORM_UNSPECIFIED
-    description: DocumentForm describes in which form the original document exists.
+    description: |-
+      DocumentForm describes in which form the original document exists.
+
+       - DOCUMENT_FORM_UNSPECIFIED: Filler value for protobuf only; never stored in the database.
+       - DOCUMENT_FORM_NONE: Explicitly no document form chosen yet (drafts).
   v1GenerateHtmlPreviewRequest:
     type: object
     properties:
@@ -6142,9 +6662,10 @@ definitions:
       code:
         type: string
         description: Unique account code (e.g., from the Kontenrahmen).
-      account_type:
-        $ref: '#/definitions/v1AccountType'
-        description: The type of account for transaction interpretation.
+        readOnly: true
+      type:
+        $ref: '#/definitions/v1LedgerAccountType'
+        description: The type of the account for budget-plan value interpretation.
       display_name:
         type: string
         description: Human-readable name.
@@ -6168,9 +6689,25 @@ definitions:
     description: |-
       LedgerAccount represents an account from a "Kontenrahmen" used for bookkeeping.
       Accounts are automatically created during data import but can be edited afterwards.
-    required:
-      - code
-      - account_type
+  v1LedgerAccountType:
+    type: string
+    enum:
+      - LEDGER_ACCOUNT_TYPE_UNSPECIFIED
+      - LEDGER_ACCOUNT_TYPE_LIQUIDITY
+      - LEDGER_ACCOUNT_TYPE_COUNTER
+      - LEDGER_ACCOUNT_TYPE_START_ACCOUNT
+    default: LEDGER_ACCOUNT_TYPE_UNSPECIFIED
+    description: |-
+      LedgerAccountType classifies a ledger account for the budget-plan
+      actual-value computation. Unmarked accounts are plain income/expense-side
+      accounts.
+
+       - LEDGER_ACCOUNT_TYPE_UNSPECIFIED: Default value. The account carries no special balance role.
+       - LEDGER_ACCOUNT_TYPE_LIQUIDITY: Liquidity accounts (bank/cash). Value moving to/from them is plan-relevant.
+       - LEDGER_ACCOUNT_TYPE_COUNTER: Counter accounts (Debitoren, Darlehen, Kreditoren). Value only becomes
+      plan-relevant when booked against an income/expense account.
+       - LEDGER_ACCOUNT_TYPE_START_ACCOUNT: Opening-balance accounts (Eröffnungsbilanz). Value booked from them
+      represents the carried-over reserve.
   v1LedgerYear:
     type: object
     properties:
@@ -6322,7 +6859,7 @@ definitions:
       total_size:
         type: string
         format: int64
-        description: Total number of account values in this revision.
+        description: Total number of account values matching the query.
   v1ListBudgetRevisionsResponse:
     type: object
     properties:
@@ -6355,6 +6892,38 @@ definitions:
         type: string
         format: int64
         description: Total number of budgets matching the filter (may be an estimate).
+  v1ListCommitteeMembersResponse:
+    type: object
+    properties:
+      members:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1CommitteeMember'
+        description: The memberships returned.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+      total_size:
+        type: string
+        format: int64
+        description: Total number of memberships matching the filter (may be an estimate).
+  v1ListCommitteePaymentAccountsResponse:
+    type: object
+    properties:
+      payment_accounts:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1CommitteePaymentAccount'
+        description: The payment accounts returned.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+      total_size:
+        type: string
+        format: int64
+        description: Total number of payment accounts of the committee (may be an estimate).
   v1ListCommitteesResponse:
     type: object
     properties:
@@ -6551,6 +7120,22 @@ definitions:
         type: string
         format: int64
         description: Total number of transactions matching the filter (may be an estimate).
+  v1ListUserCommitteesResponse:
+    type: object
+    properties:
+      committees:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1Committee'
+        description: The committees the user is a member of.
+      next_page_token:
+        type: string
+        description: A token to retrieve the next page of results.
+      total_size:
+        type: string
+        format: int64
+        description: Total number of committees the user is a member of.
   v1ListUserGroupsResponse:
     type: object
     properties:
@@ -6702,7 +7287,7 @@ definitions:
         $ref: '#/definitions/v1Month'
         description: The start month of ledger years for this organization. It is assumed that the start date is the 1st of the month.
       submission_settings:
-        $ref: '#/definitions/v1SubmissionSettings'
+        $ref: '#/definitions/v1OrganizationSubmissionSettings'
         description: Submission settings for this organization.
       update_time:
         type: string
@@ -6722,6 +7307,15 @@ definitions:
     required:
       - display_name
       - start_month
+  v1OrganizationSubmissionSettings:
+    type: object
+    properties:
+      submission_deadline:
+        $ref: '#/definitions/typeDate'
+        description: |-
+          Organization-wide submission deadline. Pending submissions are
+          automatically rejected once this date is reached. Unset means no deadline.
+    description: OrganizationSubmissionSettings hold the per-organization submission configuration.
   v1PaymentAccountKind:
     type: string
     enum:
@@ -6730,58 +7324,6 @@ definitions:
       - PAYMENT_ACCOUNT_KIND_CASH_BOX
     default: PAYMENT_ACCOUNT_KIND_UNSPECIFIED
     description: PaymentAccountKind describes the kind of payment account held by a committee.
-  v1PaymentRequestDetails:
-    type: object
-    properties:
-      vendor_name:
-        type: string
-        description: Name of the vendor / payment recipient.
-      vendor_iban:
-        type: string
-        description: IBAN of the vendor.
-      vendor_bic:
-        type: string
-        description: BIC of the vendor (optional).
-      timing:
-        $ref: '#/definitions/v1PaymentRequestTiming'
-        description: When the treasury should execute the payment.
-    description: |-
-      PaymentRequestDetails are the settlement details for an expense that the
-      treasury should pay from the central account.
-    required:
-      - vendor_name
-      - vendor_iban
-      - timing
-  v1PaymentRequestTiming:
-    type: string
-    enum:
-      - PAYMENT_REQUEST_TIMING_UNSPECIFIED
-      - PAYMENT_REQUEST_TIMING_ON_INVOICE
-      - PAYMENT_REQUEST_TIMING_ADVANCE
-    default: PAYMENT_REQUEST_TIMING_UNSPECIFIED
-    description: |-
-      PaymentRequestTiming describes when the treasury should execute a payment
-      request.
-  v1PayoutMethod:
-    type: string
-    enum:
-      - PAYOUT_METHOD_UNSPECIFIED
-      - PAYOUT_METHOD_BANK_TRANSFER
-      - PAYOUT_METHOD_CASH
-    default: PAYOUT_METHOD_UNSPECIFIED
-    description: PayoutMethod describes how a person settlement payout is executed.
-  v1PersonDetails:
-    type: object
-    properties:
-      payout_method:
-        $ref: '#/definitions/v1PayoutMethod'
-        description: How the payout should be executed.
-      bank_details:
-        $ref: '#/definitions/v1BankDetails'
-        description: The bank account for the payout (required for bank transfer payouts).
-    description: PersonDetails are the settlement details for a person settlement.
-    required:
-      - payout_method
   v1Report:
     type: object
     properties:
@@ -6854,32 +7396,6 @@ definitions:
     required:
       - display_name
       - template
-  v1Scope:
-    type: string
-    enum:
-      - SCOPE_UNSPECIFIED
-      - SCOPE_NONPROFIT
-      - SCOPE_COMMERCIAL
-    default: SCOPE_UNSPECIFIED
-    description: |-
-      Scope describes whether a submission relates to nonprofit ("hoheitlich")
-      or commercial ("gewerblich") activity.
-  v1Settlement:
-    type: string
-    enum:
-      - SETTLEMENT_UNSPECIFIED
-      - SETTLEMENT_PERSON
-      - SETTLEMENT_COMMITTEE_ACCOUNT
-      - SETTLEMENT_PAYMENT_REQUEST
-    default: SETTLEMENT_UNSPECIFIED
-    description: |-
-      Settlement describes how an expense submission is (or was) settled.
-
-       - SETTLEMENT_PERSON: The submitter paid privately and receives a payout.
-       - SETTLEMENT_COMMITTEE_ACCOUNT: The expense was already paid from a committee-held payment account
-      (bank account or cash box); the submission is documentation only.
-       - SETTLEMENT_PAYMENT_REQUEST: The expense is not yet paid; the treasury pays the vendor from the
-      central account.
   v1Submission:
     type: object
     properties:
@@ -6908,15 +7424,10 @@ definitions:
         title: |-
           The committee the submission belongs to.
           Format: organizations/{organization}/committees/{committee}
-      direction:
-        $ref: '#/definitions/v1Direction'
-        description: Whether this submission documents an expense or an income.
-      settlement:
-        $ref: '#/definitions/v1Settlement'
-        description: How the expense is settled. Must be unset for income submissions.
-      scope:
-        $ref: '#/definitions/v1Scope'
-        description: The nonprofit/commercial scope of the submission.
+      income_expense:
+        $ref: '#/definitions/v1SubmissionTypeIncomeExpenseDetails'
+      misc:
+        $ref: '#/definitions/v1SubmissionTypeMiscDetails'
       status:
         $ref: '#/definitions/v1SubmissionStatus'
         description: The lifecycle state of the submission.
@@ -6924,15 +7435,6 @@ definitions:
       notice:
         type: string
         description: Free-text notice from the submitter.
-      person_details:
-        $ref: '#/definitions/v1PersonDetails'
-        description: Details for a person settlement.
-      committee_account_details:
-        $ref: '#/definitions/v1CommitteeAccountDetails'
-        description: Details for an already-paid committee account settlement.
-      payment_request_details:
-        $ref: '#/definitions/v1PaymentRequestDetails'
-        description: Details for a payment request to the treasury.
       total_amount:
         $ref: '#/definitions/v1Decimal'
         description: Sum of all item amounts (read-only derived value).
@@ -6959,15 +7461,13 @@ definitions:
       create_time:
         type: string
         format: date-time
-        description: Creation timestamp.
+        title: Creation timestamp
         readOnly: true
     description: |-
-      Submission is a documented expense or income with receipts, submitted by a
+      Submission is a documented expense or income or misc documents with receipts, submitted by a
       committee member and reviewed by the treasury.
     required:
       - committee
-      - direction
-      - scope
   v1SubmissionComment:
     type: object
     properties:
@@ -7010,6 +7510,20 @@ definitions:
       visible to the treasury.
     required:
       - content
+  v1SubmissionDirectionExpenseDetails:
+    type: object
+    properties:
+      person:
+        $ref: '#/definitions/v1SubmissionSettlementPerson'
+        description: Details for a person settlement.
+      committee_account:
+        $ref: '#/definitions/v1SubmissionSettlementCommitteeAccount'
+        description: Details for an already-paid committee account settlement.
+      payment_request:
+        $ref: '#/definitions/v1SubmissionSettlementPaymentRequest'
+        description: Details for a payment request to the treasury.
+  v1SubmissionDirectionIncomeDetails:
+    type: object
   v1SubmissionItem:
     type: object
     properties:
@@ -7065,22 +7579,61 @@ definitions:
       a submission.
     required:
       - amount
-  v1SubmissionSettings:
+  v1SubmissionPayoutMethodBankTransfer:
     type: object
     properties:
-      enabled_settlement_kinds:
-        type: array
-        items:
-          $ref: '#/definitions/v1Settlement'
-        description: |-
-          The settlement kinds enabled for expense submissions in this
-          organization. Defaults to all kinds.
-      submission_deadline:
+      bank_account:
+        $ref: '#/definitions/v1BankAccount'
+        description: The bank account for the payout (required for bank transfer payouts).
+  v1SubmissionPayoutMethodCash:
+    type: object
+  v1SubmissionScope:
+    type: string
+    enum:
+      - SUBMISSION_SCOPE_UNSPECIFIED
+      - SUBMISSION_SCOPE_NONE
+      - SUBMISSION_SCOPE_NONPROFIT
+      - SUBMISSION_SCOPE_COMMERCIAL
+    default: SUBMISSION_SCOPE_UNSPECIFIED
+    description: |-
+      Scope describes whether a submission relates to nonprofit ("hoheitlich")
+      or commercial ("gewerblich") activity.
+  v1SubmissionSettlementCommitteeAccount:
+    type: object
+    properties:
+      payment_account:
+        type: string
+        title: The resource name of the committee payment account the expense was paid from
+      paid_date:
         $ref: '#/definitions/typeDate'
-        description: |-
-          Organization-wide submission deadline. Pending submissions are
-          automatically rejected once this date is reached. Unset means no deadline.
-    description: SubmissionSettings hold the per-organization submission configuration.
+        description: The date the expense was paid.
+      payment_reference:
+        type: string
+        description: Optional payment reference (e.g. mandate or booking reference).
+    description: |-
+      SubmissionSettlementCommitteeAccount are the settlement details for an expense that was
+      already paid from a committee-held payment account.
+    required:
+      - payment_account
+      - paid_date
+  v1SubmissionSettlementPaymentRequest:
+    type: object
+    properties:
+      bank_account:
+        $ref: '#/definitions/v1BankAccount'
+    description: |-
+      SubmissionSettlementPaymentRequest are the settlement details for an expense that the
+      treasury should pay from the central account.
+    required:
+      - bank_account
+  v1SubmissionSettlementPerson:
+    type: object
+    properties:
+      bank_transfer:
+        $ref: '#/definitions/v1SubmissionPayoutMethodBankTransfer'
+      cash:
+        $ref: '#/definitions/v1SubmissionPayoutMethodCash'
+    description: SubmissionSettlementPerson are the settlement details for a person settlement.
   v1SubmissionStatus:
     type: string
     enum:
@@ -7109,6 +7662,19 @@ definitions:
     description: |-
       SubmissionStatusChange describes a status transition associated with a
       comment.
+  v1SubmissionTypeIncomeExpenseDetails:
+    type: object
+    properties:
+      scope:
+        $ref: '#/definitions/v1SubmissionScope'
+      income:
+        $ref: '#/definitions/v1SubmissionDirectionIncomeDetails'
+      expense:
+        $ref: '#/definitions/v1SubmissionDirectionExpenseDetails'
+    required:
+      - scope
+  v1SubmissionTypeMiscDetails:
+    type: object
   v1Transaction:
     type: object
     properties:
@@ -7137,7 +7703,9 @@ definitions:
         description: Transaction amount.
       description:
         type: string
-        description: Human-readable transaction description.
+        description: |-
+          Human-readable transaction description. Immutable after creation;
+          UpdateTransaction rejects update masks that include this field.
       reference:
         type: string
         description: External reference identifier.

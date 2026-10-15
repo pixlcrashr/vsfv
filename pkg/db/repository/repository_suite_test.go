@@ -2,24 +2,25 @@ package repository_test
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
-
-	_ "github.com/lib/pq"
 )
-
-const testDSN = "postgres://vsf:postgres@127.0.0.1:5335/vsf?sslmode=disable"
 
 var (
 	dbConn *gorm.DB
 	sqlDB  *sql.DB
+
+	// dbPath is the path of the throwaway SQLite database file that is
+	// removed again when the suite finishes.
+	dbPath string
 
 	// Repositories
 	BudgetActualAccountValueRepo *repository.BudgetActualAccountValueRepository
@@ -31,6 +32,8 @@ var (
 	LedgerYearRepo               *repository.LedgerYearRepository
 	BudgetAccountValueRepo       *repository.BudgetAccountValueRepository
 	TransactionAssignmentRepo    *repository.TransactionAssignmentRepository
+	DataItemRepo                 *repository.DataItemRepository
+	SubmissionRepo               *repository.SubmissionRepository
 )
 
 func TestRepository(t *testing.T) {
@@ -38,31 +41,43 @@ func TestRepository(t *testing.T) {
 	RunSpecs(t, "Repository Suite")
 }
 
-// resetSchema drops and recreates the public schema, then runs migrations.
-// Accepts an existing sql.DB to reuse connections.
-func resetSchema(sqlDB *sql.DB) {
+// resetSchema drops every table and re-applies all migrations. The gorm and
+// database/sql handles stay valid, so repositories created during
+// BeforeSuite keep working across specs.
+func resetSchema() {
 	By("resetting the test DB schema")
-	_, err := sqlDB.Exec("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;")
-	Expect(err).NotTo(HaveOccurred())
+	var tables []string
+	Expect(dbConn.Raw(
+		"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+	).Scan(&tables).Error).NotTo(HaveOccurred())
+	for _, table := range tables {
+		Expect(dbConn.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %q", table)).Error).NotTo(HaveOccurred())
+	}
 
 	By("applying all migrations on the clean schema")
-	err = db.Run(sqlDB)
-	Expect(err).NotTo(HaveOccurred())
+	Expect(db.Run(sqlDB)).To(Succeed())
 }
 
 var _ = BeforeSuite(func() {
-	By("opening database connection")
-	var err error
-	sqlDB, err = sql.Open("postgres", testDSN)
+	By("creating a clean throwaway SQLite database")
+	f, err := os.CreateTemp("", "vsfv-repository-test-*.sqlite")
 	Expect(err).NotTo(HaveOccurred())
-
-	// Initial schema setup
-	resetSchema(sqlDB)
+	Expect(f.Close()).To(Succeed())
+	dbPath = f.Name()
+	DeferCleanup(func() {
+		_ = os.Remove(dbPath)
+	})
 
 	By("connecting with GORM")
-	dbConn, err = db.Connect(testDSN)
-	dbConn.Logger = dbConn.Logger.LogMode(logger.Silent)
+	dbConn, err = db.ConnectSilent("sqlite://" + dbPath)
 	Expect(err).NotTo(HaveOccurred())
+	sqlDB, err = dbConn.DB()
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(func() {
+		_ = sqlDB.Close()
+	})
+
+	resetSchema()
 
 	By("initializing repositories")
 	BudgetActualAccountValueRepo = repository.NewBudgetActualAccountValueRepository(dbConn)
@@ -74,13 +89,11 @@ var _ = BeforeSuite(func() {
 	LedgerYearRepo = repository.NewLedgerYearRepository(dbConn)
 	BudgetAccountValueRepo = repository.NewBudgetAccountValueRepository(dbConn)
 	TransactionAssignmentRepo = repository.NewTransactionAssignmentRepository(dbConn)
-
-	DeferCleanup(func() {
-		_ = sqlDB.Close()
-	})
+	DataItemRepo = repository.NewDataItemRepository(dbConn)
+	SubmissionRepo = repository.NewSubmissionRepository(dbConn)
 })
 
 var _ = BeforeEach(func() {
 	// Reset schema for each test to ensure completely isolated state
-	resetSchema(sqlDB)
+	resetSchema()
 })

@@ -153,7 +153,7 @@ type ListBudgetActualAccountValuesRequest struct {
 	// Format: organizations/{organization}/budgets/{budget}
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
 	// Maximum number of actual account values to return. The service may return
-	// fewer. If unspecified, at most 50 are returned. Maximum value is 200.
+	// fewer. If unspecified, at most 100 are returned. Maximum value is 500.
 	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// A page token from a previous ListBudgetActualAccountValues call.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`

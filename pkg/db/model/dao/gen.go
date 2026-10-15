@@ -28,7 +28,9 @@ var (
 	BudgetRevisionAccountValue     *budgetRevisionAccountValue
 	CasbinRule                     *casbinRule
 	Committee                      *committee
+	CommitteeMember                *committeeMember
 	CommitteePaymentAccount        *committeePaymentAccount
+	DataItem                       *dataItem
 	LedgerAccount                  *ledgerAccount
 	LedgerYear                     *ledgerYear
 	OAuth2Client                   *oAuth2Client
@@ -41,6 +43,7 @@ var (
 	SubmissionAttachment           *submissionAttachment
 	SubmissionComment              *submissionComment
 	SubmissionItem                 *submissionItem
+	SubmissionSequence             *submissionSequence
 	TransactionAssignment          *transactionAssignment
 	Transaction_                   *transaction_
 	User                           *user
@@ -62,7 +65,9 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	BudgetRevisionAccountValue = &Q.BudgetRevisionAccountValue
 	CasbinRule = &Q.CasbinRule
 	Committee = &Q.Committee
+	CommitteeMember = &Q.CommitteeMember
 	CommitteePaymentAccount = &Q.CommitteePaymentAccount
+	DataItem = &Q.DataItem
 	LedgerAccount = &Q.LedgerAccount
 	LedgerYear = &Q.LedgerYear
 	OAuth2Client = &Q.OAuth2Client
@@ -75,6 +80,7 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	SubmissionAttachment = &Q.SubmissionAttachment
 	SubmissionComment = &Q.SubmissionComment
 	SubmissionItem = &Q.SubmissionItem
+	SubmissionSequence = &Q.SubmissionSequence
 	TransactionAssignment = &Q.TransactionAssignment
 	Transaction_ = &Q.Transaction_
 	User = &Q.User
@@ -97,7 +103,9 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		BudgetRevisionAccountValue:     newBudgetRevisionAccountValue(db, opts...),
 		CasbinRule:                     newCasbinRule(db, opts...),
 		Committee:                      newCommittee(db, opts...),
+		CommitteeMember:                newCommitteeMember(db, opts...),
 		CommitteePaymentAccount:        newCommitteePaymentAccount(db, opts...),
+		DataItem:                       newDataItem(db, opts...),
 		LedgerAccount:                  newLedgerAccount(db, opts...),
 		LedgerYear:                     newLedgerYear(db, opts...),
 		OAuth2Client:                   newOAuth2Client(db, opts...),
@@ -110,6 +118,7 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		SubmissionAttachment:           newSubmissionAttachment(db, opts...),
 		SubmissionComment:              newSubmissionComment(db, opts...),
 		SubmissionItem:                 newSubmissionItem(db, opts...),
+		SubmissionSequence:             newSubmissionSequence(db, opts...),
 		TransactionAssignment:          newTransactionAssignment(db, opts...),
 		Transaction_:                   newTransaction_(db, opts...),
 		User:                           newUser(db, opts...),
@@ -133,7 +142,9 @@ type Query struct {
 	BudgetRevisionAccountValue     budgetRevisionAccountValue
 	CasbinRule                     casbinRule
 	Committee                      committee
+	CommitteeMember                committeeMember
 	CommitteePaymentAccount        committeePaymentAccount
+	DataItem                       dataItem
 	LedgerAccount                  ledgerAccount
 	LedgerYear                     ledgerYear
 	OAuth2Client                   oAuth2Client
@@ -146,6 +157,7 @@ type Query struct {
 	SubmissionAttachment           submissionAttachment
 	SubmissionComment              submissionComment
 	SubmissionItem                 submissionItem
+	SubmissionSequence             submissionSequence
 	TransactionAssignment          transactionAssignment
 	Transaction_                   transaction_
 	User                           user
@@ -170,7 +182,9 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		BudgetRevisionAccountValue:     q.BudgetRevisionAccountValue.clone(db),
 		CasbinRule:                     q.CasbinRule.clone(db),
 		Committee:                      q.Committee.clone(db),
+		CommitteeMember:                q.CommitteeMember.clone(db),
 		CommitteePaymentAccount:        q.CommitteePaymentAccount.clone(db),
+		DataItem:                       q.DataItem.clone(db),
 		LedgerAccount:                  q.LedgerAccount.clone(db),
 		LedgerYear:                     q.LedgerYear.clone(db),
 		OAuth2Client:                   q.OAuth2Client.clone(db),
@@ -183,6 +197,7 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		SubmissionAttachment:           q.SubmissionAttachment.clone(db),
 		SubmissionComment:              q.SubmissionComment.clone(db),
 		SubmissionItem:                 q.SubmissionItem.clone(db),
+		SubmissionSequence:             q.SubmissionSequence.clone(db),
 		TransactionAssignment:          q.TransactionAssignment.clone(db),
 		Transaction_:                   q.Transaction_.clone(db),
 		User:                           q.User.clone(db),
@@ -214,7 +229,9 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		BudgetRevisionAccountValue:     q.BudgetRevisionAccountValue.replaceDB(db),
 		CasbinRule:                     q.CasbinRule.replaceDB(db),
 		Committee:                      q.Committee.replaceDB(db),
+		CommitteeMember:                q.CommitteeMember.replaceDB(db),
 		CommitteePaymentAccount:        q.CommitteePaymentAccount.replaceDB(db),
+		DataItem:                       q.DataItem.replaceDB(db),
 		LedgerAccount:                  q.LedgerAccount.replaceDB(db),
 		LedgerYear:                     q.LedgerYear.replaceDB(db),
 		OAuth2Client:                   q.OAuth2Client.replaceDB(db),
@@ -227,6 +244,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		SubmissionAttachment:           q.SubmissionAttachment.replaceDB(db),
 		SubmissionComment:              q.SubmissionComment.replaceDB(db),
 		SubmissionItem:                 q.SubmissionItem.replaceDB(db),
+		SubmissionSequence:             q.SubmissionSequence.replaceDB(db),
 		TransactionAssignment:          q.TransactionAssignment.replaceDB(db),
 		Transaction_:                   q.Transaction_.replaceDB(db),
 		User:                           q.User.replaceDB(db),
@@ -248,7 +266,9 @@ type queryCtx struct {
 	BudgetRevisionAccountValue     IBudgetRevisionAccountValueDo
 	CasbinRule                     ICasbinRuleDo
 	Committee                      ICommitteeDo
+	CommitteeMember                ICommitteeMemberDo
 	CommitteePaymentAccount        ICommitteePaymentAccountDo
+	DataItem                       IDataItemDo
 	LedgerAccount                  ILedgerAccountDo
 	LedgerYear                     ILedgerYearDo
 	OAuth2Client                   IOAuth2ClientDo
@@ -261,6 +281,7 @@ type queryCtx struct {
 	SubmissionAttachment           ISubmissionAttachmentDo
 	SubmissionComment              ISubmissionCommentDo
 	SubmissionItem                 ISubmissionItemDo
+	SubmissionSequence             ISubmissionSequenceDo
 	TransactionAssignment          ITransactionAssignmentDo
 	Transaction_                   ITransaction_Do
 	User                           IUserDo
@@ -282,7 +303,9 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		BudgetRevisionAccountValue:     q.BudgetRevisionAccountValue.WithContext(ctx),
 		CasbinRule:                     q.CasbinRule.WithContext(ctx),
 		Committee:                      q.Committee.WithContext(ctx),
+		CommitteeMember:                q.CommitteeMember.WithContext(ctx),
 		CommitteePaymentAccount:        q.CommitteePaymentAccount.WithContext(ctx),
+		DataItem:                       q.DataItem.WithContext(ctx),
 		LedgerAccount:                  q.LedgerAccount.WithContext(ctx),
 		LedgerYear:                     q.LedgerYear.WithContext(ctx),
 		OAuth2Client:                   q.OAuth2Client.WithContext(ctx),
@@ -295,6 +318,7 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		SubmissionAttachment:           q.SubmissionAttachment.WithContext(ctx),
 		SubmissionComment:              q.SubmissionComment.WithContext(ctx),
 		SubmissionItem:                 q.SubmissionItem.WithContext(ctx),
+		SubmissionSequence:             q.SubmissionSequence.WithContext(ctx),
 		TransactionAssignment:          q.TransactionAssignment.WithContext(ctx),
 		Transaction_:                   q.Transaction_.WithContext(ctx),
 		User:                           q.User.WithContext(ctx),

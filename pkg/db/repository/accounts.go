@@ -283,6 +283,7 @@ type CreateAccountParams struct {
 	DisplayCode        string
 	DisplayDescription string
 	IsContainer        bool
+	InvertSign         bool
 	IsArchived         bool
 	CustomID           string
 }
@@ -312,6 +313,7 @@ func (r *AccountRepository) Create(ctx context.Context, params CreateAccountPara
 		DisplayCode:        params.DisplayCode,
 		DisplayDescription: params.DisplayDescription,
 		IsContainer:        params.IsContainer,
+		InvertSign:         params.InvertSign,
 		IsArchived:         params.IsArchived,
 		CustomID:           params.CustomID,
 	}
@@ -331,6 +333,7 @@ type UpdateAccountParams struct {
 	DisplayCode        optional.Optional[string]
 	DisplayDescription optional.Optional[string]
 	IsContainer        optional.Optional[bool]
+	InvertSign         optional.Optional[bool]
 	IsArchived         optional.Optional[bool]
 	CustomID           optional.Optional[string]
 }
@@ -357,6 +360,10 @@ func (r *AccountRepository) Update(ctx context.Context, id uuid.UUID, params Upd
 
 	if params.IsContainer.IsSet {
 		cols = append(cols, r.q.Account.IsContainer.Value(params.IsContainer.Value))
+	}
+
+	if params.InvertSign.IsSet {
+		cols = append(cols, r.q.Account.InvertSign.Value(params.InvertSign.Value))
 	}
 
 	if params.IsArchived.IsSet {
@@ -441,6 +448,46 @@ SELECT * FROM ancestors
 		return nil, fmt.Errorf("get account ancestors ids=%v: %w", ids, err)
 	}
 	return ms, nil
+}
+
+// GetEffectiveInvertSigns computes the effective sign inversion for each of
+// the given accounts. Inversion is inherited down the account tree: the
+// effective value is the OR of the account's own invert_sign and those of all
+// its ancestors, so a flagged section flips every descendant unless a deeper
+// node re-enables positivity by being explicitly true (which is why plain
+// false does not override). Missing IDs are absent from the result.
+func (r *AccountRepository) GetEffectiveInvertSigns(ctx context.Context, orgID uuid.UUID, accountIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	result := make(map[uuid.UUID]bool, len(accountIDs))
+	if len(accountIDs) == 0 {
+		return result, nil
+	}
+
+	type row struct {
+		AccountID              uuid.UUID `gorm:"column:account_id"`
+		EffectiveInvertSignRaw int       `gorm:"column:effective_invert_sign"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Raw(`
+WITH RECURSIVE chain(root_id, node_id, invert_sign) AS (
+    SELECT id, id, invert_sign FROM accounts WHERE organization_id = ? AND id IN ?
+    UNION
+    SELECT c.root_id, p.id, p.invert_sign
+    FROM chain c
+    JOIN accounts me ON me.id = c.node_id
+    JOIN accounts p ON p.id = me.parent_account_id
+)
+SELECT root_id AS account_id, MAX(CAST(invert_sign AS INTEGER)) AS effective_invert_sign
+FROM chain
+GROUP BY root_id
+`, orgID, accountIDs).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("get effective invert signs organization_id=%s: %w", orgID, err)
+	}
+
+	for _, r := range rows {
+		result[r.AccountID] = r.EffectiveInvertSignRaw > 0
+	}
+	return result, nil
 }
 
 // HasTransactionAssignments reports whether any transaction_account_assignments

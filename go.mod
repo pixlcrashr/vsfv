@@ -4,6 +4,7 @@ go 1.26.5
 
 require (
 	ariga.io/atlas-provider-gorm v0.6.0
+	github.com/amalfra/etag/v4 v4.0.1
 	github.com/casbin/casbin/v2 v2.135.0
 	github.com/casbin/gorm-adapter/v3 v3.39.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -23,6 +24,7 @@ require (
 	github.com/pixlcrashr/go-pagetoken v1.2.8
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
+	github.com/stretchr/testify v1.11.1
 	github.com/theater-improrama/go-utils v0.1.12
 	go.einride.tech/aip v0.86.3
 	golang.org/x/crypto v0.53.0
@@ -31,6 +33,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7
 	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.11
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gen v0.3.27
@@ -143,7 +146,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.8.1 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.69.0 // indirect
@@ -178,7 +180,6 @@ require (
 	golang.org/x/tools v0.46.0 // indirect
 	google.golang.org/api v0.287.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/datatypes v1.2.7 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/sqlserver v1.6.3 // indirect

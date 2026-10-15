@@ -41,7 +41,8 @@ type Transaction struct {
 	DebitLedgerAccount string `protobuf:"bytes,4,opt,name=debit_ledger_account,json=debitLedgerAccount,proto3" json:"debit_ledger_account,omitempty"`
 	// Transaction amount.
 	Amount *Decimal `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
-	// Human-readable transaction description.
+	// Human-readable transaction description. Immutable after creation;
+	// UpdateTransaction rejects update masks that include this field.
 	Description string `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
 	// External reference identifier.
 	Reference string `protobuf:"bytes,7,opt,name=reference,proto3" json:"reference,omitempty"`
@@ -546,7 +547,7 @@ var File_pixlcrashr_vsfv_v1_transaction_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_transaction_proto_rawDesc = "" +
 	"\n" +
-	"$pixlcrashr/vsfv/v1/transaction.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a pixlcrashr/vsfv/v1/decimal.proto\x1a'pixlcrashr/vsfv/v1/ledger_account.proto\"\xab\x06\n" +
+	"$pixlcrashr/vsfv/v1/transaction.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a pixlcrashr/vsfv/v1/decimal.proto\x1a'pixlcrashr/vsfv/v1/ledger_account.proto\"\xae\x06\n" +
 	"\vTransaction\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
 	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12]\n" +
@@ -554,8 +555,8 @@ const file_pixlcrashr_vsfv_v1_transaction_proto_rawDesc = "" +
 	"!vsfv.pixlcrashr.dev/LedgerAccountR\x13creditLedgerAccount\x12[\n" +
 	"\x14debit_ledger_account\x18\x04 \x01(\tB)\xe0A\x02\xfaA#\n" +
 	"!vsfv.pixlcrashr.dev/LedgerAccountR\x12debitLedgerAccount\x128\n" +
-	"\x06amount\x18\x05 \x01(\v2\x1b.pixlcrashr.vsfv.v1.DecimalB\x03\xe0A\x02R\x06amount\x12%\n" +
-	"\vdescription\x18\x06 \x01(\tB\x03\xe0A\x01R\vdescription\x12!\n" +
+	"\x06amount\x18\x05 \x01(\v2\x1b.pixlcrashr.vsfv.v1.DecimalB\x03\xe0A\x02R\x06amount\x12(\n" +
+	"\vdescription\x18\x06 \x01(\tB\x06\xe0A\x01\xe0A\x05R\vdescription\x12!\n" +
 	"\treference\x18\a \x01(\tB\x03\xe0A\x01R\treference\x12<\n" +
 	"\tbooked_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x02R\bbookedAt\x12D\n" +
 	"\rdocument_date\x18\n" +

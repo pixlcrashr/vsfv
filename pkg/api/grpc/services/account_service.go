@@ -8,6 +8,7 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -16,6 +17,7 @@ import (
 	"go.einride.tech/aip/ordering"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 var (
@@ -39,13 +41,12 @@ var (
 
 type accountServiceServer struct {
 	gen.UnimplementedAccountServiceServer
-	repo     *repository.AccountRepository
-	audits   *auditWriter
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newAccountServiceServer(repo *repository.AccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.AccountServiceServer {
-	return &accountServiceServer{repo: repo, audits: audits, enforcer: enforcer}
+func newAccountServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.AccountServiceServer {
+	return &accountServiceServer{db: db, enforcer: enforcer}
 }
 
 // accountAncestors loads the strict ancestor chains of the given account IDs in
@@ -84,26 +85,31 @@ func (s *accountServiceServer) GetAccount(ctx context.Context, req *gen.GetAccou
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountName}
 	}
 
-	// Use CustomID (n.Account) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.Account)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
-		}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Account, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
-	}
-
-	var parentM *model.Account
-	ancestorByID := map[uuid.UUID]*model.Account{}
-	if m.ParentAccountID.Valid {
-		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
+		// Use CustomID (n.Account) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.Account)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			if errors.Is(err, repository.ErrAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 		}
-		parentM = ancestorByID[m.ParentAccountID.UUID]
-	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+
+		var parentM *model.Account
+		ancestorByID := map[uuid.UUID]*model.Account{}
+		if m.ParentAccountID.Valid {
+			ancestorByID, err = accountAncestors(ctx, repo, m.ParentAccountID.UUID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+			parentM = ancestorByID[m.ParentAccountID.UUID]
+		}
+		return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+	})
 }
 
 func (s *accountServiceServer) ListAccounts(ctx context.Context, req *gen.ListAccountsRequest) (*gen.ListAccountsResponse, error) {
@@ -150,49 +156,54 @@ func (s *accountServiceServer) ListAccounts(ctx context.Context, req *gen.ListAc
 		OrderBy:        orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListAccountsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
 
-	// Fetch all ancestors of the listed accounts in one recursive query. This
-	// covers the immediate parents (for parent_account) as well as the full
-	// ancestor chains needed to populate display_full_code and display_full_name.
-	// Parents that are themselves part of the page are seeds of the query, so
-	// every chain is complete.
-	parentIDs := make([]uuid.UUID, 0, len(ms))
-	parentIDSet := make(map[uuid.UUID]struct{}, len(ms))
-	for _, m := range ms {
-		if !m.ParentAccountID.Valid {
-			continue
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
 		}
-		if _, ok := parentIDSet[m.ParentAccountID.UUID]; ok {
-			continue
+
+		// Fetch all ancestors of the listed accounts in one recursive query. This
+		// covers the immediate parents (for parent_account) as well as the full
+		// ancestor chains needed to populate display_full_code and display_full_name.
+		// Parents that are themselves part of the page are seeds of the query, so
+		// every chain is complete.
+		parentIDs := make([]uuid.UUID, 0, len(ms))
+		parentIDSet := make(map[uuid.UUID]struct{}, len(ms))
+		for _, m := range ms {
+			if !m.ParentAccountID.Valid {
+				continue
+			}
+			if _, ok := parentIDSet[m.ParentAccountID.UUID]; ok {
+				continue
+			}
+			parentIDSet[m.ParentAccountID.UUID] = struct{}{}
+			parentIDs = append(parentIDs, m.ParentAccountID.UUID)
 		}
-		parentIDSet[m.ParentAccountID.UUID] = struct{}{}
-		parentIDs = append(parentIDs, m.ParentAccountID.UUID)
-	}
 
-	ancestorByID, err := accountAncestors(ctx, s.repo, parentIDs...)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
-	}
-
-	resp := &gen.ListAccountsResponse{TotalSize: total}
-	for _, m := range ms {
-		var parentM *model.Account
-		if m.ParentAccountID.Valid {
-			parentM = ancestorByID[m.ParentAccountID.UUID]
+		ancestorByID, err := accountAncestors(ctx, repo, parentIDs...)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
 		}
-		resp.Accounts = append(resp.Accounts, AccountToProto(pn, m, parentM, ancestorByID))
-	}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListAccountsResponse{TotalSize: total}
+		for _, m := range ms {
+			var parentM *model.Account
+			if m.ParentAccountID.Valid {
+				parentM = ancestorByID[m.ParentAccountID.UUID]
+			}
+			resp.Accounts = append(resp.Accounts, AccountToProto(pn, m, parentM, ancestorByID))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *accountServiceServer) ListNestedAccounts(ctx context.Context, req *gen.ListNestedAccountsRequest) (*gen.ListNestedAccountsResponse, error) {
@@ -223,21 +234,26 @@ func (s *accountServiceServer) ListNestedAccounts(ctx context.Context, req *gen.
 		Cond:           c,
 	}
 
-	ms, _, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListNestedAccountsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
 
-	// The whole chart of accounts is already loaded, so full codes are
-	// assembled from the in-memory set without further queries.
-	ancestorByID := make(map[uuid.UUID]*model.Account, len(ms))
-	for _, m := range ms {
-		ancestorByID[m.ID] = m
-	}
+		ms, _, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
+		}
 
-	return &gen.ListNestedAccountsResponse{
-		Accounts: buildNestedTree(pn, ms, uuid.NullUUID{}, ancestorByID),
-	}, nil
+		// The whole chart of accounts is already loaded, so full codes are
+		// assembled from the in-memory set without further queries.
+		ancestorByID := make(map[uuid.UUID]*model.Account, len(ms))
+		for _, m := range ms {
+			ancestorByID[m.ID] = m
+		}
+
+		return &gen.ListNestedAccountsResponse{
+			Accounts: buildNestedTree(pn, ms, uuid.NullUUID{}, ancestorByID),
+		}, nil
+	})
 }
 
 func (s *accountServiceServer) GetNestedAccount(ctx context.Context, req *gen.GetNestedAccountRequest) (*gen.GetNestedAccountResponse, error) {
@@ -256,30 +272,35 @@ func (s *accountServiceServer) GetNestedAccount(ctx context.Context, req *gen.Ge
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountName}
 	}
 
-	// Use CustomID (n.Account) instead of parsing as UUID
-	root, err := s.repo.GetByCustomID(ctx, orgID, n.Account)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.GetNestedAccountResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
+
+		// Use CustomID (n.Account) instead of parsing as UUID
+		root, err := repo.GetByCustomID(ctx, orgID, n.Account)
+		if err != nil {
+			if errors.Is(err, repository.ErrAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
-	}
 
-	ms, _, err := s.repo.List(ctx, repository.ListAccountsParams{Page: 1, PageSize: 10000})
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
-	}
+		ms, _, err := repo.List(ctx, repository.ListAccountsParams{Page: 1, PageSize: 10000})
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListAccounts}
+		}
 
-	ancestorByID := make(map[uuid.UUID]*model.Account, len(ms)+1)
-	ancestorByID[root.ID] = root
-	for _, m := range ms {
-		ancestorByID[m.ID] = m
-	}
+		ancestorByID := make(map[uuid.UUID]*model.Account, len(ms)+1)
+		ancestorByID[root.ID] = root
+		for _, m := range ms {
+			ancestorByID[m.ID] = m
+		}
 
-	rootNested := NestedAccountToProto(n.OrganizationResourceName(), root, nil, ancestorByID)
-	rootNested.Children = buildNestedTree(n.OrganizationResourceName(), ms, uuid.NullUUID{Valid: true, UUID: root.ID}, ancestorByID)
+		rootNested := NestedAccountToProto(n.OrganizationResourceName(), root, nil, ancestorByID)
+		rootNested.Children = buildNestedTree(n.OrganizationResourceName(), ms, uuid.NullUUID{Valid: true, UUID: root.ID}, ancestorByID)
 
-	return &gen.GetNestedAccountResponse{Account: rootNested}, nil
+		return &gen.GetNestedAccountResponse{Account: rootNested}, nil
+	})
 }
 
 func (s *accountServiceServer) CreateAccount(ctx context.Context, req *gen.CreateAccountRequest) (*gen.Account, error) {
@@ -305,71 +326,78 @@ func (s *accountServiceServer) CreateAccount(ctx context.Context, req *gen.Creat
 	parentAccountID := uuid.NullUUID{}
 	var parent *model.Account
 
-	if req.Account.ParentAccount != "" {
-		var pn gen.AccountResourceName
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Account, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
+		audits := newAuditWriter(tx)
 
-		if err := pn.UnmarshalString(req.Account.ParentAccount); err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidParentAccount}
-		}
+		if req.Account.ParentAccount != "" {
+			var pn gen.AccountResourceName
 
-		parentOrgID, err := uuid.Parse(pn.Organization)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidParentAccountOrganization}
-		}
-
-		// Use CustomID (pn.Account) instead of parsing as UUID
-		parent, err = s.repo.GetByCustomID(ctx, parentOrgID, pn.Account)
-		if err != nil {
-			if errors.Is(err, repository.ErrAccountNotFound) {
-				return nil, &ServerError{Err: err, Status: statusParentAccountNotFound}
+			if err := pn.UnmarshalString(req.Account.ParentAccount); err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidParentAccount}
 			}
 
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			parentOrgID, err := uuid.Parse(pn.Organization)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidParentAccountOrganization}
+			}
+
+			// Use CustomID (pn.Account) instead of parsing as UUID
+			parent, err = repo.GetByCustomID(ctx, parentOrgID, pn.Account)
+			if err != nil {
+				if errors.Is(err, repository.ErrAccountNotFound) {
+					return nil, &ServerError{Err: err, Status: statusParentAccountNotFound}
+				}
+
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+
+			if !parent.IsContainer {
+				return nil, &ServerError{Status: statusParentAccountMustBeContainer}
+			}
+
+			parentAccountID = uuid.NullUUID{Valid: true, UUID: parent.ID}
 		}
 
-		if !parent.IsContainer {
-			return nil, &ServerError{Status: statusParentAccountMustBeContainer}
-		}
-
-		parentAccountID = uuid.NullUUID{Valid: true, UUID: parent.ID}
-	}
-
-	m, err := s.repo.Create(ctx, repository.CreateAccountParams{
-		OrganizationID:     orgID,
-		ParentAccountID:    parentAccountID,
-		DisplayName:        req.Account.DisplayName,
-		DisplayCode:        req.Account.DisplayCode,
-		DisplayDescription: req.Account.DisplayDescription,
-		IsContainer:        req.Account.IsContainer,
-		CustomID:           req.AccountId,
-	})
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusAccountAlreadyExists}
-		}
-
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
-		}
-
-		return nil, &ServerError{Err: err, Status: statusFailedCreateAccount}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.AccountResourceName(m.CustomID).String(), orgID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	ancestorByID := map[uuid.UUID]*model.Account{}
-	if parent != nil {
-		ancestorByID, err = accountAncestors(ctx, s.repo, parent.ID)
+		m, err := repo.Create(ctx, repository.CreateAccountParams{
+			OrganizationID:     orgID,
+			ParentAccountID:    parentAccountID,
+			DisplayName:        req.Account.DisplayName,
+			DisplayCode:        req.Account.DisplayCode,
+			DisplayDescription: req.Account.DisplayDescription,
+			IsContainer:        req.Account.IsContainer,
+			InvertSign:         req.Account.InvertSign,
+			CustomID:           req.AccountId,
+		})
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			if errors.Is(err, repository.ErrAccountAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusAccountAlreadyExists}
+			}
+
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateAccount}
 		}
-		ancestorByID[parent.ID] = parent
-	}
-	return AccountToProto(n, m, parent, ancestorByID), nil
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.AccountResourceName(m.CustomID).String(), orgID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		ancestorByID := map[uuid.UUID]*model.Account{}
+		if parent != nil {
+			ancestorByID, err = accountAncestors(ctx, repo, parent.ID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+			ancestorByID[parent.ID] = parent
+		}
+		return AccountToProto(n, m, parent, ancestorByID), nil
+	})
 }
 
 func (s *accountServiceServer) UpdateAccount(ctx context.Context, req *gen.UpdateAccountRequest) (*gen.Account, error) {
@@ -392,51 +420,58 @@ func (s *accountServiceServer) UpdateAccount(ctx context.Context, req *gen.Updat
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountName}
 	}
 
-	// Use CustomID (n.Account) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.Account)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
-		}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Account, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
+		audits := newAuditWriter(tx)
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
-	}
-
-	before := *m
-
-	updateParams := repository.UpdateAccountParams{
-		DisplayName:        optional.From(req.Account.DisplayName),
-		DisplayCode:        optional.From(req.Account.DisplayCode),
-		DisplayDescription: optional.From(req.Account.DisplayDescription),
-		IsContainer:        optional.From(req.Account.IsContainer),
-	}
-
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateAccount}
-	}
-
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateAccount}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	var parentM *model.Account
-	ancestorByID := map[uuid.UUID]*model.Account{}
-	if m.ParentAccountID.Valid {
-		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
+		// Use CustomID (n.Account) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.Account)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			if errors.Is(err, repository.ErrAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 		}
-		parentM = ancestorByID[m.ParentAccountID.UUID]
-	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+
+		before := *m
+
+		updateParams := repository.UpdateAccountParams{
+			DisplayName:        optional.From(req.Account.DisplayName),
+			DisplayCode:        optional.From(req.Account.DisplayCode),
+			DisplayDescription: optional.From(req.Account.DisplayDescription),
+			IsContainer:        optional.From(req.Account.IsContainer),
+			InvertSign:         optional.From(req.Account.InvertSign),
+		}
+
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateAccount}
+		}
+
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateAccount}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		var parentM *model.Account
+		ancestorByID := map[uuid.UUID]*model.Account{}
+		if m.ParentAccountID.Valid {
+			ancestorByID, err = accountAncestors(ctx, repo, m.ParentAccountID.UUID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+			parentM = ancestorByID[m.ParentAccountID.UUID]
+		}
+		return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+	})
 }
 
 func (s *accountServiceServer) ArchiveAccount(ctx context.Context, req *gen.ArchiveAccountRequest) (*gen.Account, error) {
@@ -455,48 +490,54 @@ func (s *accountServiceServer) ArchiveAccount(ctx context.Context, req *gen.Arch
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountName}
 	}
 
-	// Use CustomID (n.Account) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.Account)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
-		}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Account, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
+		audits := newAuditWriter(tx)
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
-	}
-
-	before := *m
-
-	updateParams := repository.UpdateAccountParams{
-		IsArchived: optional.From(true),
-	}
-
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedArchiveAccount}
-	}
-
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedArchiveAccount}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	var parentM *model.Account
-	ancestorByID := map[uuid.UUID]*model.Account{}
-	if m.ParentAccountID.Valid {
-		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
+		// Use CustomID (n.Account) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.Account)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			if errors.Is(err, repository.ErrAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 		}
-		parentM = ancestorByID[m.ParentAccountID.UUID]
-	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+
+		before := *m
+
+		updateParams := repository.UpdateAccountParams{
+			IsArchived: optional.From(true),
+		}
+
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedArchiveAccount}
+		}
+
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedArchiveAccount}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		var parentM *model.Account
+		ancestorByID := map[uuid.UUID]*model.Account{}
+		if m.ParentAccountID.Valid {
+			ancestorByID, err = accountAncestors(ctx, repo, m.ParentAccountID.UUID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+			parentM = ancestorByID[m.ParentAccountID.UUID]
+		}
+		return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+	})
 }
 
 func (s *accountServiceServer) RestoreAccount(ctx context.Context, req *gen.RestoreAccountRequest) (*gen.Account, error) {
@@ -515,59 +556,65 @@ func (s *accountServiceServer) RestoreAccount(ctx context.Context, req *gen.Rest
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInAccountName}
 	}
 
-	// Use CustomID (n.Account) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.Account)
-	if err != nil {
-		if errors.Is(err, repository.ErrAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
-		}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Account, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Account()
+		audits := newAuditWriter(tx)
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
-	}
-
-	// An account cannot be restored while its parent is still archived.
-	// Restoring must happen top-down: restore the parent first.
-	if m.ParentAccountID.Valid {
-		parent, err := s.repo.GetByID(ctx, m.ParentAccountID.UUID)
+		// Use CustomID (n.Account) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.Account)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			if errors.Is(err, repository.ErrAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetAccount}
 		}
 
-		if parent.IsArchived {
-			return nil, &ServerError{Status: statusParentAccountArchived}
+		// An account cannot be restored while its parent is still archived.
+		// Restoring must happen top-down: restore the parent first.
+		if m.ParentAccountID.Valid {
+			parent, err := repo.GetByID(ctx, m.ParentAccountID.UUID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+
+			if parent.IsArchived {
+				return nil, &ServerError{Status: statusParentAccountArchived}
+			}
 		}
-	}
 
-	before := *m
+		before := *m
 
-	if err := s.repo.Update(ctx, m.ID, repository.UpdateAccountParams{
-		IsArchived: optional.From(false),
-	}); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRestoreAccount}
-	}
+		if err := repo.Update(ctx, m.ID, repository.UpdateAccountParams{
+			IsArchived: optional.From(false),
+		}); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRestoreAccount}
+		}
 
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRestoreAccount}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	var parentM *model.Account
-	ancestorByID := map[uuid.UUID]*model.Account{}
-	if m.ParentAccountID.Valid {
-		ancestorByID, err = accountAncestors(ctx, s.repo, m.ParentAccountID.UUID)
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			return nil, &ServerError{Err: err, Status: statusFailedRestoreAccount}
 		}
-		parentM = ancestorByID[m.ParentAccountID.UUID]
-	}
-	return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		var parentM *model.Account
+		ancestorByID := map[uuid.UUID]*model.Account{}
+		if m.ParentAccountID.Valid {
+			ancestorByID, err = accountAncestors(ctx, repo, m.ParentAccountID.UUID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedGetParentAccount}
+			}
+			parentM = ancestorByID[m.ParentAccountID.UUID]
+		}
+		return AccountToProto(gen.OrganizationResourceName{Organization: n.Organization}, m, parentM, ancestorByID), nil
+	})
 }
 
 type accountWithChildren struct {

@@ -10,11 +10,19 @@ import "google/api/resource.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
 import "pixlcrashr/vsfv/v1/common.proto";
 import "pixlcrashr/vsfv/v1/submission.proto";
 
 option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
 option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// OrganizationSubmissionSettings hold the per-organization submission configuration.
+message OrganizationSubmissionSettings {
+  // Organization-wide submission deadline. Pending submissions are
+  // automatically rejected once this date is reached. Unset means no deadline.
+  google.type.Date submission_deadline = 2 [(google.api.field_behavior) = OPTIONAL];
+}
 
 // Organization is the top-level resource that owns all other resources.
 message Organization {
@@ -43,7 +51,7 @@ message Organization {
   Month start_month = 7 [(google.api.field_behavior) = REQUIRED];
 
   // Submission settings for this organization.
-  SubmissionSettings submission_settings = 9 [(google.api.field_behavior) = OPTIONAL];
+  OrganizationSubmissionSettings submission_settings = 9 [(google.api.field_behavior) = OPTIONAL];
 
   // Last modification timestamp.
   google.protobuf.Timestamp update_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];

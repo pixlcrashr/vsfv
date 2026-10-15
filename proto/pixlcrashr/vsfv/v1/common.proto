@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package pixlcrashr.vsfv.v1;
 
+import "google/api/field_behavior.proto";
+
 option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
 option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
 
@@ -19,4 +21,19 @@ enum Month {
   MONTH_OCTOBER = 10;
   MONTH_NOVEMBER = 11;
   MONTH_DECEMBER = 12;
+}
+
+// BankDetails represent bank account details
+message BankAccount {
+  // Name of the account holder.
+  string account_holder = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // IBAN of the account.
+  string iban = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // BIC of the account (optional).
+  string bic = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Account number of the recipient (optional)
+  string account_number = 4 [(google.api.field_behavior) = OPTIONAL];
 }

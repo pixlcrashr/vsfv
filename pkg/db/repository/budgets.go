@@ -31,6 +31,7 @@ var BudgetOrderFieldMapper = order.FieldMapper{
 	"periodEnd":          "period_end",
 	"createTime":         "created_at",
 	"updateTime":         "updated_at",
+	"order":              "sort_order",
 }
 
 // ListBudgetsParams drives the List query.
@@ -108,7 +109,7 @@ func (r *BudgetRepository) List(ctx context.Context, params ListBudgetsParams) (
 			db = db.Order(expr.String())
 		}
 	} else {
-		db = db.Order("period_start DESC")
+		db = db.Order("sort_order ASC, created_at ASC")
 	}
 
 	// Apply pagination
@@ -191,6 +192,17 @@ func (r *BudgetRepository) GetByResourceName(ctx context.Context, organization s
 	return m, nil
 }
 
+// ListAll returns all budgets of an organization in their custom order.
+func (r *BudgetRepository) ListAll(ctx context.Context, orgID uuid.UUID) ([]*model.Budget, error) {
+	ms, err := r.q.Budget.WithContext(ctx).Where(
+		r.q.Budget.OrganizationID.Eq(orgID),
+	).Order(r.q.Budget.Order, r.q.Budget.CreatedAt).Find()
+	if err != nil {
+		return nil, fmt.Errorf("list all budgets organization_id=%s: %w", orgID, err)
+	}
+	return ms, nil
+}
+
 // CreateBudgetParams holds the fields required to create a budget.
 type CreateBudgetParams struct {
 	OrganizationID           uuid.UUID
@@ -214,6 +226,17 @@ func (r *BudgetRepository) Create(ctx context.Context, params CreateBudgetParams
 	if orgCount == 0 {
 		return nil, errors.Join(ErrOrganizationNotFound, fmt.Errorf("organization_id=%s: %w", params.OrganizationID, gorm.ErrRecordNotFound))
 	}
+
+	// New budgets are appended after the current last one in the
+	// organization's custom ordering.
+	var maxOrder int32
+	if err := r.db.WithContext(ctx).Model(&model.Budget{}).
+		Where("organization_id = ?", params.OrganizationID).
+		Select("COALESCE(MAX(sort_order), -1)").
+		Scan(&maxOrder).Error; err != nil {
+		return nil, fmt.Errorf("create budget: get max order organization_id=%s: %w", params.OrganizationID, err)
+	}
+
 	m := &model.Budget{
 		OrganizationID:      params.OrganizationID,
 		DisplayName:         params.DisplayName,
@@ -224,6 +247,7 @@ func (r *BudgetRepository) Create(ctx context.Context, params CreateBudgetParams
 		IsPublished:         params.IsPublished,
 		PublishActualValues: params.PublishActualValues,
 		CustomID:            params.CustomID,
+		Order:               maxOrder + 1,
 	}
 	if params.PublishActualValuesUntil != nil {
 		m.PublishActualValuesUntil = sql.NullTime{Time: *params.PublishActualValuesUntil, Valid: true}
@@ -298,6 +322,21 @@ func (r *BudgetRepository) Update(ctx context.Context, id uuid.UUID, params Upda
 		return fmt.Errorf("update budget id=%s: %w", id, err)
 	}
 
+	return nil
+}
+
+// Reorder assigns sequential custom orders (0..n-1) to the given budget IDs,
+// in the order they are provided. Rows whose order already matches are left
+// untouched. IDs must belong to the same organization.
+func (r *BudgetRepository) Reorder(ctx context.Context, ids []uuid.UUID) error {
+	for i, id := range ids {
+		if _, err := r.q.Budget.WithContext(ctx).Where(
+			r.q.Budget.ID.Eq(id),
+			r.q.Budget.Order.Neq(int32(i)),
+		).Update(r.q.Budget.Order, int32(i)); err != nil {
+			return fmt.Errorf("reorder budget id=%s: %w", id, err)
+		}
+	}
 	return nil
 }
 

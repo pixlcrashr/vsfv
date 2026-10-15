@@ -11,7 +11,6 @@ import (
 	date "google.golang.org/genproto/googleapis/type/date"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
@@ -26,163 +25,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Direction describes whether a submission documents an expense or an income.
-type Direction int32
+// Scope describes whether a submission relates to nonprofit ("hoheitlich")
+// or commercial ("gewerblich") activity.
+type SubmissionScope int32
 
 const (
-	Direction_DIRECTION_UNSPECIFIED Direction = 0
-	Direction_DIRECTION_EXPENSE     Direction = 1
-	Direction_DIRECTION_INCOME      Direction = 2
+	SubmissionScope_SUBMISSION_SCOPE_UNSPECIFIED SubmissionScope = 0
+	SubmissionScope_SUBMISSION_SCOPE_NONE        SubmissionScope = 1
+	SubmissionScope_SUBMISSION_SCOPE_NONPROFIT   SubmissionScope = 2
+	SubmissionScope_SUBMISSION_SCOPE_COMMERCIAL  SubmissionScope = 3
 )
 
-// Enum value maps for Direction.
+// Enum value maps for SubmissionScope.
 var (
-	Direction_name = map[int32]string{
-		0: "DIRECTION_UNSPECIFIED",
-		1: "DIRECTION_EXPENSE",
-		2: "DIRECTION_INCOME",
+	SubmissionScope_name = map[int32]string{
+		0: "SUBMISSION_SCOPE_UNSPECIFIED",
+		1: "SUBMISSION_SCOPE_NONE",
+		2: "SUBMISSION_SCOPE_NONPROFIT",
+		3: "SUBMISSION_SCOPE_COMMERCIAL",
 	}
-	Direction_value = map[string]int32{
-		"DIRECTION_UNSPECIFIED": 0,
-		"DIRECTION_EXPENSE":     1,
-		"DIRECTION_INCOME":      2,
+	SubmissionScope_value = map[string]int32{
+		"SUBMISSION_SCOPE_UNSPECIFIED": 0,
+		"SUBMISSION_SCOPE_NONE":        1,
+		"SUBMISSION_SCOPE_NONPROFIT":   2,
+		"SUBMISSION_SCOPE_COMMERCIAL":  3,
 	}
 )
 
-func (x Direction) Enum() *Direction {
-	p := new(Direction)
+func (x SubmissionScope) Enum() *SubmissionScope {
+	p := new(SubmissionScope)
 	*p = x
 	return p
 }
 
-func (x Direction) String() string {
+func (x SubmissionScope) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (Direction) Descriptor() protoreflect.EnumDescriptor {
+func (SubmissionScope) Descriptor() protoreflect.EnumDescriptor {
 	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[0].Descriptor()
 }
 
-func (Direction) Type() protoreflect.EnumType {
+func (SubmissionScope) Type() protoreflect.EnumType {
 	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[0]
 }
 
-func (x Direction) Number() protoreflect.EnumNumber {
+func (x SubmissionScope) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use Direction.Descriptor instead.
-func (Direction) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use SubmissionScope.Descriptor instead.
+func (SubmissionScope) EnumDescriptor() ([]byte, []int) {
 	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{0}
-}
-
-// Settlement describes how an expense submission is (or was) settled.
-type Settlement int32
-
-const (
-	Settlement_SETTLEMENT_UNSPECIFIED Settlement = 0
-	// The submitter paid privately and receives a payout.
-	Settlement_SETTLEMENT_PERSON Settlement = 1
-	// The expense was already paid from a committee-held payment account
-	// (bank account or cash box); the submission is documentation only.
-	Settlement_SETTLEMENT_COMMITTEE_ACCOUNT Settlement = 2
-	// The expense is not yet paid; the treasury pays the vendor from the
-	// central account.
-	Settlement_SETTLEMENT_PAYMENT_REQUEST Settlement = 3
-)
-
-// Enum value maps for Settlement.
-var (
-	Settlement_name = map[int32]string{
-		0: "SETTLEMENT_UNSPECIFIED",
-		1: "SETTLEMENT_PERSON",
-		2: "SETTLEMENT_COMMITTEE_ACCOUNT",
-		3: "SETTLEMENT_PAYMENT_REQUEST",
-	}
-	Settlement_value = map[string]int32{
-		"SETTLEMENT_UNSPECIFIED":       0,
-		"SETTLEMENT_PERSON":            1,
-		"SETTLEMENT_COMMITTEE_ACCOUNT": 2,
-		"SETTLEMENT_PAYMENT_REQUEST":   3,
-	}
-)
-
-func (x Settlement) Enum() *Settlement {
-	p := new(Settlement)
-	*p = x
-	return p
-}
-
-func (x Settlement) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Settlement) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[1].Descriptor()
-}
-
-func (Settlement) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[1]
-}
-
-func (x Settlement) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Settlement.Descriptor instead.
-func (Settlement) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{1}
-}
-
-// Scope describes whether a submission relates to nonprofit ("hoheitlich")
-// or commercial ("gewerblich") activity.
-type Scope int32
-
-const (
-	Scope_SCOPE_UNSPECIFIED Scope = 0
-	Scope_SCOPE_NONPROFIT   Scope = 1
-	Scope_SCOPE_COMMERCIAL  Scope = 2
-)
-
-// Enum value maps for Scope.
-var (
-	Scope_name = map[int32]string{
-		0: "SCOPE_UNSPECIFIED",
-		1: "SCOPE_NONPROFIT",
-		2: "SCOPE_COMMERCIAL",
-	}
-	Scope_value = map[string]int32{
-		"SCOPE_UNSPECIFIED": 0,
-		"SCOPE_NONPROFIT":   1,
-		"SCOPE_COMMERCIAL":  2,
-	}
-)
-
-func (x Scope) Enum() *Scope {
-	p := new(Scope)
-	*p = x
-	return p
-}
-
-func (x Scope) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Scope) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[2].Descriptor()
-}
-
-func (Scope) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[2]
-}
-
-func (x Scope) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Scope.Descriptor instead.
-func (Scope) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{2}
 }
 
 // SubmissionStatus is the lifecycle state of a submission.
@@ -234,11 +128,11 @@ func (x SubmissionStatus) String() string {
 }
 
 func (SubmissionStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[3].Descriptor()
+	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[1].Descriptor()
 }
 
 func (SubmissionStatus) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[3]
+	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[1]
 }
 
 func (x SubmissionStatus) Number() protoreflect.EnumNumber {
@@ -247,312 +141,116 @@ func (x SubmissionStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SubmissionStatus.Descriptor instead.
 func (SubmissionStatus) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{3}
-}
-
-// PayoutMethod describes how a person settlement payout is executed.
-type PayoutMethod int32
-
-const (
-	PayoutMethod_PAYOUT_METHOD_UNSPECIFIED   PayoutMethod = 0
-	PayoutMethod_PAYOUT_METHOD_BANK_TRANSFER PayoutMethod = 1
-	PayoutMethod_PAYOUT_METHOD_CASH          PayoutMethod = 2
-)
-
-// Enum value maps for PayoutMethod.
-var (
-	PayoutMethod_name = map[int32]string{
-		0: "PAYOUT_METHOD_UNSPECIFIED",
-		1: "PAYOUT_METHOD_BANK_TRANSFER",
-		2: "PAYOUT_METHOD_CASH",
-	}
-	PayoutMethod_value = map[string]int32{
-		"PAYOUT_METHOD_UNSPECIFIED":   0,
-		"PAYOUT_METHOD_BANK_TRANSFER": 1,
-		"PAYOUT_METHOD_CASH":          2,
-	}
-)
-
-func (x PayoutMethod) Enum() *PayoutMethod {
-	p := new(PayoutMethod)
-	*p = x
-	return p
-}
-
-func (x PayoutMethod) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PayoutMethod) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[4].Descriptor()
-}
-
-func (PayoutMethod) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[4]
-}
-
-func (x PayoutMethod) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PayoutMethod.Descriptor instead.
-func (PayoutMethod) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{4}
-}
-
-// PaymentRequestTiming describes when the treasury should execute a payment
-// request.
-type PaymentRequestTiming int32
-
-const (
-	PaymentRequestTiming_PAYMENT_REQUEST_TIMING_UNSPECIFIED PaymentRequestTiming = 0
-	PaymentRequestTiming_PAYMENT_REQUEST_TIMING_ON_INVOICE  PaymentRequestTiming = 1
-	PaymentRequestTiming_PAYMENT_REQUEST_TIMING_ADVANCE     PaymentRequestTiming = 2
-)
-
-// Enum value maps for PaymentRequestTiming.
-var (
-	PaymentRequestTiming_name = map[int32]string{
-		0: "PAYMENT_REQUEST_TIMING_UNSPECIFIED",
-		1: "PAYMENT_REQUEST_TIMING_ON_INVOICE",
-		2: "PAYMENT_REQUEST_TIMING_ADVANCE",
-	}
-	PaymentRequestTiming_value = map[string]int32{
-		"PAYMENT_REQUEST_TIMING_UNSPECIFIED": 0,
-		"PAYMENT_REQUEST_TIMING_ON_INVOICE":  1,
-		"PAYMENT_REQUEST_TIMING_ADVANCE":     2,
-	}
-)
-
-func (x PaymentRequestTiming) Enum() *PaymentRequestTiming {
-	p := new(PaymentRequestTiming)
-	*p = x
-	return p
-}
-
-func (x PaymentRequestTiming) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PaymentRequestTiming) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[5].Descriptor()
-}
-
-func (PaymentRequestTiming) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[5]
-}
-
-func (x PaymentRequestTiming) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PaymentRequestTiming.Descriptor instead.
-func (PaymentRequestTiming) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{5}
-}
-
-// DocumentForm describes in which form the original document exists.
-type DocumentForm int32
-
-const (
-	DocumentForm_DOCUMENT_FORM_UNSPECIFIED      DocumentForm = 0
-	DocumentForm_DOCUMENT_FORM_PAPER_ORIGINAL   DocumentForm = 1
-	DocumentForm_DOCUMENT_FORM_DIGITAL_ORIGINAL DocumentForm = 2
-)
-
-// Enum value maps for DocumentForm.
-var (
-	DocumentForm_name = map[int32]string{
-		0: "DOCUMENT_FORM_UNSPECIFIED",
-		1: "DOCUMENT_FORM_PAPER_ORIGINAL",
-		2: "DOCUMENT_FORM_DIGITAL_ORIGINAL",
-	}
-	DocumentForm_value = map[string]int32{
-		"DOCUMENT_FORM_UNSPECIFIED":      0,
-		"DOCUMENT_FORM_PAPER_ORIGINAL":   1,
-		"DOCUMENT_FORM_DIGITAL_ORIGINAL": 2,
-	}
-)
-
-func (x DocumentForm) Enum() *DocumentForm {
-	p := new(DocumentForm)
-	*p = x
-	return p
-}
-
-func (x DocumentForm) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DocumentForm) Descriptor() protoreflect.EnumDescriptor {
-	return file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[6].Descriptor()
-}
-
-func (DocumentForm) Type() protoreflect.EnumType {
-	return &file_pixlcrashr_vsfv_v1_submission_proto_enumTypes[6]
-}
-
-func (x DocumentForm) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DocumentForm.Descriptor instead.
-func (DocumentForm) EnumDescriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{6}
-}
-
-// BankDetails are the personal bank account details of the submitting person
-// for a person settlement payout.
-type BankDetails struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Name of the account holder.
-	AccountHolder string `protobuf:"bytes,1,opt,name=account_holder,json=accountHolder,proto3" json:"account_holder,omitempty"`
-	// IBAN of the account.
-	Iban string `protobuf:"bytes,2,opt,name=iban,proto3" json:"iban,omitempty"`
-	// BIC of the account (optional).
-	Bic           string `protobuf:"bytes,3,opt,name=bic,proto3" json:"bic,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BankDetails) Reset() {
-	*x = BankDetails{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BankDetails) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BankDetails) ProtoMessage() {}
-
-func (x *BankDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BankDetails.ProtoReflect.Descriptor instead.
-func (*BankDetails) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *BankDetails) GetAccountHolder() string {
-	if x != nil {
-		return x.AccountHolder
-	}
-	return ""
-}
-
-func (x *BankDetails) GetIban() string {
-	if x != nil {
-		return x.Iban
-	}
-	return ""
-}
-
-func (x *BankDetails) GetBic() string {
-	if x != nil {
-		return x.Bic
-	}
-	return ""
-}
-
-// PersonDetails are the settlement details for a person settlement.
-type PersonDetails struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// How the payout should be executed.
-	PayoutMethod PayoutMethod `protobuf:"varint,1,opt,name=payout_method,json=payoutMethod,proto3,enum=pixlcrashr.vsfv.v1.PayoutMethod" json:"payout_method,omitempty"`
-	// The bank account for the payout (required for bank transfer payouts).
-	BankDetails   *BankDetails `protobuf:"bytes,2,opt,name=bank_details,json=bankDetails,proto3" json:"bank_details,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PersonDetails) Reset() {
-	*x = PersonDetails{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PersonDetails) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PersonDetails) ProtoMessage() {}
-
-func (x *PersonDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PersonDetails.ProtoReflect.Descriptor instead.
-func (*PersonDetails) Descriptor() ([]byte, []int) {
 	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PersonDetails) GetPayoutMethod() PayoutMethod {
-	if x != nil {
-		return x.PayoutMethod
-	}
-	return PayoutMethod_PAYOUT_METHOD_UNSPECIFIED
+type SubmissionPayoutMethodBankTransfer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bank account for the payout (required for bank transfer payouts).
+	BankAccount   *BankAccount `protobuf:"bytes,2,opt,name=bank_account,json=bankAccount,proto3" json:"bank_account,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PersonDetails) GetBankDetails() *BankDetails {
+func (x *SubmissionPayoutMethodBankTransfer) Reset() {
+	*x = SubmissionPayoutMethodBankTransfer{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionPayoutMethodBankTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionPayoutMethodBankTransfer) ProtoMessage() {}
+
+func (x *SubmissionPayoutMethodBankTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[0]
 	if x != nil {
-		return x.BankDetails
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionPayoutMethodBankTransfer.ProtoReflect.Descriptor instead.
+func (*SubmissionPayoutMethodBankTransfer) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SubmissionPayoutMethodBankTransfer) GetBankAccount() *BankAccount {
+	if x != nil {
+		return x.BankAccount
 	}
 	return nil
 }
 
-// CommitteeAccountDetails are the settlement details for an expense that was
-// already paid from a committee-held payment account.
-type CommitteeAccountDetails struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The UUID of the committee payment account the expense was paid from
-	// (Committee.payment_accounts[].uid).
-	PaymentAccountUid string `protobuf:"bytes,1,opt,name=payment_account_uid,json=paymentAccountUid,proto3" json:"payment_account_uid,omitempty"`
-	// Label of the payment account at the time of submission (snapshot, so
-	// historical submissions stay readable if the account is renamed/removed).
-	PaymentAccountLabel string `protobuf:"bytes,2,opt,name=payment_account_label,json=paymentAccountLabel,proto3" json:"payment_account_label,omitempty"`
-	// The date the expense was paid.
-	PaidDate *date.Date `protobuf:"bytes,3,opt,name=paid_date,json=paidDate,proto3" json:"paid_date,omitempty"`
-	// Optional payment reference (e.g. mandate or booking reference).
-	PaymentReference string `protobuf:"bytes,4,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+type SubmissionPayoutMethodCash struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CommitteeAccountDetails) Reset() {
-	*x = CommitteeAccountDetails{}
+func (x *SubmissionPayoutMethodCash) Reset() {
+	*x = SubmissionPayoutMethodCash{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionPayoutMethodCash) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionPayoutMethodCash) ProtoMessage() {}
+
+func (x *SubmissionPayoutMethodCash) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionPayoutMethodCash.ProtoReflect.Descriptor instead.
+func (*SubmissionPayoutMethodCash) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{1}
+}
+
+// SubmissionSettlementPerson are the settlement details for a person settlement.
+type SubmissionSettlementPerson struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to PayoutMethod:
+	//
+	//	*SubmissionSettlementPerson_BankTransfer
+	//	*SubmissionSettlementPerson_Cash
+	PayoutMethod  isSubmissionSettlementPerson_PayoutMethod `protobuf_oneof:"payout_method"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionSettlementPerson) Reset() {
+	*x = SubmissionSettlementPerson{}
 	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CommitteeAccountDetails) String() string {
+func (x *SubmissionSettlementPerson) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CommitteeAccountDetails) ProtoMessage() {}
+func (*SubmissionSettlementPerson) ProtoMessage() {}
 
-func (x *CommitteeAccountDetails) ProtoReflect() protoreflect.Message {
+func (x *SubmissionSettlementPerson) ProtoReflect() protoreflect.Message {
 	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -564,70 +262,141 @@ func (x *CommitteeAccountDetails) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CommitteeAccountDetails.ProtoReflect.Descriptor instead.
-func (*CommitteeAccountDetails) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubmissionSettlementPerson.ProtoReflect.Descriptor instead.
+func (*SubmissionSettlementPerson) Descriptor() ([]byte, []int) {
 	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *CommitteeAccountDetails) GetPaymentAccountUid() string {
+func (x *SubmissionSettlementPerson) GetPayoutMethod() isSubmissionSettlementPerson_PayoutMethod {
 	if x != nil {
-		return x.PaymentAccountUid
+		return x.PayoutMethod
+	}
+	return nil
+}
+
+func (x *SubmissionSettlementPerson) GetBankTransfer() *SubmissionPayoutMethodBankTransfer {
+	if x != nil {
+		if x, ok := x.PayoutMethod.(*SubmissionSettlementPerson_BankTransfer); ok {
+			return x.BankTransfer
+		}
+	}
+	return nil
+}
+
+func (x *SubmissionSettlementPerson) GetCash() *SubmissionPayoutMethodCash {
+	if x != nil {
+		if x, ok := x.PayoutMethod.(*SubmissionSettlementPerson_Cash); ok {
+			return x.Cash
+		}
+	}
+	return nil
+}
+
+type isSubmissionSettlementPerson_PayoutMethod interface {
+	isSubmissionSettlementPerson_PayoutMethod()
+}
+
+type SubmissionSettlementPerson_BankTransfer struct {
+	BankTransfer *SubmissionPayoutMethodBankTransfer `protobuf:"bytes,1,opt,name=bank_transfer,json=bankTransfer,proto3,oneof"`
+}
+
+type SubmissionSettlementPerson_Cash struct {
+	Cash *SubmissionPayoutMethodCash `protobuf:"bytes,2,opt,name=cash,proto3,oneof"`
+}
+
+func (*SubmissionSettlementPerson_BankTransfer) isSubmissionSettlementPerson_PayoutMethod() {}
+
+func (*SubmissionSettlementPerson_Cash) isSubmissionSettlementPerson_PayoutMethod() {}
+
+// SubmissionSettlementCommitteeAccount are the settlement details for an expense that was
+// already paid from a committee-held payment account.
+type SubmissionSettlementCommitteeAccount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The resource name of the committee payment account the expense was paid from
+	PaymentAccount string `protobuf:"bytes,1,opt,name=payment_account,json=paymentAccount,proto3" json:"payment_account,omitempty"`
+	// The date the expense was paid.
+	PaidDate *date.Date `protobuf:"bytes,2,opt,name=paid_date,json=paidDate,proto3" json:"paid_date,omitempty"`
+	// Optional payment reference (e.g. mandate or booking reference).
+	PaymentReference string `protobuf:"bytes,3,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SubmissionSettlementCommitteeAccount) Reset() {
+	*x = SubmissionSettlementCommitteeAccount{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionSettlementCommitteeAccount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionSettlementCommitteeAccount) ProtoMessage() {}
+
+func (x *SubmissionSettlementCommitteeAccount) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionSettlementCommitteeAccount.ProtoReflect.Descriptor instead.
+func (*SubmissionSettlementCommitteeAccount) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SubmissionSettlementCommitteeAccount) GetPaymentAccount() string {
+	if x != nil {
+		return x.PaymentAccount
 	}
 	return ""
 }
 
-func (x *CommitteeAccountDetails) GetPaymentAccountLabel() string {
-	if x != nil {
-		return x.PaymentAccountLabel
-	}
-	return ""
-}
-
-func (x *CommitteeAccountDetails) GetPaidDate() *date.Date {
+func (x *SubmissionSettlementCommitteeAccount) GetPaidDate() *date.Date {
 	if x != nil {
 		return x.PaidDate
 	}
 	return nil
 }
 
-func (x *CommitteeAccountDetails) GetPaymentReference() string {
+func (x *SubmissionSettlementCommitteeAccount) GetPaymentReference() string {
 	if x != nil {
 		return x.PaymentReference
 	}
 	return ""
 }
 
-// PaymentRequestDetails are the settlement details for an expense that the
+// SubmissionSettlementPaymentRequest are the settlement details for an expense that the
 // treasury should pay from the central account.
-type PaymentRequestDetails struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Name of the vendor / payment recipient.
-	VendorName string `protobuf:"bytes,1,opt,name=vendor_name,json=vendorName,proto3" json:"vendor_name,omitempty"`
-	// IBAN of the vendor.
-	VendorIban string `protobuf:"bytes,2,opt,name=vendor_iban,json=vendorIban,proto3" json:"vendor_iban,omitempty"`
-	// BIC of the vendor (optional).
-	VendorBic string `protobuf:"bytes,3,opt,name=vendor_bic,json=vendorBic,proto3" json:"vendor_bic,omitempty"`
-	// When the treasury should execute the payment.
-	Timing        PaymentRequestTiming `protobuf:"varint,4,opt,name=timing,proto3,enum=pixlcrashr.vsfv.v1.PaymentRequestTiming" json:"timing,omitempty"`
+type SubmissionSettlementPaymentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BankAccount   *BankAccount           `protobuf:"bytes,1,opt,name=bank_account,json=bankAccount,proto3" json:"bank_account,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PaymentRequestDetails) Reset() {
-	*x = PaymentRequestDetails{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[3]
+func (x *SubmissionSettlementPaymentRequest) Reset() {
+	*x = SubmissionSettlementPaymentRequest{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PaymentRequestDetails) String() string {
+func (x *SubmissionSettlementPaymentRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PaymentRequestDetails) ProtoMessage() {}
+func (*SubmissionSettlementPaymentRequest) ProtoMessage() {}
 
-func (x *PaymentRequestDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[3]
+func (x *SubmissionSettlementPaymentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,40 +407,284 @@ func (x *PaymentRequestDetails) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PaymentRequestDetails.ProtoReflect.Descriptor instead.
-func (*PaymentRequestDetails) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use SubmissionSettlementPaymentRequest.ProtoReflect.Descriptor instead.
+func (*SubmissionSettlementPaymentRequest) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *PaymentRequestDetails) GetVendorName() string {
+func (x *SubmissionSettlementPaymentRequest) GetBankAccount() *BankAccount {
 	if x != nil {
-		return x.VendorName
+		return x.BankAccount
 	}
-	return ""
+	return nil
 }
 
-func (x *PaymentRequestDetails) GetVendorIban() string {
+type SubmissionDirectionIncomeDetails struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionDirectionIncomeDetails) Reset() {
+	*x = SubmissionDirectionIncomeDetails{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionDirectionIncomeDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionDirectionIncomeDetails) ProtoMessage() {}
+
+func (x *SubmissionDirectionIncomeDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[5]
 	if x != nil {
-		return x.VendorIban
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return ""
+	return mi.MessageOf(x)
 }
 
-func (x *PaymentRequestDetails) GetVendorBic() string {
+// Deprecated: Use SubmissionDirectionIncomeDetails.ProtoReflect.Descriptor instead.
+func (*SubmissionDirectionIncomeDetails) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{5}
+}
+
+type SubmissionDirectionExpenseDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Settlement:
+	//
+	//	*SubmissionDirectionExpenseDetails_Person
+	//	*SubmissionDirectionExpenseDetails_CommitteeAccount
+	//	*SubmissionDirectionExpenseDetails_PaymentRequest
+	Settlement    isSubmissionDirectionExpenseDetails_Settlement `protobuf_oneof:"settlement"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionDirectionExpenseDetails) Reset() {
+	*x = SubmissionDirectionExpenseDetails{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionDirectionExpenseDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionDirectionExpenseDetails) ProtoMessage() {}
+
+func (x *SubmissionDirectionExpenseDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[6]
 	if x != nil {
-		return x.VendorBic
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return ""
+	return mi.MessageOf(x)
 }
 
-func (x *PaymentRequestDetails) GetTiming() PaymentRequestTiming {
+// Deprecated: Use SubmissionDirectionExpenseDetails.ProtoReflect.Descriptor instead.
+func (*SubmissionDirectionExpenseDetails) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SubmissionDirectionExpenseDetails) GetSettlement() isSubmissionDirectionExpenseDetails_Settlement {
 	if x != nil {
-		return x.Timing
+		return x.Settlement
 	}
-	return PaymentRequestTiming_PAYMENT_REQUEST_TIMING_UNSPECIFIED
+	return nil
 }
 
-// Submission is a documented expense or income with receipts, submitted by a
+func (x *SubmissionDirectionExpenseDetails) GetPerson() *SubmissionSettlementPerson {
+	if x != nil {
+		if x, ok := x.Settlement.(*SubmissionDirectionExpenseDetails_Person); ok {
+			return x.Person
+		}
+	}
+	return nil
+}
+
+func (x *SubmissionDirectionExpenseDetails) GetCommitteeAccount() *SubmissionSettlementCommitteeAccount {
+	if x != nil {
+		if x, ok := x.Settlement.(*SubmissionDirectionExpenseDetails_CommitteeAccount); ok {
+			return x.CommitteeAccount
+		}
+	}
+	return nil
+}
+
+func (x *SubmissionDirectionExpenseDetails) GetPaymentRequest() *SubmissionSettlementPaymentRequest {
+	if x != nil {
+		if x, ok := x.Settlement.(*SubmissionDirectionExpenseDetails_PaymentRequest); ok {
+			return x.PaymentRequest
+		}
+	}
+	return nil
+}
+
+type isSubmissionDirectionExpenseDetails_Settlement interface {
+	isSubmissionDirectionExpenseDetails_Settlement()
+}
+
+type SubmissionDirectionExpenseDetails_Person struct {
+	// Details for a person settlement.
+	Person *SubmissionSettlementPerson `protobuf:"bytes,12,opt,name=person,proto3,oneof"`
+}
+
+type SubmissionDirectionExpenseDetails_CommitteeAccount struct {
+	// Details for an already-paid committee account settlement.
+	CommitteeAccount *SubmissionSettlementCommitteeAccount `protobuf:"bytes,13,opt,name=committee_account,json=committeeAccount,proto3,oneof"`
+}
+
+type SubmissionDirectionExpenseDetails_PaymentRequest struct {
+	// Details for a payment request to the treasury.
+	PaymentRequest *SubmissionSettlementPaymentRequest `protobuf:"bytes,14,opt,name=payment_request,json=paymentRequest,proto3,oneof"`
+}
+
+func (*SubmissionDirectionExpenseDetails_Person) isSubmissionDirectionExpenseDetails_Settlement() {}
+
+func (*SubmissionDirectionExpenseDetails_CommitteeAccount) isSubmissionDirectionExpenseDetails_Settlement() {
+}
+
+func (*SubmissionDirectionExpenseDetails_PaymentRequest) isSubmissionDirectionExpenseDetails_Settlement() {
+}
+
+type SubmissionTypeIncomeExpenseDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Scope SubmissionScope        `protobuf:"varint,1,opt,name=scope,proto3,enum=pixlcrashr.vsfv.v1.SubmissionScope" json:"scope,omitempty"`
+	// Types that are valid to be assigned to Direction:
+	//
+	//	*SubmissionTypeIncomeExpenseDetails_Income
+	//	*SubmissionTypeIncomeExpenseDetails_Expense
+	Direction     isSubmissionTypeIncomeExpenseDetails_Direction `protobuf_oneof:"direction"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionTypeIncomeExpenseDetails) Reset() {
+	*x = SubmissionTypeIncomeExpenseDetails{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionTypeIncomeExpenseDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionTypeIncomeExpenseDetails) ProtoMessage() {}
+
+func (x *SubmissionTypeIncomeExpenseDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionTypeIncomeExpenseDetails.ProtoReflect.Descriptor instead.
+func (*SubmissionTypeIncomeExpenseDetails) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SubmissionTypeIncomeExpenseDetails) GetScope() SubmissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return SubmissionScope_SUBMISSION_SCOPE_UNSPECIFIED
+}
+
+func (x *SubmissionTypeIncomeExpenseDetails) GetDirection() isSubmissionTypeIncomeExpenseDetails_Direction {
+	if x != nil {
+		return x.Direction
+	}
+	return nil
+}
+
+func (x *SubmissionTypeIncomeExpenseDetails) GetIncome() *SubmissionDirectionIncomeDetails {
+	if x != nil {
+		if x, ok := x.Direction.(*SubmissionTypeIncomeExpenseDetails_Income); ok {
+			return x.Income
+		}
+	}
+	return nil
+}
+
+func (x *SubmissionTypeIncomeExpenseDetails) GetExpense() *SubmissionDirectionExpenseDetails {
+	if x != nil {
+		if x, ok := x.Direction.(*SubmissionTypeIncomeExpenseDetails_Expense); ok {
+			return x.Expense
+		}
+	}
+	return nil
+}
+
+type isSubmissionTypeIncomeExpenseDetails_Direction interface {
+	isSubmissionTypeIncomeExpenseDetails_Direction()
+}
+
+type SubmissionTypeIncomeExpenseDetails_Income struct {
+	Income *SubmissionDirectionIncomeDetails `protobuf:"bytes,2,opt,name=income,proto3,oneof"`
+}
+
+type SubmissionTypeIncomeExpenseDetails_Expense struct {
+	Expense *SubmissionDirectionExpenseDetails `protobuf:"bytes,3,opt,name=expense,proto3,oneof"`
+}
+
+func (*SubmissionTypeIncomeExpenseDetails_Income) isSubmissionTypeIncomeExpenseDetails_Direction() {}
+
+func (*SubmissionTypeIncomeExpenseDetails_Expense) isSubmissionTypeIncomeExpenseDetails_Direction() {}
+
+type SubmissionTypeMiscDetails struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionTypeMiscDetails) Reset() {
+	*x = SubmissionTypeMiscDetails{}
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionTypeMiscDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionTypeMiscDetails) ProtoMessage() {}
+
+func (x *SubmissionTypeMiscDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionTypeMiscDetails.ProtoReflect.Descriptor instead.
+func (*SubmissionTypeMiscDetails) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{8}
+}
+
+// Submission is a documented expense or income or misc documents with receipts, submitted by a
 // committee member and reviewed by the treasury.
 type Submission struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -688,43 +701,34 @@ type Submission struct {
 	// The committee the submission belongs to.
 	// Format: organizations/{organization}/committees/{committee}
 	Committee string `protobuf:"bytes,5,opt,name=committee,proto3" json:"committee,omitempty"`
-	// Whether this submission documents an expense or an income.
-	Direction Direction `protobuf:"varint,6,opt,name=direction,proto3,enum=pixlcrashr.vsfv.v1.Direction" json:"direction,omitempty"`
-	// How the expense is settled. Must be unset for income submissions.
-	Settlement Settlement `protobuf:"varint,7,opt,name=settlement,proto3,enum=pixlcrashr.vsfv.v1.Settlement" json:"settlement,omitempty"`
-	// The nonprofit/commercial scope of the submission.
-	Scope Scope `protobuf:"varint,8,opt,name=scope,proto3,enum=pixlcrashr.vsfv.v1.Scope" json:"scope,omitempty"`
+	// Types that are valid to be assigned to Type:
+	//
+	//	*Submission_IncomeExpense
+	//	*Submission_Misc
+	Type isSubmission_Type `protobuf_oneof:"type"`
 	// The lifecycle state of the submission.
-	Status SubmissionStatus `protobuf:"varint,9,opt,name=status,proto3,enum=pixlcrashr.vsfv.v1.SubmissionStatus" json:"status,omitempty"`
+	Status SubmissionStatus `protobuf:"varint,8,opt,name=status,proto3,enum=pixlcrashr.vsfv.v1.SubmissionStatus" json:"status,omitempty"`
 	// Free-text notice from the submitter.
-	Notice string `protobuf:"bytes,10,opt,name=notice,proto3" json:"notice,omitempty"`
-	// Settlement details; the variant must match `settlement`.
-	//
-	// Types that are valid to be assigned to SettlementDetails:
-	//
-	//	*Submission_PersonDetails
-	//	*Submission_CommitteeAccountDetails
-	//	*Submission_PaymentRequestDetails
-	SettlementDetails isSubmission_SettlementDetails `protobuf_oneof:"settlement_details"`
+	Notice string `protobuf:"bytes,9,opt,name=notice,proto3" json:"notice,omitempty"`
 	// Sum of all item amounts (read-only derived value).
-	TotalAmount *Decimal `protobuf:"bytes,14,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount,omitempty"`
+	TotalAmount *Decimal `protobuf:"bytes,10,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount,omitempty"`
 	// Entity tag for optimistic concurrency control.
-	Etag string `protobuf:"bytes,15,opt,name=etag,proto3" json:"etag,omitempty"`
+	Etag string `protobuf:"bytes,11,opt,name=etag,proto3" json:"etag,omitempty"`
 	// Time the submission was soft-deleted, if deleted.
-	DeleteTime *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=delete_time,json=deleteTime,proto3" json:"delete_time,omitempty"`
+	DeleteTime *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=delete_time,json=deleteTime,proto3" json:"delete_time,omitempty"`
 	// Time at which the soft-deleted submission is purged automatically.
-	PurgeTime *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=purge_time,json=purgeTime,proto3" json:"purge_time,omitempty"`
+	PurgeTime *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=purge_time,json=purgeTime,proto3" json:"purge_time,omitempty"`
 	// Last modification timestamp.
-	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
-	// Creation timestamp.
-	CreateTime    *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	UpdateTime *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
+	// Creation timestamp
+	CreateTime    *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Submission) Reset() {
 	*x = Submission{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[4]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -736,7 +740,7 @@ func (x *Submission) String() string {
 func (*Submission) ProtoMessage() {}
 
 func (x *Submission) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[4]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -749,7 +753,7 @@ func (x *Submission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Submission.ProtoReflect.Descriptor instead.
 func (*Submission) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{4}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Submission) GetName() string {
@@ -787,25 +791,29 @@ func (x *Submission) GetCommittee() string {
 	return ""
 }
 
-func (x *Submission) GetDirection() Direction {
+func (x *Submission) GetType() isSubmission_Type {
 	if x != nil {
-		return x.Direction
+		return x.Type
 	}
-	return Direction_DIRECTION_UNSPECIFIED
+	return nil
 }
 
-func (x *Submission) GetSettlement() Settlement {
+func (x *Submission) GetIncomeExpense() *SubmissionTypeIncomeExpenseDetails {
 	if x != nil {
-		return x.Settlement
+		if x, ok := x.Type.(*Submission_IncomeExpense); ok {
+			return x.IncomeExpense
+		}
 	}
-	return Settlement_SETTLEMENT_UNSPECIFIED
+	return nil
 }
 
-func (x *Submission) GetScope() Scope {
+func (x *Submission) GetMisc() *SubmissionTypeMiscDetails {
 	if x != nil {
-		return x.Scope
+		if x, ok := x.Type.(*Submission_Misc); ok {
+			return x.Misc
+		}
 	}
-	return Scope_SCOPE_UNSPECIFIED
+	return nil
 }
 
 func (x *Submission) GetStatus() SubmissionStatus {
@@ -820,40 +828,6 @@ func (x *Submission) GetNotice() string {
 		return x.Notice
 	}
 	return ""
-}
-
-func (x *Submission) GetSettlementDetails() isSubmission_SettlementDetails {
-	if x != nil {
-		return x.SettlementDetails
-	}
-	return nil
-}
-
-func (x *Submission) GetPersonDetails() *PersonDetails {
-	if x != nil {
-		if x, ok := x.SettlementDetails.(*Submission_PersonDetails); ok {
-			return x.PersonDetails
-		}
-	}
-	return nil
-}
-
-func (x *Submission) GetCommitteeAccountDetails() *CommitteeAccountDetails {
-	if x != nil {
-		if x, ok := x.SettlementDetails.(*Submission_CommitteeAccountDetails); ok {
-			return x.CommitteeAccountDetails
-		}
-	}
-	return nil
-}
-
-func (x *Submission) GetPaymentRequestDetails() *PaymentRequestDetails {
-	if x != nil {
-		if x, ok := x.SettlementDetails.(*Submission_PaymentRequestDetails); ok {
-			return x.PaymentRequestDetails
-		}
-	}
-	return nil
 }
 
 func (x *Submission) GetTotalAmount() *Decimal {
@@ -898,382 +872,21 @@ func (x *Submission) GetCreateTime() *timestamppb.Timestamp {
 	return nil
 }
 
-type isSubmission_SettlementDetails interface {
-	isSubmission_SettlementDetails()
+type isSubmission_Type interface {
+	isSubmission_Type()
 }
 
-type Submission_PersonDetails struct {
-	// Details for a person settlement.
-	PersonDetails *PersonDetails `protobuf:"bytes,11,opt,name=person_details,json=personDetails,proto3,oneof"`
+type Submission_IncomeExpense struct {
+	IncomeExpense *SubmissionTypeIncomeExpenseDetails `protobuf:"bytes,6,opt,name=income_expense,json=incomeExpense,proto3,oneof"`
 }
 
-type Submission_CommitteeAccountDetails struct {
-	// Details for an already-paid committee account settlement.
-	CommitteeAccountDetails *CommitteeAccountDetails `protobuf:"bytes,12,opt,name=committee_account_details,json=committeeAccountDetails,proto3,oneof"`
+type Submission_Misc struct {
+	Misc *SubmissionTypeMiscDetails `protobuf:"bytes,7,opt,name=misc,proto3,oneof"`
 }
 
-type Submission_PaymentRequestDetails struct {
-	// Details for a payment request to the treasury.
-	PaymentRequestDetails *PaymentRequestDetails `protobuf:"bytes,13,opt,name=payment_request_details,json=paymentRequestDetails,proto3,oneof"`
-}
+func (*Submission_IncomeExpense) isSubmission_Type() {}
 
-func (*Submission_PersonDetails) isSubmission_SettlementDetails() {}
-
-func (*Submission_CommitteeAccountDetails) isSubmission_SettlementDetails() {}
-
-func (*Submission_PaymentRequestDetails) isSubmission_SettlementDetails() {}
-
-// SubmissionItem is a single bill/receipt (expense) or income document within
-// a submission.
-type SubmissionItem struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The resource name of the item.
-	// Format: organizations/{organization}/submissions/{submission}/items/{item}
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The UUID of the item.
-	Uid string `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
-	// Human-readable public ID derived from the submission's public ID and the
-	// item index (e.g. "2026/04/2").
-	PublicId string `protobuf:"bytes,3,opt,name=public_id,json=publicId,proto3" json:"public_id,omitempty"`
-	// Document category. Free-form to keep the API generalization-friendly;
-	// clients present per-direction presets (expenses: invoice, cash receipt,
-	// ...; income: donation receipt, sponsorship agreement, ...).
-	Category string `protobuf:"bytes,4,opt,name=category,proto3" json:"category,omitempty"`
-	// In which form the original document exists.
-	DocumentForm DocumentForm `protobuf:"varint,5,opt,name=document_form,json=documentForm,proto3,enum=pixlcrashr.vsfv.v1.DocumentForm" json:"document_form,omitempty"`
-	// Origin/source of an income (e.g. sponsor name). Only used by income
-	// submissions.
-	Source string `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
-	// Free-text description of the document.
-	Description string `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
-	// Amount of the item.
-	Amount *Decimal `protobuf:"bytes,8,opt,name=amount,proto3" json:"amount,omitempty"`
-	// Time the original document was received by the treasury.
-	OriginalReceiveTime *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=original_receive_time,json=originalReceiveTime,proto3" json:"original_receive_time,omitempty"`
-	// The user that received the original document.
-	// Format: users/{user}
-	OriginalReceivedBy string `protobuf:"bytes,10,opt,name=original_received_by,json=originalReceivedBy,proto3" json:"original_received_by,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
-}
-
-func (x *SubmissionItem) Reset() {
-	*x = SubmissionItem{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SubmissionItem) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SubmissionItem) ProtoMessage() {}
-
-func (x *SubmissionItem) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SubmissionItem.ProtoReflect.Descriptor instead.
-func (*SubmissionItem) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *SubmissionItem) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *SubmissionItem) GetUid() string {
-	if x != nil {
-		return x.Uid
-	}
-	return ""
-}
-
-func (x *SubmissionItem) GetPublicId() string {
-	if x != nil {
-		return x.PublicId
-	}
-	return ""
-}
-
-func (x *SubmissionItem) GetCategory() string {
-	if x != nil {
-		return x.Category
-	}
-	return ""
-}
-
-func (x *SubmissionItem) GetDocumentForm() DocumentForm {
-	if x != nil {
-		return x.DocumentForm
-	}
-	return DocumentForm_DOCUMENT_FORM_UNSPECIFIED
-}
-
-func (x *SubmissionItem) GetSource() string {
-	if x != nil {
-		return x.Source
-	}
-	return ""
-}
-
-func (x *SubmissionItem) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *SubmissionItem) GetAmount() *Decimal {
-	if x != nil {
-		return x.Amount
-	}
-	return nil
-}
-
-func (x *SubmissionItem) GetOriginalReceiveTime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.OriginalReceiveTime
-	}
-	return nil
-}
-
-func (x *SubmissionItem) GetOriginalReceivedBy() string {
-	if x != nil {
-		return x.OriginalReceivedBy
-	}
-	return ""
-}
-
-// SubmissionComment is a comment on a submission, written either by the
-// submitter or by the reviewing treasury. Admin-only comments are only
-// visible to the treasury.
-type SubmissionComment struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The resource name of the comment.
-	// Format: organizations/{organization}/submissions/{submission}/comments/{comment}
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The UUID of the comment.
-	Uid string `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
-	// The comment text.
-	Content string `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	// Whether the comment is only visible to the treasury. Can only be set by
-	// users holding the treasury comment permission.
-	IsAdminOnly bool `protobuf:"varint,4,opt,name=is_admin_only,json=isAdminOnly,proto3" json:"is_admin_only,omitempty"`
-	// The user that wrote the comment.
-	// Format: users/{user}
-	CreatedByUser string `protobuf:"bytes,5,opt,name=created_by_user,json=createdByUser,proto3" json:"created_by_user,omitempty"`
-	// The status change caused by this comment, if any (e.g. a rejection).
-	StatusChange *SubmissionStatusChange `protobuf:"bytes,6,opt,name=status_change,json=statusChange,proto3" json:"status_change,omitempty"`
-	// Creation timestamp.
-	CreateTime    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SubmissionComment) Reset() {
-	*x = SubmissionComment{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SubmissionComment) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SubmissionComment) ProtoMessage() {}
-
-func (x *SubmissionComment) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SubmissionComment.ProtoReflect.Descriptor instead.
-func (*SubmissionComment) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *SubmissionComment) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *SubmissionComment) GetUid() string {
-	if x != nil {
-		return x.Uid
-	}
-	return ""
-}
-
-func (x *SubmissionComment) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *SubmissionComment) GetIsAdminOnly() bool {
-	if x != nil {
-		return x.IsAdminOnly
-	}
-	return false
-}
-
-func (x *SubmissionComment) GetCreatedByUser() string {
-	if x != nil {
-		return x.CreatedByUser
-	}
-	return ""
-}
-
-func (x *SubmissionComment) GetStatusChange() *SubmissionStatusChange {
-	if x != nil {
-		return x.StatusChange
-	}
-	return nil
-}
-
-func (x *SubmissionComment) GetCreateTime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreateTime
-	}
-	return nil
-}
-
-// SubmissionStatusChange describes a status transition associated with a
-// comment.
-type SubmissionStatusChange struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The status before the transition.
-	From SubmissionStatus `protobuf:"varint,1,opt,name=from,proto3,enum=pixlcrashr.vsfv.v1.SubmissionStatus" json:"from,omitempty"`
-	// The status after the transition.
-	To            SubmissionStatus `protobuf:"varint,2,opt,name=to,proto3,enum=pixlcrashr.vsfv.v1.SubmissionStatus" json:"to,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SubmissionStatusChange) Reset() {
-	*x = SubmissionStatusChange{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SubmissionStatusChange) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SubmissionStatusChange) ProtoMessage() {}
-
-func (x *SubmissionStatusChange) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SubmissionStatusChange.ProtoReflect.Descriptor instead.
-func (*SubmissionStatusChange) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *SubmissionStatusChange) GetFrom() SubmissionStatus {
-	if x != nil {
-		return x.From
-	}
-	return SubmissionStatus_SUBMISSION_STATUS_UNSPECIFIED
-}
-
-func (x *SubmissionStatusChange) GetTo() SubmissionStatus {
-	if x != nil {
-		return x.To
-	}
-	return SubmissionStatus_SUBMISSION_STATUS_UNSPECIFIED
-}
-
-// SubmissionSettings hold the per-organization submission configuration.
-type SubmissionSettings struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The settlement kinds enabled for expense submissions in this
-	// organization. Defaults to all kinds.
-	EnabledSettlementKinds []Settlement `protobuf:"varint,1,rep,packed,name=enabled_settlement_kinds,json=enabledSettlementKinds,proto3,enum=pixlcrashr.vsfv.v1.Settlement" json:"enabled_settlement_kinds,omitempty"`
-	// Organization-wide submission deadline. Pending submissions are
-	// automatically rejected once this date is reached. Unset means no deadline.
-	SubmissionDeadline *date.Date `protobuf:"bytes,2,opt,name=submission_deadline,json=submissionDeadline,proto3" json:"submission_deadline,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
-}
-
-func (x *SubmissionSettings) Reset() {
-	*x = SubmissionSettings{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SubmissionSettings) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SubmissionSettings) ProtoMessage() {}
-
-func (x *SubmissionSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SubmissionSettings.ProtoReflect.Descriptor instead.
-func (*SubmissionSettings) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *SubmissionSettings) GetEnabledSettlementKinds() []Settlement {
-	if x != nil {
-		return x.EnabledSettlementKinds
-	}
-	return nil
-}
-
-func (x *SubmissionSettings) GetSubmissionDeadline() *date.Date {
-	if x != nil {
-		return x.SubmissionDeadline
-	}
-	return nil
-}
+func (*Submission_Misc) isSubmission_Type() {}
 
 type GetSubmissionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1286,7 +899,7 @@ type GetSubmissionRequest struct {
 
 func (x *GetSubmissionRequest) Reset() {
 	*x = GetSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[9]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +911,7 @@ func (x *GetSubmissionRequest) String() string {
 func (*GetSubmissionRequest) ProtoMessage() {}
 
 func (x *GetSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[9]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +924,7 @@ func (x *GetSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*GetSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{9}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetSubmissionRequest) GetName() string {
@@ -1345,7 +958,7 @@ type ListSubmissionsRequest struct {
 
 func (x *ListSubmissionsRequest) Reset() {
 	*x = ListSubmissionsRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[10]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1357,7 +970,7 @@ func (x *ListSubmissionsRequest) String() string {
 func (*ListSubmissionsRequest) ProtoMessage() {}
 
 func (x *ListSubmissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[10]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1370,7 +983,7 @@ func (x *ListSubmissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubmissionsRequest.ProtoReflect.Descriptor instead.
 func (*ListSubmissionsRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{10}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListSubmissionsRequest) GetParent() string {
@@ -1429,7 +1042,7 @@ type ListSubmissionsResponse struct {
 
 func (x *ListSubmissionsResponse) Reset() {
 	*x = ListSubmissionsResponse{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[11]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1441,7 +1054,7 @@ func (x *ListSubmissionsResponse) String() string {
 func (*ListSubmissionsResponse) ProtoMessage() {}
 
 func (x *ListSubmissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[11]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1454,7 +1067,7 @@ func (x *ListSubmissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubmissionsResponse.ProtoReflect.Descriptor instead.
 func (*ListSubmissionsResponse) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{11}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListSubmissionsResponse) GetSubmissions() []*Submission {
@@ -1496,7 +1109,7 @@ type CreateSubmissionRequest struct {
 
 func (x *CreateSubmissionRequest) Reset() {
 	*x = CreateSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[12]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1508,7 +1121,7 @@ func (x *CreateSubmissionRequest) String() string {
 func (*CreateSubmissionRequest) ProtoMessage() {}
 
 func (x *CreateSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[12]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1521,7 +1134,7 @@ func (x *CreateSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*CreateSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{12}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateSubmissionRequest) GetParent() string {
@@ -1560,7 +1173,7 @@ type UpdateSubmissionRequest struct {
 
 func (x *UpdateSubmissionRequest) Reset() {
 	*x = UpdateSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[13]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1185,7 @@ func (x *UpdateSubmissionRequest) String() string {
 func (*UpdateSubmissionRequest) ProtoMessage() {}
 
 func (x *UpdateSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[13]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1198,7 @@ func (x *UpdateSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{13}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateSubmissionRequest) GetSubmission() *Submission {
@@ -1613,7 +1226,7 @@ type DeleteSubmissionRequest struct {
 
 func (x *DeleteSubmissionRequest) Reset() {
 	*x = DeleteSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[14]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1625,7 +1238,7 @@ func (x *DeleteSubmissionRequest) String() string {
 func (*DeleteSubmissionRequest) ProtoMessage() {}
 
 func (x *DeleteSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[14]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1638,7 +1251,7 @@ func (x *DeleteSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{14}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteSubmissionRequest) GetName() string {
@@ -1659,7 +1272,7 @@ type SubmitSubmissionRequest struct {
 
 func (x *SubmitSubmissionRequest) Reset() {
 	*x = SubmitSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[15]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1671,7 +1284,7 @@ func (x *SubmitSubmissionRequest) String() string {
 func (*SubmitSubmissionRequest) ProtoMessage() {}
 
 func (x *SubmitSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[15]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1684,7 +1297,7 @@ func (x *SubmitSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*SubmitSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{15}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SubmitSubmissionRequest) GetName() string {
@@ -1707,7 +1320,7 @@ type ApproveSubmissionRequest struct {
 
 func (x *ApproveSubmissionRequest) Reset() {
 	*x = ApproveSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[16]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1719,7 +1332,7 @@ func (x *ApproveSubmissionRequest) String() string {
 func (*ApproveSubmissionRequest) ProtoMessage() {}
 
 func (x *ApproveSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[16]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1732,7 +1345,7 @@ func (x *ApproveSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*ApproveSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{16}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ApproveSubmissionRequest) GetName() string {
@@ -1762,7 +1375,7 @@ type RejectSubmissionRequest struct {
 
 func (x *RejectSubmissionRequest) Reset() {
 	*x = RejectSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[17]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1774,7 +1387,7 @@ func (x *RejectSubmissionRequest) String() string {
 func (*RejectSubmissionRequest) ProtoMessage() {}
 
 func (x *RejectSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[17]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1787,7 +1400,7 @@ func (x *RejectSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*RejectSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{17}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RejectSubmissionRequest) GetName() string {
@@ -1817,7 +1430,7 @@ type RequestFurtherInfoRequest struct {
 
 func (x *RequestFurtherInfoRequest) Reset() {
 	*x = RequestFurtherInfoRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[18]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1829,7 +1442,7 @@ func (x *RequestFurtherInfoRequest) String() string {
 func (*RequestFurtherInfoRequest) ProtoMessage() {}
 
 func (x *RequestFurtherInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[18]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1842,7 +1455,7 @@ func (x *RequestFurtherInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestFurtherInfoRequest.ProtoReflect.Descriptor instead.
 func (*RequestFurtherInfoRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{18}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RequestFurtherInfoRequest) GetName() string {
@@ -1874,7 +1487,7 @@ type CompleteSubmissionRequest struct {
 
 func (x *CompleteSubmissionRequest) Reset() {
 	*x = CompleteSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[19]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1886,7 +1499,7 @@ func (x *CompleteSubmissionRequest) String() string {
 func (*CompleteSubmissionRequest) ProtoMessage() {}
 
 func (x *CompleteSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[19]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1899,7 +1512,7 @@ func (x *CompleteSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*CompleteSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{19}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CompleteSubmissionRequest) GetName() string {
@@ -1934,7 +1547,7 @@ type UndeleteSubmissionRequest struct {
 
 func (x *UndeleteSubmissionRequest) Reset() {
 	*x = UndeleteSubmissionRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[20]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1946,7 +1559,7 @@ func (x *UndeleteSubmissionRequest) String() string {
 func (*UndeleteSubmissionRequest) ProtoMessage() {}
 
 func (x *UndeleteSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[20]
+	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1959,7 +1572,7 @@ func (x *UndeleteSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UndeleteSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*UndeleteSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{20}
+	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UndeleteSubmissionRequest) GetName() string {
@@ -1969,537 +1582,38 @@ func (x *UndeleteSubmissionRequest) GetName() string {
 	return ""
 }
 
-type GetSubmissionItemRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The resource name of the item.
-	// Format: organizations/{organization}/submissions/{submission}/items/{item}
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetSubmissionItemRequest) Reset() {
-	*x = GetSubmissionItemRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetSubmissionItemRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetSubmissionItemRequest) ProtoMessage() {}
-
-func (x *GetSubmissionItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetSubmissionItemRequest.ProtoReflect.Descriptor instead.
-func (*GetSubmissionItemRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *GetSubmissionItemRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-type ListSubmissionItemsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent submission resource name.
-	// Format: organizations/{organization}/submissions/{submission}
-	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// Maximum number of items to return. The service may return fewer.
-	// If unspecified, at most 20 are returned. Maximum value is 100.
-	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// A page token from a previous ListSubmissionItems call.
-	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListSubmissionItemsRequest) Reset() {
-	*x = ListSubmissionItemsRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListSubmissionItemsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListSubmissionItemsRequest) ProtoMessage() {}
-
-func (x *ListSubmissionItemsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListSubmissionItemsRequest.ProtoReflect.Descriptor instead.
-func (*ListSubmissionItemsRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *ListSubmissionItemsRequest) GetParent() string {
-	if x != nil {
-		return x.Parent
-	}
-	return ""
-}
-
-func (x *ListSubmissionItemsRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-func (x *ListSubmissionItemsRequest) GetPageToken() string {
-	if x != nil {
-		return x.PageToken
-	}
-	return ""
-}
-
-type ListSubmissionItemsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The items returned.
-	Items []*SubmissionItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// A token to retrieve the next page of results.
-	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListSubmissionItemsResponse) Reset() {
-	*x = ListSubmissionItemsResponse{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListSubmissionItemsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListSubmissionItemsResponse) ProtoMessage() {}
-
-func (x *ListSubmissionItemsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListSubmissionItemsResponse.ProtoReflect.Descriptor instead.
-func (*ListSubmissionItemsResponse) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *ListSubmissionItemsResponse) GetItems() []*SubmissionItem {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-func (x *ListSubmissionItemsResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
-}
-
-type CreateSubmissionItemRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent submission resource name.
-	// Format: organizations/{organization}/submissions/{submission}
-	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// The item to create.
-	Item *SubmissionItem `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
-	// The ID to use for the item. If not provided, a system-generated
-	// UUID will be used. Must be unique within the parent submission.
-	ItemId        string `protobuf:"bytes,3,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateSubmissionItemRequest) Reset() {
-	*x = CreateSubmissionItemRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateSubmissionItemRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateSubmissionItemRequest) ProtoMessage() {}
-
-func (x *CreateSubmissionItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateSubmissionItemRequest.ProtoReflect.Descriptor instead.
-func (*CreateSubmissionItemRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *CreateSubmissionItemRequest) GetParent() string {
-	if x != nil {
-		return x.Parent
-	}
-	return ""
-}
-
-func (x *CreateSubmissionItemRequest) GetItem() *SubmissionItem {
-	if x != nil {
-		return x.Item
-	}
-	return nil
-}
-
-func (x *CreateSubmissionItemRequest) GetItemId() string {
-	if x != nil {
-		return x.ItemId
-	}
-	return ""
-}
-
-type UpdateSubmissionItemRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The item to update.
-	Item *SubmissionItem `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
-	// The list of fields to update.
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateSubmissionItemRequest) Reset() {
-	*x = UpdateSubmissionItemRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateSubmissionItemRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateSubmissionItemRequest) ProtoMessage() {}
-
-func (x *UpdateSubmissionItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateSubmissionItemRequest.ProtoReflect.Descriptor instead.
-func (*UpdateSubmissionItemRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *UpdateSubmissionItemRequest) GetItem() *SubmissionItem {
-	if x != nil {
-		return x.Item
-	}
-	return nil
-}
-
-func (x *UpdateSubmissionItemRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.UpdateMask
-	}
-	return nil
-}
-
-type DeleteSubmissionItemRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The resource name of the item.
-	// Format: organizations/{organization}/submissions/{submission}/items/{item}
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeleteSubmissionItemRequest) Reset() {
-	*x = DeleteSubmissionItemRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeleteSubmissionItemRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteSubmissionItemRequest) ProtoMessage() {}
-
-func (x *DeleteSubmissionItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteSubmissionItemRequest.ProtoReflect.Descriptor instead.
-func (*DeleteSubmissionItemRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *DeleteSubmissionItemRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-type ListSubmissionCommentsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent submission resource name.
-	// Format: organizations/{organization}/submissions/{submission}
-	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// Maximum number of comments to return. The service may return fewer.
-	// If unspecified, at most 20 are returned. Maximum value is 100.
-	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// A page token from a previous ListSubmissionComments call.
-	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListSubmissionCommentsRequest) Reset() {
-	*x = ListSubmissionCommentsRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListSubmissionCommentsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListSubmissionCommentsRequest) ProtoMessage() {}
-
-func (x *ListSubmissionCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListSubmissionCommentsRequest.ProtoReflect.Descriptor instead.
-func (*ListSubmissionCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *ListSubmissionCommentsRequest) GetParent() string {
-	if x != nil {
-		return x.Parent
-	}
-	return ""
-}
-
-func (x *ListSubmissionCommentsRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-func (x *ListSubmissionCommentsRequest) GetPageToken() string {
-	if x != nil {
-		return x.PageToken
-	}
-	return ""
-}
-
-type ListSubmissionCommentsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The comments returned (admin-only comments are omitted for requesters
-	// without the treasury comment permission).
-	Comments []*SubmissionComment `protobuf:"bytes,1,rep,name=comments,proto3" json:"comments,omitempty"`
-	// A token to retrieve the next page of results.
-	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListSubmissionCommentsResponse) Reset() {
-	*x = ListSubmissionCommentsResponse{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[28]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListSubmissionCommentsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListSubmissionCommentsResponse) ProtoMessage() {}
-
-func (x *ListSubmissionCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[28]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListSubmissionCommentsResponse.ProtoReflect.Descriptor instead.
-func (*ListSubmissionCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{28}
-}
-
-func (x *ListSubmissionCommentsResponse) GetComments() []*SubmissionComment {
-	if x != nil {
-		return x.Comments
-	}
-	return nil
-}
-
-func (x *ListSubmissionCommentsResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
-}
-
-type CreateSubmissionCommentRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent submission resource name.
-	// Format: organizations/{organization}/submissions/{submission}
-	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// The comment to create.
-	Comment       *SubmissionComment `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateSubmissionCommentRequest) Reset() {
-	*x = CreateSubmissionCommentRequest{}
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[29]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateSubmissionCommentRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateSubmissionCommentRequest) ProtoMessage() {}
-
-func (x *CreateSubmissionCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[29]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateSubmissionCommentRequest.ProtoReflect.Descriptor instead.
-func (*CreateSubmissionCommentRequest) Descriptor() ([]byte, []int) {
-	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP(), []int{29}
-}
-
-func (x *CreateSubmissionCommentRequest) GetParent() string {
-	if x != nil {
-		return x.Parent
-	}
-	return ""
-}
-
-func (x *CreateSubmissionCommentRequest) GetComment() *SubmissionComment {
-	if x != nil {
-		return x.Comment
-	}
-	return nil
-}
-
 var File_pixlcrashr_vsfv_v1_submission_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_submission_proto_rawDesc = "" +
 	"\n" +
-	"#pixlcrashr/vsfv/v1/submission.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\x1a\"pixlcrashr/vsfv/v1/committee.proto\x1a pixlcrashr/vsfv/v1/decimal.proto\"i\n" +
-	"\vBankDetails\x12*\n" +
-	"\x0eaccount_holder\x18\x01 \x01(\tB\x03\xe0A\x02R\raccountHolder\x12\x17\n" +
-	"\x04iban\x18\x02 \x01(\tB\x03\xe0A\x02R\x04iban\x12\x15\n" +
-	"\x03bic\x18\x03 \x01(\tB\x03\xe0A\x01R\x03bic\"\xa4\x01\n" +
-	"\rPersonDetails\x12J\n" +
-	"\rpayout_method\x18\x01 \x01(\x0e2 .pixlcrashr.vsfv.v1.PayoutMethodB\x03\xe0A\x02R\fpayoutMethod\x12G\n" +
-	"\fbank_details\x18\x02 \x01(\v2\x1f.pixlcrashr.vsfv.v1.BankDetailsB\x03\xe0A\x01R\vbankDetails\"\xee\x01\n" +
-	"\x17CommitteeAccountDetails\x123\n" +
-	"\x13payment_account_uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x11paymentAccountUid\x127\n" +
-	"\x15payment_account_label\x18\x02 \x01(\tB\x03\xe0A\x03R\x13paymentAccountLabel\x123\n" +
-	"\tpaid_date\x18\x03 \x01(\v2\x11.google.type.DateB\x03\xe0A\x02R\bpaidDate\x120\n" +
-	"\x11payment_reference\x18\x04 \x01(\tB\x03\xe0A\x01R\x10paymentReference\"\xce\x01\n" +
-	"\x15PaymentRequestDetails\x12$\n" +
-	"\vvendor_name\x18\x01 \x01(\tB\x03\xe0A\x02R\n" +
-	"vendorName\x12$\n" +
-	"\vvendor_iban\x18\x02 \x01(\tB\x03\xe0A\x02R\n" +
-	"vendorIban\x12\"\n" +
+	"#pixlcrashr/vsfv/v1/submission.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17google/api/client.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/api/field_info.proto\x1a\x19google/api/resource.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\x1a\"pixlcrashr/vsfv/v1/committee.proto\x1a\x1fpixlcrashr/vsfv/v1/common.proto\x1a pixlcrashr/vsfv/v1/decimal.proto\"m\n" +
+	"\"SubmissionPayoutMethodBankTransfer\x12G\n" +
+	"\fbank_account\x18\x02 \x01(\v2\x1f.pixlcrashr.vsfv.v1.BankAccountB\x03\xe0A\x01R\vbankAccount\"\x1c\n" +
+	"\x1aSubmissionPayoutMethodCash\"\xd2\x01\n" +
+	"\x1aSubmissionSettlementPerson\x12]\n" +
+	"\rbank_transfer\x18\x01 \x01(\v26.pixlcrashr.vsfv.v1.SubmissionPayoutMethodBankTransferH\x00R\fbankTransfer\x12D\n" +
+	"\x04cash\x18\x02 \x01(\v2..pixlcrashr.vsfv.v1.SubmissionPayoutMethodCashH\x00R\x04cashB\x0f\n" +
+	"\rpayout_method\"\xeb\x01\n" +
+	"$SubmissionSettlementCommitteeAccount\x12\\\n" +
+	"\x0fpayment_account\x18\x01 \x01(\tB3\xe0A\x02\xfaA-\n" +
+	"+vsfv.pixlcrashr.dev/CommitteePaymentAccountR\x0epaymentAccount\x123\n" +
+	"\tpaid_date\x18\x02 \x01(\v2\x11.google.type.DateB\x03\xe0A\x02R\bpaidDate\x120\n" +
+	"\x11payment_reference\x18\x03 \x01(\tB\x03\xe0A\x01R\x10paymentReference\"m\n" +
+	"\"SubmissionSettlementPaymentRequest\x12G\n" +
+	"\fbank_account\x18\x01 \x01(\v2\x1f.pixlcrashr.vsfv.v1.BankAccountB\x03\xe0A\x02R\vbankAccount\"\"\n" +
+	" SubmissionDirectionIncomeDetails\"\xc7\x02\n" +
+	"!SubmissionDirectionExpenseDetails\x12H\n" +
+	"\x06person\x18\f \x01(\v2..pixlcrashr.vsfv.v1.SubmissionSettlementPersonH\x00R\x06person\x12g\n" +
+	"\x11committee_account\x18\r \x01(\v28.pixlcrashr.vsfv.v1.SubmissionSettlementCommitteeAccountH\x00R\x10committeeAccount\x12a\n" +
+	"\x0fpayment_request\x18\x0e \x01(\v26.pixlcrashr.vsfv.v1.SubmissionSettlementPaymentRequestH\x00R\x0epaymentRequestB\f\n" +
 	"\n" +
-	"vendor_bic\x18\x03 \x01(\tB\x03\xe0A\x01R\tvendorBic\x12E\n" +
-	"\x06timing\x18\x04 \x01(\x0e2(.pixlcrashr.vsfv.v1.PaymentRequestTimingB\x03\xe0A\x02R\x06timing\"\x84\n" +
-	"\n" +
+	"settlement\"\x94\x02\n" +
+	"\"SubmissionTypeIncomeExpenseDetails\x12>\n" +
+	"\x05scope\x18\x01 \x01(\x0e2#.pixlcrashr.vsfv.v1.SubmissionScopeB\x03\xe0A\x02R\x05scope\x12N\n" +
+	"\x06income\x18\x02 \x01(\v24.pixlcrashr.vsfv.v1.SubmissionDirectionIncomeDetailsH\x00R\x06income\x12Q\n" +
+	"\aexpense\x18\x03 \x01(\v25.pixlcrashr.vsfv.v1.SubmissionDirectionExpenseDetailsH\x00R\aexpenseB\v\n" +
+	"\tdirection\"\x1b\n" +
+	"\x19SubmissionTypeMiscDetails\"\xc3\a\n" +
 	"\n" +
 	"Submission\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
@@ -2508,61 +1622,24 @@ const file_pixlcrashr_vsfv_v1_submission_proto_rawDesc = "" +
 	"\x0fcreated_by_user\x18\x04 \x01(\tB \xe0A\x03\xfaA\x1a\n" +
 	"\x18vsfv.pixlcrashr.dev/UserR\rcreatedByUser\x12C\n" +
 	"\tcommittee\x18\x05 \x01(\tB%\xe0A\x02\xfaA\x1f\n" +
-	"\x1dvsfv.pixlcrashr.dev/CommitteeR\tcommittee\x12@\n" +
-	"\tdirection\x18\x06 \x01(\x0e2\x1d.pixlcrashr.vsfv.v1.DirectionB\x03\xe0A\x02R\tdirection\x12C\n" +
-	"\n" +
-	"settlement\x18\a \x01(\x0e2\x1e.pixlcrashr.vsfv.v1.SettlementB\x03\xe0A\x01R\n" +
-	"settlement\x124\n" +
-	"\x05scope\x18\b \x01(\x0e2\x19.pixlcrashr.vsfv.v1.ScopeB\x03\xe0A\x02R\x05scope\x12A\n" +
-	"\x06status\x18\t \x01(\x0e2$.pixlcrashr.vsfv.v1.SubmissionStatusB\x03\xe0A\x03R\x06status\x12\x1b\n" +
-	"\x06notice\x18\n" +
-	" \x01(\tB\x03\xe0A\x01R\x06notice\x12J\n" +
-	"\x0eperson_details\x18\v \x01(\v2!.pixlcrashr.vsfv.v1.PersonDetailsH\x00R\rpersonDetails\x12i\n" +
-	"\x19committee_account_details\x18\f \x01(\v2+.pixlcrashr.vsfv.v1.CommitteeAccountDetailsH\x00R\x17committeeAccountDetails\x12c\n" +
-	"\x17payment_request_details\x18\r \x01(\v2).pixlcrashr.vsfv.v1.PaymentRequestDetailsH\x00R\x15paymentRequestDetails\x12C\n" +
-	"\ftotal_amount\x18\x0e \x01(\v2\x1b.pixlcrashr.vsfv.v1.DecimalB\x03\xe0A\x03R\vtotalAmount\x12\x17\n" +
-	"\x04etag\x18\x0f \x01(\tB\x03\xe0A\x03R\x04etag\x12@\n" +
-	"\vdelete_time\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"\x1dvsfv.pixlcrashr.dev/CommitteeR\tcommittee\x12_\n" +
+	"\x0eincome_expense\x18\x06 \x01(\v26.pixlcrashr.vsfv.v1.SubmissionTypeIncomeExpenseDetailsH\x00R\rincomeExpense\x12C\n" +
+	"\x04misc\x18\a \x01(\v2-.pixlcrashr.vsfv.v1.SubmissionTypeMiscDetailsH\x00R\x04misc\x12A\n" +
+	"\x06status\x18\b \x01(\x0e2$.pixlcrashr.vsfv.v1.SubmissionStatusB\x03\xe0A\x03R\x06status\x12\x1b\n" +
+	"\x06notice\x18\t \x01(\tB\x03\xe0A\x01R\x06notice\x12C\n" +
+	"\ftotal_amount\x18\n" +
+	" \x01(\v2\x1b.pixlcrashr.vsfv.v1.DecimalB\x03\xe0A\x03R\vtotalAmount\x12\x17\n" +
+	"\x04etag\x18\v \x01(\tB\x03\xe0A\x03R\x04etag\x12@\n" +
+	"\vdelete_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"deleteTime\x12>\n" +
 	"\n" +
-	"purge_time\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\tpurgeTime\x12@\n" +
-	"\vupdate_time\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"purge_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\tpurgeTime\x12@\n" +
+	"\vupdate_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"updateTime\x12@\n" +
-	"\vcreate_time\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
+	"\vcreate_time\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
 	"createTime:Z\xeaAW\n" +
-	"\x1evsfv.pixlcrashr.dev/Submission\x125organizations/{organization}/submissions/{submission}B\x14\n" +
-	"\x12settlement_details\"\xeb\x04\n" +
-	"\x0eSubmissionItem\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
-	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12 \n" +
-	"\tpublic_id\x18\x03 \x01(\tB\x03\xe0A\x03R\bpublicId\x12\x1f\n" +
-	"\bcategory\x18\x04 \x01(\tB\x03\xe0A\x01R\bcategory\x12J\n" +
-	"\rdocument_form\x18\x05 \x01(\x0e2 .pixlcrashr.vsfv.v1.DocumentFormB\x03\xe0A\x01R\fdocumentForm\x12\x1b\n" +
-	"\x06source\x18\x06 \x01(\tB\x03\xe0A\x01R\x06source\x12%\n" +
-	"\vdescription\x18\a \x01(\tB\x03\xe0A\x01R\vdescription\x128\n" +
-	"\x06amount\x18\b \x01(\v2\x1b.pixlcrashr.vsfv.v1.DecimalB\x03\xe0A\x02R\x06amount\x12S\n" +
-	"\x15original_receive_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\x13originalReceiveTime\x12R\n" +
-	"\x14original_received_by\x18\n" +
-	" \x01(\tB \xe0A\x03\xfaA\x1a\n" +
-	"\x18vsfv.pixlcrashr.dev/UserR\x12originalReceivedBy:k\xeaAh\n" +
-	"\"vsfv.pixlcrashr.dev/SubmissionItem\x12Borganizations/{organization}/submissions/{submission}/items/{item}\"\xeb\x03\n" +
-	"\x11SubmissionComment\x12\x17\n" +
-	"\x04name\x18\x01 \x01(\tB\x03\xe0A\x03R\x04name\x12\x1d\n" +
-	"\x03uid\x18\x02 \x01(\tB\v\xe0A\x03\xe2\x8c\xcf\xd7\b\x02\b\x01R\x03uid\x12\x1d\n" +
-	"\acontent\x18\x03 \x01(\tB\x03\xe0A\x02R\acontent\x12'\n" +
-	"\ris_admin_only\x18\x04 \x01(\bB\x03\xe0A\x01R\visAdminOnly\x12H\n" +
-	"\x0fcreated_by_user\x18\x05 \x01(\tB \xe0A\x03\xfaA\x1a\n" +
-	"\x18vsfv.pixlcrashr.dev/UserR\rcreatedByUser\x12T\n" +
-	"\rstatus_change\x18\x06 \x01(\v2*.pixlcrashr.vsfv.v1.SubmissionStatusChangeB\x03\xe0A\x03R\fstatusChange\x12@\n" +
-	"\vcreate_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x03\xe0A\x03R\n" +
-	"createTime:t\xeaAq\n" +
-	"%vsfv.pixlcrashr.dev/SubmissionComment\x12Horganizations/{organization}/submissions/{submission}/comments/{comment}\"\x88\x01\n" +
-	"\x16SubmissionStatusChange\x128\n" +
-	"\x04from\x18\x01 \x01(\x0e2$.pixlcrashr.vsfv.v1.SubmissionStatusR\x04from\x124\n" +
-	"\x02to\x18\x02 \x01(\x0e2$.pixlcrashr.vsfv.v1.SubmissionStatusR\x02to\"\xbc\x01\n" +
-	"\x12SubmissionSettings\x12]\n" +
-	"\x18enabled_settlement_kinds\x18\x01 \x03(\x0e2\x1e.pixlcrashr.vsfv.v1.SettlementB\x03\xe0A\x01R\x16enabledSettlementKinds\x12G\n" +
-	"\x13submission_deadline\x18\x02 \x01(\v2\x11.google.type.DateB\x03\xe0A\x01R\x12submissionDeadline\"R\n" +
+	"\x1evsfv.pixlcrashr.dev/Submission\x125organizations/{organization}/submissions/{submission}B\x06\n" +
+	"\x04type\"R\n" +
 	"\x14GetSubmissionRequest\x12:\n" +
 	"\x04name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
 	"\x1evsfv.pixlcrashr.dev/SubmissionR\x04name\"\x85\x02\n" +
@@ -2618,58 +1695,12 @@ const file_pixlcrashr_vsfv_v1_submission_proto_rawDesc = "" +
 	"\x11payment_reference\x18\x03 \x01(\tB\x03\xe0A\x01R\x10paymentReference\"W\n" +
 	"\x19UndeleteSubmissionRequest\x12:\n" +
 	"\x04name\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1evsfv.pixlcrashr.dev/SubmissionR\x04name\"Z\n" +
-	"\x18GetSubmissionItemRequest\x12>\n" +
-	"\x04name\x18\x01 \x01(\tB*\xe0A\x02\xfaA$\n" +
-	"\"vsfv.pixlcrashr.dev/SubmissionItemR\x04name\"\xa2\x01\n" +
-	"\x1aListSubmissionItemsRequest\x12>\n" +
-	"\x06parent\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1evsfv.pixlcrashr.dev/SubmissionR\x06parent\x12 \n" +
-	"\tpage_size\x18\x02 \x01(\x05B\x03\xe0A\x01R\bpageSize\x12\"\n" +
-	"\n" +
-	"page_token\x18\x03 \x01(\tB\x03\xe0A\x01R\tpageToken\"\x7f\n" +
-	"\x1bListSubmissionItemsResponse\x128\n" +
-	"\x05items\x18\x01 \x03(\v2\".pixlcrashr.vsfv.v1.SubmissionItemR\x05items\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb8\x01\n" +
-	"\x1bCreateSubmissionItemRequest\x12>\n" +
-	"\x06parent\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1evsfv.pixlcrashr.dev/SubmissionR\x06parent\x12;\n" +
-	"\x04item\x18\x02 \x01(\v2\".pixlcrashr.vsfv.v1.SubmissionItemB\x03\xe0A\x02R\x04item\x12\x1c\n" +
-	"\aitem_id\x18\x03 \x01(\tB\x03\xe0A\x01R\x06itemId\"\x9c\x01\n" +
-	"\x1bUpdateSubmissionItemRequest\x12;\n" +
-	"\x04item\x18\x01 \x01(\v2\".pixlcrashr.vsfv.v1.SubmissionItemB\x03\xe0A\x02R\x04item\x12@\n" +
-	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x01R\n" +
-	"updateMask\"]\n" +
-	"\x1bDeleteSubmissionItemRequest\x12>\n" +
-	"\x04name\x18\x01 \x01(\tB*\xe0A\x02\xfaA$\n" +
-	"\"vsfv.pixlcrashr.dev/SubmissionItemR\x04name\"\xa5\x01\n" +
-	"\x1dListSubmissionCommentsRequest\x12>\n" +
-	"\x06parent\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1evsfv.pixlcrashr.dev/SubmissionR\x06parent\x12 \n" +
-	"\tpage_size\x18\x02 \x01(\x05B\x03\xe0A\x01R\bpageSize\x12\"\n" +
-	"\n" +
-	"page_token\x18\x03 \x01(\tB\x03\xe0A\x01R\tpageToken\"\x8b\x01\n" +
-	"\x1eListSubmissionCommentsResponse\x12A\n" +
-	"\bcomments\x18\x01 \x03(\v2%.pixlcrashr.vsfv.v1.SubmissionCommentR\bcomments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa6\x01\n" +
-	"\x1eCreateSubmissionCommentRequest\x12>\n" +
-	"\x06parent\x18\x01 \x01(\tB&\xe0A\x02\xfaA \n" +
-	"\x1evsfv.pixlcrashr.dev/SubmissionR\x06parent\x12D\n" +
-	"\acomment\x18\x02 \x01(\v2%.pixlcrashr.vsfv.v1.SubmissionCommentB\x03\xe0A\x02R\acomment*S\n" +
-	"\tDirection\x12\x19\n" +
-	"\x15DIRECTION_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11DIRECTION_EXPENSE\x10\x01\x12\x14\n" +
-	"\x10DIRECTION_INCOME\x10\x02*\x81\x01\n" +
-	"\n" +
-	"Settlement\x12\x1a\n" +
-	"\x16SETTLEMENT_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11SETTLEMENT_PERSON\x10\x01\x12 \n" +
-	"\x1cSETTLEMENT_COMMITTEE_ACCOUNT\x10\x02\x12\x1e\n" +
-	"\x1aSETTLEMENT_PAYMENT_REQUEST\x10\x03*I\n" +
-	"\x05Scope\x12\x15\n" +
-	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fSCOPE_NONPROFIT\x10\x01\x12\x14\n" +
-	"\x10SCOPE_COMMERCIAL\x10\x02*\xff\x01\n" +
+	"\x1evsfv.pixlcrashr.dev/SubmissionR\x04name*\x8f\x01\n" +
+	"\x0fSubmissionScope\x12 \n" +
+	"\x1cSUBMISSION_SCOPE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15SUBMISSION_SCOPE_NONE\x10\x01\x12\x1e\n" +
+	"\x1aSUBMISSION_SCOPE_NONPROFIT\x10\x02\x12\x1f\n" +
+	"\x1bSUBMISSION_SCOPE_COMMERCIAL\x10\x03*\xff\x01\n" +
 	"\x10SubmissionStatus\x12!\n" +
 	"\x1dSUBMISSION_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SUBMISSION_STATUS_DRAFT\x10\x01\x12\x1d\n" +
@@ -2677,19 +1708,7 @@ const file_pixlcrashr_vsfv_v1_submission_proto_rawDesc = "" +
 	"'SUBMISSION_STATUS_FURTHER_INFO_REQUIRED\x10\x03\x12\x1e\n" +
 	"\x1aSUBMISSION_STATUS_REJECTED\x10\x04\x12\x1e\n" +
 	"\x1aSUBMISSION_STATUS_APPROVED\x10\x05\x12\x1f\n" +
-	"\x1bSUBMISSION_STATUS_COMPLETED\x10\x06*f\n" +
-	"\fPayoutMethod\x12\x1d\n" +
-	"\x19PAYOUT_METHOD_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bPAYOUT_METHOD_BANK_TRANSFER\x10\x01\x12\x16\n" +
-	"\x12PAYOUT_METHOD_CASH\x10\x02*\x89\x01\n" +
-	"\x14PaymentRequestTiming\x12&\n" +
-	"\"PAYMENT_REQUEST_TIMING_UNSPECIFIED\x10\x00\x12%\n" +
-	"!PAYMENT_REQUEST_TIMING_ON_INVOICE\x10\x01\x12\"\n" +
-	"\x1ePAYMENT_REQUEST_TIMING_ADVANCE\x10\x02*s\n" +
-	"\fDocumentForm\x12\x1d\n" +
-	"\x19DOCUMENT_FORM_UNSPECIFIED\x10\x00\x12 \n" +
-	"\x1cDOCUMENT_FORM_PAPER_ORIGINAL\x10\x01\x12\"\n" +
-	"\x1eDOCUMENT_FORM_DIGITAL_ORIGINAL\x10\x022\x86\x0f\n" +
+	"\x1bSUBMISSION_STATUS_COMPLETED\x10\x062\x86\x0f\n" +
 	"\x11SubmissionService\x12\x92\x01\n" +
 	"\rGetSubmission\x12(.pixlcrashr.vsfv.v1.GetSubmissionRequest\x1a\x1e.pixlcrashr.vsfv.v1.Submission\"7\xdaA\x04name\x82\xd3\xe4\x93\x02*\x12(/v1/{name=organizations/*/submissions/*}\x12\xa5\x01\n" +
 	"\x0fListSubmissions\x12*.pixlcrashr.vsfv.v1.ListSubmissionsRequest\x1a+.pixlcrashr.vsfv.v1.ListSubmissionsResponse\"9\xdaA\x06parent\x82\xd3\xe4\x93\x02*\x12(/v1/{parent=organizations/*}/submissions\x12\xbf\x01\n" +
@@ -2703,16 +1722,7 @@ const file_pixlcrashr_vsfv_v1_submission_proto_rawDesc = "" +
 	"\x10RejectSubmission\x12+.pixlcrashr.vsfv.v1.RejectSubmissionRequest\x1a\x1e.pixlcrashr.vsfv.v1.Submission\"A\xdaA\x04name\x82\xd3\xe4\x93\x024:\x01*\"//v1/{name=organizations/*/submissions/*}:reject\x12\xb2\x01\n" +
 	"\x12RequestFurtherInfo\x12-.pixlcrashr.vsfv.v1.RequestFurtherInfoRequest\x1a\x1e.pixlcrashr.vsfv.v1.Submission\"M\xdaA\x04name\x82\xd3\xe4\x93\x02@:\x01*\";/v1/{name=organizations/*/submissions/*}:requestFurtherInfo\x12\xa8\x01\n" +
 	"\x12CompleteSubmission\x12-.pixlcrashr.vsfv.v1.CompleteSubmissionRequest\x1a\x1e.pixlcrashr.vsfv.v1.Submission\"C\xdaA\x04name\x82\xd3\xe4\x93\x026:\x01*\"1/v1/{name=organizations/*/submissions/*}:complete\x12\xa8\x01\n" +
-	"\x12UndeleteSubmission\x12-.pixlcrashr.vsfv.v1.UndeleteSubmissionRequest\x1a\x1e.pixlcrashr.vsfv.v1.Submission\"C\xdaA\x04name\x82\xd3\xe4\x93\x026:\x01*\"1/v1/{name=organizations/*/submissions/*}:undelete\x1a\x16\xcaA\x13vsfv.pixlcrashr.dev2\xc1\a\n" +
-	"\x15SubmissionItemService\x12\xa6\x01\n" +
-	"\x11GetSubmissionItem\x12,.pixlcrashr.vsfv.v1.GetSubmissionItemRequest\x1a\".pixlcrashr.vsfv.v1.SubmissionItem\"?\xdaA\x04name\x82\xd3\xe4\x93\x022\x120/v1/{name=organizations/*/submissions/*/items/*}\x12\xb9\x01\n" +
-	"\x13ListSubmissionItems\x12..pixlcrashr.vsfv.v1.ListSubmissionItemsRequest\x1a/.pixlcrashr.vsfv.v1.ListSubmissionItemsResponse\"A\xdaA\x06parent\x82\xd3\xe4\x93\x022\x120/v1/{parent=organizations/*/submissions/*}/items\x12\xc1\x01\n" +
-	"\x14CreateSubmissionItem\x12/.pixlcrashr.vsfv.v1.CreateSubmissionItemRequest\x1a\".pixlcrashr.vsfv.v1.SubmissionItem\"T\xdaA\x13parent,item,item_id\x82\xd3\xe4\x93\x028:\x04item\"0/v1/{parent=organizations/*/submissions/*}/items\x12\xc3\x01\n" +
-	"\x14UpdateSubmissionItem\x12/.pixlcrashr.vsfv.v1.UpdateSubmissionItemRequest\x1a\".pixlcrashr.vsfv.v1.SubmissionItem\"V\xdaA\x10item,update_mask\x82\xd3\xe4\x93\x02=:\x04item25/v1/{item.name=organizations/*/submissions/*/items/*}\x12\xa0\x01\n" +
-	"\x14DeleteSubmissionItem\x12/.pixlcrashr.vsfv.v1.DeleteSubmissionItemRequest\x1a\x16.google.protobuf.Empty\"?\xdaA\x04name\x82\xd3\xe4\x93\x022*0/v1/{name=organizations/*/submissions/*/items/*}\x1a\x16\xcaA\x13vsfv.pixlcrashr.dev2\xc8\x03\n" +
-	"\x18SubmissionCommentService\x12\xc5\x01\n" +
-	"\x16ListSubmissionComments\x121.pixlcrashr.vsfv.v1.ListSubmissionCommentsRequest\x1a2.pixlcrashr.vsfv.v1.ListSubmissionCommentsResponse\"D\xdaA\x06parent\x82\xd3\xe4\x93\x025\x123/v1/{parent=organizations/*/submissions/*}/comments\x12\xcb\x01\n" +
-	"\x17CreateSubmissionComment\x122.pixlcrashr.vsfv.v1.CreateSubmissionCommentRequest\x1a%.pixlcrashr.vsfv.v1.SubmissionComment\"U\xdaA\x0eparent,comment\x82\xd3\xe4\x93\x02>:\acomment\"3/v1/{parent=organizations/*/submissions/*}/comments\x1a\x16\xcaA\x13vsfv.pixlcrashr.devB\xbc\x01\n" +
+	"\x12UndeleteSubmission\x12-.pixlcrashr.vsfv.v1.UndeleteSubmissionRequest\x1a\x1e.pixlcrashr.vsfv.v1.Submission\"C\xdaA\x04name\x82\xd3\xe4\x93\x026:\x01*\"1/v1/{name=organizations/*/submissions/*}:undelete\x1a\x16\xcaA\x13vsfv.pixlcrashr.devB\xbc\x01\n" +
 	"\x16com.pixlcrashr.vsfv.v1B\x0fSubmissionProtoP\x01Z'github.com/pixlcrashr/vsfv/pkg/grpc/gen\xa2\x02\x03PVX\xaa\x02\x12Pixlcrashr.Vsfv.V1\xca\x02\x12Pixlcrashr\\Vsfv\\V1\xe2\x02\x1ePixlcrashr\\Vsfv\\V1\\GPBMetadata\xea\x02\x14Pixlcrashr::Vsfv::V1b\x06proto3"
 
 var (
@@ -2727,130 +1737,91 @@ func file_pixlcrashr_vsfv_v1_submission_proto_rawDescGZIP() []byte {
 	return file_pixlcrashr_vsfv_v1_submission_proto_rawDescData
 }
 
-var file_pixlcrashr_vsfv_v1_submission_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_pixlcrashr_vsfv_v1_submission_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_pixlcrashr_vsfv_v1_submission_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_pixlcrashr_vsfv_v1_submission_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_pixlcrashr_vsfv_v1_submission_proto_goTypes = []any{
-	(Direction)(0),                         // 0: pixlcrashr.vsfv.v1.Direction
-	(Settlement)(0),                        // 1: pixlcrashr.vsfv.v1.Settlement
-	(Scope)(0),                             // 2: pixlcrashr.vsfv.v1.Scope
-	(SubmissionStatus)(0),                  // 3: pixlcrashr.vsfv.v1.SubmissionStatus
-	(PayoutMethod)(0),                      // 4: pixlcrashr.vsfv.v1.PayoutMethod
-	(PaymentRequestTiming)(0),              // 5: pixlcrashr.vsfv.v1.PaymentRequestTiming
-	(DocumentForm)(0),                      // 6: pixlcrashr.vsfv.v1.DocumentForm
-	(*BankDetails)(nil),                    // 7: pixlcrashr.vsfv.v1.BankDetails
-	(*PersonDetails)(nil),                  // 8: pixlcrashr.vsfv.v1.PersonDetails
-	(*CommitteeAccountDetails)(nil),        // 9: pixlcrashr.vsfv.v1.CommitteeAccountDetails
-	(*PaymentRequestDetails)(nil),          // 10: pixlcrashr.vsfv.v1.PaymentRequestDetails
-	(*Submission)(nil),                     // 11: pixlcrashr.vsfv.v1.Submission
-	(*SubmissionItem)(nil),                 // 12: pixlcrashr.vsfv.v1.SubmissionItem
-	(*SubmissionComment)(nil),              // 13: pixlcrashr.vsfv.v1.SubmissionComment
-	(*SubmissionStatusChange)(nil),         // 14: pixlcrashr.vsfv.v1.SubmissionStatusChange
-	(*SubmissionSettings)(nil),             // 15: pixlcrashr.vsfv.v1.SubmissionSettings
-	(*GetSubmissionRequest)(nil),           // 16: pixlcrashr.vsfv.v1.GetSubmissionRequest
-	(*ListSubmissionsRequest)(nil),         // 17: pixlcrashr.vsfv.v1.ListSubmissionsRequest
-	(*ListSubmissionsResponse)(nil),        // 18: pixlcrashr.vsfv.v1.ListSubmissionsResponse
-	(*CreateSubmissionRequest)(nil),        // 19: pixlcrashr.vsfv.v1.CreateSubmissionRequest
-	(*UpdateSubmissionRequest)(nil),        // 20: pixlcrashr.vsfv.v1.UpdateSubmissionRequest
-	(*DeleteSubmissionRequest)(nil),        // 21: pixlcrashr.vsfv.v1.DeleteSubmissionRequest
-	(*SubmitSubmissionRequest)(nil),        // 22: pixlcrashr.vsfv.v1.SubmitSubmissionRequest
-	(*ApproveSubmissionRequest)(nil),       // 23: pixlcrashr.vsfv.v1.ApproveSubmissionRequest
-	(*RejectSubmissionRequest)(nil),        // 24: pixlcrashr.vsfv.v1.RejectSubmissionRequest
-	(*RequestFurtherInfoRequest)(nil),      // 25: pixlcrashr.vsfv.v1.RequestFurtherInfoRequest
-	(*CompleteSubmissionRequest)(nil),      // 26: pixlcrashr.vsfv.v1.CompleteSubmissionRequest
-	(*UndeleteSubmissionRequest)(nil),      // 27: pixlcrashr.vsfv.v1.UndeleteSubmissionRequest
-	(*GetSubmissionItemRequest)(nil),       // 28: pixlcrashr.vsfv.v1.GetSubmissionItemRequest
-	(*ListSubmissionItemsRequest)(nil),     // 29: pixlcrashr.vsfv.v1.ListSubmissionItemsRequest
-	(*ListSubmissionItemsResponse)(nil),    // 30: pixlcrashr.vsfv.v1.ListSubmissionItemsResponse
-	(*CreateSubmissionItemRequest)(nil),    // 31: pixlcrashr.vsfv.v1.CreateSubmissionItemRequest
-	(*UpdateSubmissionItemRequest)(nil),    // 32: pixlcrashr.vsfv.v1.UpdateSubmissionItemRequest
-	(*DeleteSubmissionItemRequest)(nil),    // 33: pixlcrashr.vsfv.v1.DeleteSubmissionItemRequest
-	(*ListSubmissionCommentsRequest)(nil),  // 34: pixlcrashr.vsfv.v1.ListSubmissionCommentsRequest
-	(*ListSubmissionCommentsResponse)(nil), // 35: pixlcrashr.vsfv.v1.ListSubmissionCommentsResponse
-	(*CreateSubmissionCommentRequest)(nil), // 36: pixlcrashr.vsfv.v1.CreateSubmissionCommentRequest
-	(*date.Date)(nil),                      // 37: google.type.Date
-	(*Decimal)(nil),                        // 38: pixlcrashr.vsfv.v1.Decimal
-	(*timestamppb.Timestamp)(nil),          // 39: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),          // 40: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),                  // 41: google.protobuf.Empty
+	(SubmissionScope)(0),                         // 0: pixlcrashr.vsfv.v1.SubmissionScope
+	(SubmissionStatus)(0),                        // 1: pixlcrashr.vsfv.v1.SubmissionStatus
+	(*SubmissionPayoutMethodBankTransfer)(nil),   // 2: pixlcrashr.vsfv.v1.SubmissionPayoutMethodBankTransfer
+	(*SubmissionPayoutMethodCash)(nil),           // 3: pixlcrashr.vsfv.v1.SubmissionPayoutMethodCash
+	(*SubmissionSettlementPerson)(nil),           // 4: pixlcrashr.vsfv.v1.SubmissionSettlementPerson
+	(*SubmissionSettlementCommitteeAccount)(nil), // 5: pixlcrashr.vsfv.v1.SubmissionSettlementCommitteeAccount
+	(*SubmissionSettlementPaymentRequest)(nil),   // 6: pixlcrashr.vsfv.v1.SubmissionSettlementPaymentRequest
+	(*SubmissionDirectionIncomeDetails)(nil),     // 7: pixlcrashr.vsfv.v1.SubmissionDirectionIncomeDetails
+	(*SubmissionDirectionExpenseDetails)(nil),    // 8: pixlcrashr.vsfv.v1.SubmissionDirectionExpenseDetails
+	(*SubmissionTypeIncomeExpenseDetails)(nil),   // 9: pixlcrashr.vsfv.v1.SubmissionTypeIncomeExpenseDetails
+	(*SubmissionTypeMiscDetails)(nil),            // 10: pixlcrashr.vsfv.v1.SubmissionTypeMiscDetails
+	(*Submission)(nil),                           // 11: pixlcrashr.vsfv.v1.Submission
+	(*GetSubmissionRequest)(nil),                 // 12: pixlcrashr.vsfv.v1.GetSubmissionRequest
+	(*ListSubmissionsRequest)(nil),               // 13: pixlcrashr.vsfv.v1.ListSubmissionsRequest
+	(*ListSubmissionsResponse)(nil),              // 14: pixlcrashr.vsfv.v1.ListSubmissionsResponse
+	(*CreateSubmissionRequest)(nil),              // 15: pixlcrashr.vsfv.v1.CreateSubmissionRequest
+	(*UpdateSubmissionRequest)(nil),              // 16: pixlcrashr.vsfv.v1.UpdateSubmissionRequest
+	(*DeleteSubmissionRequest)(nil),              // 17: pixlcrashr.vsfv.v1.DeleteSubmissionRequest
+	(*SubmitSubmissionRequest)(nil),              // 18: pixlcrashr.vsfv.v1.SubmitSubmissionRequest
+	(*ApproveSubmissionRequest)(nil),             // 19: pixlcrashr.vsfv.v1.ApproveSubmissionRequest
+	(*RejectSubmissionRequest)(nil),              // 20: pixlcrashr.vsfv.v1.RejectSubmissionRequest
+	(*RequestFurtherInfoRequest)(nil),            // 21: pixlcrashr.vsfv.v1.RequestFurtherInfoRequest
+	(*CompleteSubmissionRequest)(nil),            // 22: pixlcrashr.vsfv.v1.CompleteSubmissionRequest
+	(*UndeleteSubmissionRequest)(nil),            // 23: pixlcrashr.vsfv.v1.UndeleteSubmissionRequest
+	(*BankAccount)(nil),                          // 24: pixlcrashr.vsfv.v1.BankAccount
+	(*date.Date)(nil),                            // 25: google.type.Date
+	(*Decimal)(nil),                              // 26: pixlcrashr.vsfv.v1.Decimal
+	(*timestamppb.Timestamp)(nil),                // 27: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),                // 28: google.protobuf.FieldMask
 }
 var file_pixlcrashr_vsfv_v1_submission_proto_depIdxs = []int32{
-	4,  // 0: pixlcrashr.vsfv.v1.PersonDetails.payout_method:type_name -> pixlcrashr.vsfv.v1.PayoutMethod
-	7,  // 1: pixlcrashr.vsfv.v1.PersonDetails.bank_details:type_name -> pixlcrashr.vsfv.v1.BankDetails
-	37, // 2: pixlcrashr.vsfv.v1.CommitteeAccountDetails.paid_date:type_name -> google.type.Date
-	5,  // 3: pixlcrashr.vsfv.v1.PaymentRequestDetails.timing:type_name -> pixlcrashr.vsfv.v1.PaymentRequestTiming
-	0,  // 4: pixlcrashr.vsfv.v1.Submission.direction:type_name -> pixlcrashr.vsfv.v1.Direction
-	1,  // 5: pixlcrashr.vsfv.v1.Submission.settlement:type_name -> pixlcrashr.vsfv.v1.Settlement
-	2,  // 6: pixlcrashr.vsfv.v1.Submission.scope:type_name -> pixlcrashr.vsfv.v1.Scope
-	3,  // 7: pixlcrashr.vsfv.v1.Submission.status:type_name -> pixlcrashr.vsfv.v1.SubmissionStatus
-	8,  // 8: pixlcrashr.vsfv.v1.Submission.person_details:type_name -> pixlcrashr.vsfv.v1.PersonDetails
-	9,  // 9: pixlcrashr.vsfv.v1.Submission.committee_account_details:type_name -> pixlcrashr.vsfv.v1.CommitteeAccountDetails
-	10, // 10: pixlcrashr.vsfv.v1.Submission.payment_request_details:type_name -> pixlcrashr.vsfv.v1.PaymentRequestDetails
-	38, // 11: pixlcrashr.vsfv.v1.Submission.total_amount:type_name -> pixlcrashr.vsfv.v1.Decimal
-	39, // 12: pixlcrashr.vsfv.v1.Submission.delete_time:type_name -> google.protobuf.Timestamp
-	39, // 13: pixlcrashr.vsfv.v1.Submission.purge_time:type_name -> google.protobuf.Timestamp
-	39, // 14: pixlcrashr.vsfv.v1.Submission.update_time:type_name -> google.protobuf.Timestamp
-	39, // 15: pixlcrashr.vsfv.v1.Submission.create_time:type_name -> google.protobuf.Timestamp
-	6,  // 16: pixlcrashr.vsfv.v1.SubmissionItem.document_form:type_name -> pixlcrashr.vsfv.v1.DocumentForm
-	38, // 17: pixlcrashr.vsfv.v1.SubmissionItem.amount:type_name -> pixlcrashr.vsfv.v1.Decimal
-	39, // 18: pixlcrashr.vsfv.v1.SubmissionItem.original_receive_time:type_name -> google.protobuf.Timestamp
-	14, // 19: pixlcrashr.vsfv.v1.SubmissionComment.status_change:type_name -> pixlcrashr.vsfv.v1.SubmissionStatusChange
-	39, // 20: pixlcrashr.vsfv.v1.SubmissionComment.create_time:type_name -> google.protobuf.Timestamp
-	3,  // 21: pixlcrashr.vsfv.v1.SubmissionStatusChange.from:type_name -> pixlcrashr.vsfv.v1.SubmissionStatus
-	3,  // 22: pixlcrashr.vsfv.v1.SubmissionStatusChange.to:type_name -> pixlcrashr.vsfv.v1.SubmissionStatus
-	1,  // 23: pixlcrashr.vsfv.v1.SubmissionSettings.enabled_settlement_kinds:type_name -> pixlcrashr.vsfv.v1.Settlement
-	37, // 24: pixlcrashr.vsfv.v1.SubmissionSettings.submission_deadline:type_name -> google.type.Date
-	11, // 25: pixlcrashr.vsfv.v1.ListSubmissionsResponse.submissions:type_name -> pixlcrashr.vsfv.v1.Submission
-	11, // 26: pixlcrashr.vsfv.v1.CreateSubmissionRequest.submission:type_name -> pixlcrashr.vsfv.v1.Submission
-	11, // 27: pixlcrashr.vsfv.v1.UpdateSubmissionRequest.submission:type_name -> pixlcrashr.vsfv.v1.Submission
-	40, // 28: pixlcrashr.vsfv.v1.UpdateSubmissionRequest.update_mask:type_name -> google.protobuf.FieldMask
-	37, // 29: pixlcrashr.vsfv.v1.CompleteSubmissionRequest.paid_date:type_name -> google.type.Date
-	12, // 30: pixlcrashr.vsfv.v1.ListSubmissionItemsResponse.items:type_name -> pixlcrashr.vsfv.v1.SubmissionItem
-	12, // 31: pixlcrashr.vsfv.v1.CreateSubmissionItemRequest.item:type_name -> pixlcrashr.vsfv.v1.SubmissionItem
-	12, // 32: pixlcrashr.vsfv.v1.UpdateSubmissionItemRequest.item:type_name -> pixlcrashr.vsfv.v1.SubmissionItem
-	40, // 33: pixlcrashr.vsfv.v1.UpdateSubmissionItemRequest.update_mask:type_name -> google.protobuf.FieldMask
-	13, // 34: pixlcrashr.vsfv.v1.ListSubmissionCommentsResponse.comments:type_name -> pixlcrashr.vsfv.v1.SubmissionComment
-	13, // 35: pixlcrashr.vsfv.v1.CreateSubmissionCommentRequest.comment:type_name -> pixlcrashr.vsfv.v1.SubmissionComment
-	16, // 36: pixlcrashr.vsfv.v1.SubmissionService.GetSubmission:input_type -> pixlcrashr.vsfv.v1.GetSubmissionRequest
-	17, // 37: pixlcrashr.vsfv.v1.SubmissionService.ListSubmissions:input_type -> pixlcrashr.vsfv.v1.ListSubmissionsRequest
-	19, // 38: pixlcrashr.vsfv.v1.SubmissionService.CreateSubmission:input_type -> pixlcrashr.vsfv.v1.CreateSubmissionRequest
-	20, // 39: pixlcrashr.vsfv.v1.SubmissionService.UpdateSubmission:input_type -> pixlcrashr.vsfv.v1.UpdateSubmissionRequest
-	21, // 40: pixlcrashr.vsfv.v1.SubmissionService.DeleteSubmission:input_type -> pixlcrashr.vsfv.v1.DeleteSubmissionRequest
-	22, // 41: pixlcrashr.vsfv.v1.SubmissionService.SubmitSubmission:input_type -> pixlcrashr.vsfv.v1.SubmitSubmissionRequest
-	23, // 42: pixlcrashr.vsfv.v1.SubmissionService.ApproveSubmission:input_type -> pixlcrashr.vsfv.v1.ApproveSubmissionRequest
-	24, // 43: pixlcrashr.vsfv.v1.SubmissionService.RejectSubmission:input_type -> pixlcrashr.vsfv.v1.RejectSubmissionRequest
-	25, // 44: pixlcrashr.vsfv.v1.SubmissionService.RequestFurtherInfo:input_type -> pixlcrashr.vsfv.v1.RequestFurtherInfoRequest
-	26, // 45: pixlcrashr.vsfv.v1.SubmissionService.CompleteSubmission:input_type -> pixlcrashr.vsfv.v1.CompleteSubmissionRequest
-	27, // 46: pixlcrashr.vsfv.v1.SubmissionService.UndeleteSubmission:input_type -> pixlcrashr.vsfv.v1.UndeleteSubmissionRequest
-	28, // 47: pixlcrashr.vsfv.v1.SubmissionItemService.GetSubmissionItem:input_type -> pixlcrashr.vsfv.v1.GetSubmissionItemRequest
-	29, // 48: pixlcrashr.vsfv.v1.SubmissionItemService.ListSubmissionItems:input_type -> pixlcrashr.vsfv.v1.ListSubmissionItemsRequest
-	31, // 49: pixlcrashr.vsfv.v1.SubmissionItemService.CreateSubmissionItem:input_type -> pixlcrashr.vsfv.v1.CreateSubmissionItemRequest
-	32, // 50: pixlcrashr.vsfv.v1.SubmissionItemService.UpdateSubmissionItem:input_type -> pixlcrashr.vsfv.v1.UpdateSubmissionItemRequest
-	33, // 51: pixlcrashr.vsfv.v1.SubmissionItemService.DeleteSubmissionItem:input_type -> pixlcrashr.vsfv.v1.DeleteSubmissionItemRequest
-	34, // 52: pixlcrashr.vsfv.v1.SubmissionCommentService.ListSubmissionComments:input_type -> pixlcrashr.vsfv.v1.ListSubmissionCommentsRequest
-	36, // 53: pixlcrashr.vsfv.v1.SubmissionCommentService.CreateSubmissionComment:input_type -> pixlcrashr.vsfv.v1.CreateSubmissionCommentRequest
-	11, // 54: pixlcrashr.vsfv.v1.SubmissionService.GetSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	18, // 55: pixlcrashr.vsfv.v1.SubmissionService.ListSubmissions:output_type -> pixlcrashr.vsfv.v1.ListSubmissionsResponse
-	11, // 56: pixlcrashr.vsfv.v1.SubmissionService.CreateSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 57: pixlcrashr.vsfv.v1.SubmissionService.UpdateSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 58: pixlcrashr.vsfv.v1.SubmissionService.DeleteSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 59: pixlcrashr.vsfv.v1.SubmissionService.SubmitSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 60: pixlcrashr.vsfv.v1.SubmissionService.ApproveSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 61: pixlcrashr.vsfv.v1.SubmissionService.RejectSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 62: pixlcrashr.vsfv.v1.SubmissionService.RequestFurtherInfo:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 63: pixlcrashr.vsfv.v1.SubmissionService.CompleteSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	11, // 64: pixlcrashr.vsfv.v1.SubmissionService.UndeleteSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
-	12, // 65: pixlcrashr.vsfv.v1.SubmissionItemService.GetSubmissionItem:output_type -> pixlcrashr.vsfv.v1.SubmissionItem
-	30, // 66: pixlcrashr.vsfv.v1.SubmissionItemService.ListSubmissionItems:output_type -> pixlcrashr.vsfv.v1.ListSubmissionItemsResponse
-	12, // 67: pixlcrashr.vsfv.v1.SubmissionItemService.CreateSubmissionItem:output_type -> pixlcrashr.vsfv.v1.SubmissionItem
-	12, // 68: pixlcrashr.vsfv.v1.SubmissionItemService.UpdateSubmissionItem:output_type -> pixlcrashr.vsfv.v1.SubmissionItem
-	41, // 69: pixlcrashr.vsfv.v1.SubmissionItemService.DeleteSubmissionItem:output_type -> google.protobuf.Empty
-	35, // 70: pixlcrashr.vsfv.v1.SubmissionCommentService.ListSubmissionComments:output_type -> pixlcrashr.vsfv.v1.ListSubmissionCommentsResponse
-	13, // 71: pixlcrashr.vsfv.v1.SubmissionCommentService.CreateSubmissionComment:output_type -> pixlcrashr.vsfv.v1.SubmissionComment
-	54, // [54:72] is the sub-list for method output_type
-	36, // [36:54] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	24, // 0: pixlcrashr.vsfv.v1.SubmissionPayoutMethodBankTransfer.bank_account:type_name -> pixlcrashr.vsfv.v1.BankAccount
+	2,  // 1: pixlcrashr.vsfv.v1.SubmissionSettlementPerson.bank_transfer:type_name -> pixlcrashr.vsfv.v1.SubmissionPayoutMethodBankTransfer
+	3,  // 2: pixlcrashr.vsfv.v1.SubmissionSettlementPerson.cash:type_name -> pixlcrashr.vsfv.v1.SubmissionPayoutMethodCash
+	25, // 3: pixlcrashr.vsfv.v1.SubmissionSettlementCommitteeAccount.paid_date:type_name -> google.type.Date
+	24, // 4: pixlcrashr.vsfv.v1.SubmissionSettlementPaymentRequest.bank_account:type_name -> pixlcrashr.vsfv.v1.BankAccount
+	4,  // 5: pixlcrashr.vsfv.v1.SubmissionDirectionExpenseDetails.person:type_name -> pixlcrashr.vsfv.v1.SubmissionSettlementPerson
+	5,  // 6: pixlcrashr.vsfv.v1.SubmissionDirectionExpenseDetails.committee_account:type_name -> pixlcrashr.vsfv.v1.SubmissionSettlementCommitteeAccount
+	6,  // 7: pixlcrashr.vsfv.v1.SubmissionDirectionExpenseDetails.payment_request:type_name -> pixlcrashr.vsfv.v1.SubmissionSettlementPaymentRequest
+	0,  // 8: pixlcrashr.vsfv.v1.SubmissionTypeIncomeExpenseDetails.scope:type_name -> pixlcrashr.vsfv.v1.SubmissionScope
+	7,  // 9: pixlcrashr.vsfv.v1.SubmissionTypeIncomeExpenseDetails.income:type_name -> pixlcrashr.vsfv.v1.SubmissionDirectionIncomeDetails
+	8,  // 10: pixlcrashr.vsfv.v1.SubmissionTypeIncomeExpenseDetails.expense:type_name -> pixlcrashr.vsfv.v1.SubmissionDirectionExpenseDetails
+	9,  // 11: pixlcrashr.vsfv.v1.Submission.income_expense:type_name -> pixlcrashr.vsfv.v1.SubmissionTypeIncomeExpenseDetails
+	10, // 12: pixlcrashr.vsfv.v1.Submission.misc:type_name -> pixlcrashr.vsfv.v1.SubmissionTypeMiscDetails
+	1,  // 13: pixlcrashr.vsfv.v1.Submission.status:type_name -> pixlcrashr.vsfv.v1.SubmissionStatus
+	26, // 14: pixlcrashr.vsfv.v1.Submission.total_amount:type_name -> pixlcrashr.vsfv.v1.Decimal
+	27, // 15: pixlcrashr.vsfv.v1.Submission.delete_time:type_name -> google.protobuf.Timestamp
+	27, // 16: pixlcrashr.vsfv.v1.Submission.purge_time:type_name -> google.protobuf.Timestamp
+	27, // 17: pixlcrashr.vsfv.v1.Submission.update_time:type_name -> google.protobuf.Timestamp
+	27, // 18: pixlcrashr.vsfv.v1.Submission.create_time:type_name -> google.protobuf.Timestamp
+	11, // 19: pixlcrashr.vsfv.v1.ListSubmissionsResponse.submissions:type_name -> pixlcrashr.vsfv.v1.Submission
+	11, // 20: pixlcrashr.vsfv.v1.CreateSubmissionRequest.submission:type_name -> pixlcrashr.vsfv.v1.Submission
+	11, // 21: pixlcrashr.vsfv.v1.UpdateSubmissionRequest.submission:type_name -> pixlcrashr.vsfv.v1.Submission
+	28, // 22: pixlcrashr.vsfv.v1.UpdateSubmissionRequest.update_mask:type_name -> google.protobuf.FieldMask
+	25, // 23: pixlcrashr.vsfv.v1.CompleteSubmissionRequest.paid_date:type_name -> google.type.Date
+	12, // 24: pixlcrashr.vsfv.v1.SubmissionService.GetSubmission:input_type -> pixlcrashr.vsfv.v1.GetSubmissionRequest
+	13, // 25: pixlcrashr.vsfv.v1.SubmissionService.ListSubmissions:input_type -> pixlcrashr.vsfv.v1.ListSubmissionsRequest
+	15, // 26: pixlcrashr.vsfv.v1.SubmissionService.CreateSubmission:input_type -> pixlcrashr.vsfv.v1.CreateSubmissionRequest
+	16, // 27: pixlcrashr.vsfv.v1.SubmissionService.UpdateSubmission:input_type -> pixlcrashr.vsfv.v1.UpdateSubmissionRequest
+	17, // 28: pixlcrashr.vsfv.v1.SubmissionService.DeleteSubmission:input_type -> pixlcrashr.vsfv.v1.DeleteSubmissionRequest
+	18, // 29: pixlcrashr.vsfv.v1.SubmissionService.SubmitSubmission:input_type -> pixlcrashr.vsfv.v1.SubmitSubmissionRequest
+	19, // 30: pixlcrashr.vsfv.v1.SubmissionService.ApproveSubmission:input_type -> pixlcrashr.vsfv.v1.ApproveSubmissionRequest
+	20, // 31: pixlcrashr.vsfv.v1.SubmissionService.RejectSubmission:input_type -> pixlcrashr.vsfv.v1.RejectSubmissionRequest
+	21, // 32: pixlcrashr.vsfv.v1.SubmissionService.RequestFurtherInfo:input_type -> pixlcrashr.vsfv.v1.RequestFurtherInfoRequest
+	22, // 33: pixlcrashr.vsfv.v1.SubmissionService.CompleteSubmission:input_type -> pixlcrashr.vsfv.v1.CompleteSubmissionRequest
+	23, // 34: pixlcrashr.vsfv.v1.SubmissionService.UndeleteSubmission:input_type -> pixlcrashr.vsfv.v1.UndeleteSubmissionRequest
+	11, // 35: pixlcrashr.vsfv.v1.SubmissionService.GetSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	14, // 36: pixlcrashr.vsfv.v1.SubmissionService.ListSubmissions:output_type -> pixlcrashr.vsfv.v1.ListSubmissionsResponse
+	11, // 37: pixlcrashr.vsfv.v1.SubmissionService.CreateSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 38: pixlcrashr.vsfv.v1.SubmissionService.UpdateSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 39: pixlcrashr.vsfv.v1.SubmissionService.DeleteSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 40: pixlcrashr.vsfv.v1.SubmissionService.SubmitSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 41: pixlcrashr.vsfv.v1.SubmissionService.ApproveSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 42: pixlcrashr.vsfv.v1.SubmissionService.RejectSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 43: pixlcrashr.vsfv.v1.SubmissionService.RequestFurtherInfo:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 44: pixlcrashr.vsfv.v1.SubmissionService.CompleteSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	11, // 45: pixlcrashr.vsfv.v1.SubmissionService.UndeleteSubmission:output_type -> pixlcrashr.vsfv.v1.Submission
+	35, // [35:46] is the sub-list for method output_type
+	24, // [24:35] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_pixlcrashr_vsfv_v1_submission_proto_init() }
@@ -2859,21 +1830,34 @@ func file_pixlcrashr_vsfv_v1_submission_proto_init() {
 		return
 	}
 	file_pixlcrashr_vsfv_v1_committee_proto_init()
+	file_pixlcrashr_vsfv_v1_common_proto_init()
 	file_pixlcrashr_vsfv_v1_decimal_proto_init()
-	file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[4].OneofWrappers = []any{
-		(*Submission_PersonDetails)(nil),
-		(*Submission_CommitteeAccountDetails)(nil),
-		(*Submission_PaymentRequestDetails)(nil),
+	file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[2].OneofWrappers = []any{
+		(*SubmissionSettlementPerson_BankTransfer)(nil),
+		(*SubmissionSettlementPerson_Cash)(nil),
+	}
+	file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[6].OneofWrappers = []any{
+		(*SubmissionDirectionExpenseDetails_Person)(nil),
+		(*SubmissionDirectionExpenseDetails_CommitteeAccount)(nil),
+		(*SubmissionDirectionExpenseDetails_PaymentRequest)(nil),
+	}
+	file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[7].OneofWrappers = []any{
+		(*SubmissionTypeIncomeExpenseDetails_Income)(nil),
+		(*SubmissionTypeIncomeExpenseDetails_Expense)(nil),
+	}
+	file_pixlcrashr_vsfv_v1_submission_proto_msgTypes[9].OneofWrappers = []any{
+		(*Submission_IncomeExpense)(nil),
+		(*Submission_Misc)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pixlcrashr_vsfv_v1_submission_proto_rawDesc), len(file_pixlcrashr_vsfv_v1_submission_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   30,
+			NumEnums:      2,
+			NumMessages:   22,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   1,
 		},
 		GoTypes:           file_pixlcrashr_vsfv_v1_submission_proto_goTypes,
 		DependencyIndexes: file_pixlcrashr_vsfv_v1_submission_proto_depIdxs,

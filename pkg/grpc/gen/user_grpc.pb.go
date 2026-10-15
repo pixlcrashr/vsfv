@@ -53,17 +53,24 @@ type UserServiceClient interface {
 	// domain. When set, permissions are evaluated against the specified domain.
 	// Authorization:
 	//
-	//	Scope: users:read
-	//	Permission: users:read
-	//	Domain: global
+	//	Checking the calling user's own permissions:
+	//	  Requires authentication only (the SPA route guards call this on
+	//	  every navigation).
+	//	Checking another user's permissions:
+	//	  Scope: users:read
+	//	  Permission: users:read
+	//	  Domain: global
 	CheckUserPermissions(ctx context.Context, in *CheckUserPermissionsRequest, opts ...grpc.CallOption) (*CheckUserPermissionsResponse, error)
 	// Checks permissions for one or more users in one call, each optionally
 	// scoped to a different domain (batch custom method, AIP-231).
 	// Authorization:
 	//
-	//	Scope: users:read
-	//	Permission: users:read
-	//	Domain: global
+	//	Checking the calling user's own permissions:
+	//	  Requires authentication only.
+	//	Checking another user's permissions:
+	//	  Scope: users:read
+	//	  Permission: users:read
+	//	  Domain: global
 	BatchCheckUserPermissions(ctx context.Context, in *BatchCheckUserPermissionsRequest, opts ...grpc.CallOption) (*BatchCheckUserPermissionsResponse, error)
 	// Lists the groups a user belongs to (custom method, AIP-136).
 	// Authorization:
@@ -159,17 +166,24 @@ type UserServiceServer interface {
 	// domain. When set, permissions are evaluated against the specified domain.
 	// Authorization:
 	//
-	//	Scope: users:read
-	//	Permission: users:read
-	//	Domain: global
+	//	Checking the calling user's own permissions:
+	//	  Requires authentication only (the SPA route guards call this on
+	//	  every navigation).
+	//	Checking another user's permissions:
+	//	  Scope: users:read
+	//	  Permission: users:read
+	//	  Domain: global
 	CheckUserPermissions(context.Context, *CheckUserPermissionsRequest) (*CheckUserPermissionsResponse, error)
 	// Checks permissions for one or more users in one call, each optionally
 	// scoped to a different domain (batch custom method, AIP-231).
 	// Authorization:
 	//
-	//	Scope: users:read
-	//	Permission: users:read
-	//	Domain: global
+	//	Checking the calling user's own permissions:
+	//	  Requires authentication only.
+	//	Checking another user's permissions:
+	//	  Scope: users:read
+	//	  Permission: users:read
+	//	  Domain: global
 	BatchCheckUserPermissions(context.Context, *BatchCheckUserPermissionsRequest) (*BatchCheckUserPermissionsResponse, error)
 	// Lists the groups a user belongs to (custom method, AIP-136).
 	// Authorization:

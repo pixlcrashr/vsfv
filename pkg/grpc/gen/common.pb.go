@@ -7,6 +7,7 @@
 package gen
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -100,11 +101,89 @@ func (Month) EnumDescriptor() ([]byte, []int) {
 	return file_pixlcrashr_vsfv_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
+// BankDetails represent bank account details
+type BankAccount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the account holder.
+	AccountHolder string `protobuf:"bytes,1,opt,name=account_holder,json=accountHolder,proto3" json:"account_holder,omitempty"`
+	// IBAN of the account.
+	Iban string `protobuf:"bytes,2,opt,name=iban,proto3" json:"iban,omitempty"`
+	// BIC of the account (optional).
+	Bic string `protobuf:"bytes,3,opt,name=bic,proto3" json:"bic,omitempty"`
+	// Account number of the recipient (optional)
+	AccountNumber string `protobuf:"bytes,4,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BankAccount) Reset() {
+	*x = BankAccount{}
+	mi := &file_pixlcrashr_vsfv_v1_common_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BankAccount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BankAccount) ProtoMessage() {}
+
+func (x *BankAccount) ProtoReflect() protoreflect.Message {
+	mi := &file_pixlcrashr_vsfv_v1_common_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BankAccount.ProtoReflect.Descriptor instead.
+func (*BankAccount) Descriptor() ([]byte, []int) {
+	return file_pixlcrashr_vsfv_v1_common_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BankAccount) GetAccountHolder() string {
+	if x != nil {
+		return x.AccountHolder
+	}
+	return ""
+}
+
+func (x *BankAccount) GetIban() string {
+	if x != nil {
+		return x.Iban
+	}
+	return ""
+}
+
+func (x *BankAccount) GetBic() string {
+	if x != nil {
+		return x.Bic
+	}
+	return ""
+}
+
+func (x *BankAccount) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
 var File_pixlcrashr_vsfv_v1_common_proto protoreflect.FileDescriptor
 
 const file_pixlcrashr_vsfv_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x1fpixlcrashr/vsfv/v1/common.proto\x12\x12pixlcrashr.vsfv.v1*\xf8\x01\n" +
+	"\x1fpixlcrashr/vsfv/v1/common.proto\x12\x12pixlcrashr.vsfv.v1\x1a\x1fgoogle/api/field_behavior.proto\"\x95\x01\n" +
+	"\vBankAccount\x12*\n" +
+	"\x0eaccount_holder\x18\x01 \x01(\tB\x03\xe0A\x01R\raccountHolder\x12\x17\n" +
+	"\x04iban\x18\x02 \x01(\tB\x03\xe0A\x01R\x04iban\x12\x15\n" +
+	"\x03bic\x18\x03 \x01(\tB\x03\xe0A\x01R\x03bic\x12*\n" +
+	"\x0eaccount_number\x18\x04 \x01(\tB\x03\xe0A\x01R\raccountNumber*\xf8\x01\n" +
 	"\x05Month\x12\x15\n" +
 	"\x11MONTH_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rMONTH_JANUARY\x10\x01\x12\x12\n" +
@@ -137,8 +216,10 @@ func file_pixlcrashr_vsfv_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_pixlcrashr_vsfv_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_pixlcrashr_vsfv_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_pixlcrashr_vsfv_v1_common_proto_goTypes = []any{
-	(Month)(0), // 0: pixlcrashr.vsfv.v1.Month
+	(Month)(0),          // 0: pixlcrashr.vsfv.v1.Month
+	(*BankAccount)(nil), // 1: pixlcrashr.vsfv.v1.BankAccount
 }
 var file_pixlcrashr_vsfv_v1_common_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -159,13 +240,14 @@ func file_pixlcrashr_vsfv_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pixlcrashr_vsfv_v1_common_proto_rawDesc), len(file_pixlcrashr_vsfv_v1_common_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   0,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_pixlcrashr_vsfv_v1_common_proto_goTypes,
 		DependencyIndexes: file_pixlcrashr_vsfv_v1_common_proto_depIdxs,
 		EnumInfos:         file_pixlcrashr_vsfv_v1_common_proto_enumTypes,
+		MessageInfos:      file_pixlcrashr_vsfv_v1_common_proto_msgTypes,
 	}.Build()
 	File_pixlcrashr_vsfv_v1_common_proto = out.File
 	file_pixlcrashr_vsfv_v1_common_proto_goTypes = nil

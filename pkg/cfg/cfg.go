@@ -18,11 +18,13 @@ type Config struct {
 	SubmissionDecay SubmissionDecay `mapstructure:"submission-decay"`
 }
 
-// Storage configures local file storage for submission attachments.
+// Storage configures the global file storage that holds every binary blob
+// the application persists (e.g. submission attachments).
 type Storage struct {
-	// AttachmentsPath is the directory where submission attachment binaries
-	// are stored.
-	AttachmentsPath string `mapstructure:"attachments-path"`
+	// DataPath is the root directory of the global blob storage. Files are
+	// identified by UUIDs and sharded into sub-directories named after the
+	// first two hex digits of their UUID.
+	DataPath string `mapstructure:"data-path"`
 }
 
 // SubmissionDecay configures the background sweeper that automatically
@@ -118,7 +120,7 @@ func Load(cfgFile string) (*Config, error) {
 	viper.SetDefault("auth.gitlab.enabled", false)
 	viper.SetDefault("auth.password.enabled", false)
 	viper.SetDefault("auth.jwks.key-files", []string{})
-	viper.SetDefault("storage.attachments-path", "attachments")
+	viper.SetDefault("storage.data-path", "data")
 	viper.SetDefault("submission-decay.interval", time.Hour)
 
 	if err := viper.ReadInConfig(); err != nil {

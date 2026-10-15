@@ -55,7 +55,7 @@ func TestImportExportRoundtrip(t *testing.T) {
 				{
 					ID:          "20000000-0000-0000-0000-000000000001",
 					Code:        "1000",
-					AccountType: "asset",
+					Type: "liquidity",
 					DisplayName: "Bank",
 				},
 			},
@@ -267,7 +267,7 @@ func TestImportAutoCreatesMissingLedgerAccount(t *testing.T) {
 				{
 					ID:          "20000000-0000-0000-0000-000000000001",
 					Code:        "1000",
-					AccountType: "asset",
+					Type: "liquidity",
 					DisplayName: "Bank",
 				},
 			},
@@ -296,7 +296,7 @@ func TestImportAutoCreatesMissingLedgerAccount(t *testing.T) {
 		if la.ID.String() == missingLedgerID {
 			found = true
 			require.Equal(t, missingLedgerID, la.Code)
-			require.Equal(t, model.AccountTypeUnspecified, la.AccountType)
+			require.Nil(t, la.Type)
 		}
 	}
 	require.True(t, found, "missing ledger account was not auto-created")

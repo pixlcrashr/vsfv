@@ -13,8 +13,12 @@ import (
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// accRole returns a pointer to the given balance role.
+func accType(v model.LedgerAccountType) *model.LedgerAccountType { return &v }
 
 var _ = Describe("TransactionService", func() {
 	var ctx context.Context
@@ -40,7 +44,7 @@ var _ = Describe("TransactionService", func() {
 		creditAccount, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
 			OrganizationID: orgUID,
 			Code:           "CREDIT-ACC",
-			AccountType:    model.AccountTypeAsset,
+			Type:           accType(model.LedgerAccountTypeLiquidity),
 			DisplayName:    "Credit Account",
 		})
 		Expect(err).NotTo(HaveOccurred())
@@ -49,7 +53,7 @@ var _ = Describe("TransactionService", func() {
 		debitAccount, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
 			OrganizationID: orgUID,
 			Code:           "DEBIT-ACC",
-			AccountType:    model.AccountTypeExpense,
+			Type:           nil,
 			DisplayName:    "Debit Account",
 		})
 		Expect(err).NotTo(HaveOccurred())
@@ -240,7 +244,7 @@ var _ = Describe("TransactionService", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("updates the description and reference", func() {
+		It("keeps the description immutable and updates the reference", func() {
 			updated, err := TransactionClient.UpdateTransaction(ctx, &gen.UpdateTransactionRequest{
 				Transaction: &gen.Transaction{
 					Name:        created.Name,
@@ -249,9 +253,20 @@ var _ = Describe("TransactionService", func() {
 				},
 			})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(updated.Description).To(Equal("After Update"))
+			Expect(updated.Description).To(Equal("Before Update"))
 			Expect(updated.Reference).To(Equal("AFTER-REF"))
 			Expect(updated.Name).To(Equal(created.Name))
+		})
+
+		It("rejects update masks that target the description", func() {
+			_, err := TransactionClient.UpdateTransaction(ctx, &gen.UpdateTransactionRequest{
+				Transaction: &gen.Transaction{
+					Name: created.Name,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"description"}},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
 		})
 
 		It("updates the booked_at and document_date", func() {

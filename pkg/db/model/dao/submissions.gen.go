@@ -33,25 +33,26 @@ func newSubmission(db *gorm.DB, opts ...gen.DOOption) submission {
 	_submission.OrganizationID = field.NewField(tableName, "organization_id")
 	_submission.CreatedByUserID = field.NewField(tableName, "created_by_user_id")
 	_submission.CommitteeID = field.NewField(tableName, "committee_id")
-	_submission.Direction = field.NewInt(tableName, "direction")
-	_submission.Settlement = field.NewInt(tableName, "settlement")
+	_submission.Type = field.NewInt(tableName, "type")
+	_submission.Direction = field.NewField(tableName, "direction")
+	_submission.SettlementType = field.NewField(tableName, "settlement_type")
 	_submission.Scope = field.NewInt(tableName, "scope")
 	_submission.Status = field.NewInt(tableName, "status")
 	_submission.Notice = field.NewString(tableName, "notice")
 	_submission.TotalAmount = field.NewField(tableName, "total_amount")
-	_submission.Etag = field.NewString(tableName, "etag")
-	_submission.PayoutMethod = field.NewInt(tableName, "payout_method")
-	_submission.BankAccountHolder = field.NewString(tableName, "bank_account_holder")
-	_submission.BankIban = field.NewString(tableName, "bank_iban")
-	_submission.BankBic = field.NewString(tableName, "bank_bic")
-	_submission.PaymentAccountUID = field.NewField(tableName, "payment_account_uid")
-	_submission.PaymentAccountLabel = field.NewString(tableName, "payment_account_label")
-	_submission.AccountPaidDate = field.NewTime(tableName, "account_paid_date")
-	_submission.AccountPaymentReference = field.NewString(tableName, "account_payment_reference")
-	_submission.VendorName = field.NewString(tableName, "vendor_name")
-	_submission.VendorIban = field.NewString(tableName, "vendor_iban")
-	_submission.VendorBic = field.NewString(tableName, "vendor_bic")
-	_submission.VendorTiming = field.NewInt(tableName, "vendor_timing")
+	_submission.PersonPayoutMethod = field.NewField(tableName, "person_payout_method")
+	_submission.PersonBankAccountHolder = field.NewString(tableName, "person_bank_account_holder")
+	_submission.PersonBankIban = field.NewString(tableName, "person_bank_iban")
+	_submission.PersonBankBic = field.NewString(tableName, "person_bank_bic")
+	_submission.PersonBankAccountNumber = field.NewString(tableName, "person_bank_account_number")
+	_submission.CommitteePaymentAccountID = field.NewField(tableName, "committee_payment_account_id")
+	_submission.CommitteePaymentAccountLabel = field.NewString(tableName, "committee_payment_account_label")
+	_submission.CommitteeAccountPaidDate = field.NewTime(tableName, "committee_account_paid_date")
+	_submission.CommitteeAccountPaymentReference = field.NewString(tableName, "committee_account_payment_reference")
+	_submission.PaymentRequestBankAccountHolder = field.NewString(tableName, "payment_request_bank_account_holder")
+	_submission.PaymentRequestBankIban = field.NewString(tableName, "payment_request_bank_iban")
+	_submission.PaymentRequestBankBic = field.NewString(tableName, "payment_request_bank_bic")
+	_submission.PaymentRequestBankAccountNumber = field.NewString(tableName, "payment_request_bank_account_number")
 	_submission.CompletionPaidDate = field.NewTime(tableName, "completion_paid_date")
 	_submission.CompletionPaymentReference = field.NewString(tableName, "completion_payment_reference")
 	_submission.DeletedAt = field.NewField(tableName, "deleted_at")
@@ -815,39 +816,40 @@ func newSubmission(db *gorm.DB, opts ...gen.DOOption) submission {
 type submission struct {
 	submissionDo submissionDo
 
-	ALL                        field.Asterisk
-	ID                         field.Field
-	CustomID                   field.String
-	PublicID                   field.String
-	OrganizationID             field.Field
-	CreatedByUserID            field.Field
-	CommitteeID                field.Field
-	Direction                  field.Int
-	Settlement                 field.Int
-	Scope                      field.Int
-	Status                     field.Int
-	Notice                     field.String
-	TotalAmount                field.Field
-	Etag                       field.String
-	PayoutMethod               field.Int
-	BankAccountHolder          field.String
-	BankIban                   field.String
-	BankBic                    field.String
-	PaymentAccountUID          field.Field
-	PaymentAccountLabel        field.String
-	AccountPaidDate            field.Time
-	AccountPaymentReference    field.String
-	VendorName                 field.String
-	VendorIban                 field.String
-	VendorBic                  field.String
-	VendorTiming               field.Int
-	CompletionPaidDate         field.Time
-	CompletionPaymentReference field.String
-	DeletedAt                  field.Field
-	PurgeTime                  field.Time
-	CreatedAt                  field.Time
-	UpdatedAt                  field.Time
-	Organization               submissionBelongsToOrganization
+	ALL                              field.Asterisk
+	ID                               field.Field
+	CustomID                         field.String
+	PublicID                         field.String
+	OrganizationID                   field.Field
+	CreatedByUserID                  field.Field
+	CommitteeID                      field.Field
+	Type                             field.Int
+	Direction                        field.Field
+	SettlementType                   field.Field
+	Scope                            field.Int
+	Status                           field.Int
+	Notice                           field.String
+	TotalAmount                      field.Field
+	PersonPayoutMethod               field.Field
+	PersonBankAccountHolder          field.String
+	PersonBankIban                   field.String
+	PersonBankBic                    field.String
+	PersonBankAccountNumber          field.String
+	CommitteePaymentAccountID        field.Field
+	CommitteePaymentAccountLabel     field.String
+	CommitteeAccountPaidDate         field.Time
+	CommitteeAccountPaymentReference field.String
+	PaymentRequestBankAccountHolder  field.String
+	PaymentRequestBankIban           field.String
+	PaymentRequestBankBic            field.String
+	PaymentRequestBankAccountNumber  field.String
+	CompletionPaidDate               field.Time
+	CompletionPaymentReference       field.String
+	DeletedAt                        field.Field
+	PurgeTime                        field.Time
+	CreatedAt                        field.Time
+	UpdatedAt                        field.Time
+	Organization                     submissionBelongsToOrganization
 
 	Committee submissionBelongsToCommittee
 
@@ -874,25 +876,26 @@ func (s *submission) updateTableName(table string) *submission {
 	s.OrganizationID = field.NewField(table, "organization_id")
 	s.CreatedByUserID = field.NewField(table, "created_by_user_id")
 	s.CommitteeID = field.NewField(table, "committee_id")
-	s.Direction = field.NewInt(table, "direction")
-	s.Settlement = field.NewInt(table, "settlement")
+	s.Type = field.NewInt(table, "type")
+	s.Direction = field.NewField(table, "direction")
+	s.SettlementType = field.NewField(table, "settlement_type")
 	s.Scope = field.NewInt(table, "scope")
 	s.Status = field.NewInt(table, "status")
 	s.Notice = field.NewString(table, "notice")
 	s.TotalAmount = field.NewField(table, "total_amount")
-	s.Etag = field.NewString(table, "etag")
-	s.PayoutMethod = field.NewInt(table, "payout_method")
-	s.BankAccountHolder = field.NewString(table, "bank_account_holder")
-	s.BankIban = field.NewString(table, "bank_iban")
-	s.BankBic = field.NewString(table, "bank_bic")
-	s.PaymentAccountUID = field.NewField(table, "payment_account_uid")
-	s.PaymentAccountLabel = field.NewString(table, "payment_account_label")
-	s.AccountPaidDate = field.NewTime(table, "account_paid_date")
-	s.AccountPaymentReference = field.NewString(table, "account_payment_reference")
-	s.VendorName = field.NewString(table, "vendor_name")
-	s.VendorIban = field.NewString(table, "vendor_iban")
-	s.VendorBic = field.NewString(table, "vendor_bic")
-	s.VendorTiming = field.NewInt(table, "vendor_timing")
+	s.PersonPayoutMethod = field.NewField(table, "person_payout_method")
+	s.PersonBankAccountHolder = field.NewString(table, "person_bank_account_holder")
+	s.PersonBankIban = field.NewString(table, "person_bank_iban")
+	s.PersonBankBic = field.NewString(table, "person_bank_bic")
+	s.PersonBankAccountNumber = field.NewString(table, "person_bank_account_number")
+	s.CommitteePaymentAccountID = field.NewField(table, "committee_payment_account_id")
+	s.CommitteePaymentAccountLabel = field.NewString(table, "committee_payment_account_label")
+	s.CommitteeAccountPaidDate = field.NewTime(table, "committee_account_paid_date")
+	s.CommitteeAccountPaymentReference = field.NewString(table, "committee_account_payment_reference")
+	s.PaymentRequestBankAccountHolder = field.NewString(table, "payment_request_bank_account_holder")
+	s.PaymentRequestBankIban = field.NewString(table, "payment_request_bank_iban")
+	s.PaymentRequestBankBic = field.NewString(table, "payment_request_bank_bic")
+	s.PaymentRequestBankAccountNumber = field.NewString(table, "payment_request_bank_account_number")
 	s.CompletionPaidDate = field.NewTime(table, "completion_paid_date")
 	s.CompletionPaymentReference = field.NewString(table, "completion_payment_reference")
 	s.DeletedAt = field.NewField(table, "deleted_at")
@@ -925,32 +928,33 @@ func (s *submission) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (s *submission) fillFieldMap() {
-	s.fieldMap = make(map[string]field.Expr, 34)
+	s.fieldMap = make(map[string]field.Expr, 35)
 	s.fieldMap["id"] = s.ID
 	s.fieldMap["custom_id"] = s.CustomID
 	s.fieldMap["public_id"] = s.PublicID
 	s.fieldMap["organization_id"] = s.OrganizationID
 	s.fieldMap["created_by_user_id"] = s.CreatedByUserID
 	s.fieldMap["committee_id"] = s.CommitteeID
+	s.fieldMap["type"] = s.Type
 	s.fieldMap["direction"] = s.Direction
-	s.fieldMap["settlement"] = s.Settlement
+	s.fieldMap["settlement_type"] = s.SettlementType
 	s.fieldMap["scope"] = s.Scope
 	s.fieldMap["status"] = s.Status
 	s.fieldMap["notice"] = s.Notice
 	s.fieldMap["total_amount"] = s.TotalAmount
-	s.fieldMap["etag"] = s.Etag
-	s.fieldMap["payout_method"] = s.PayoutMethod
-	s.fieldMap["bank_account_holder"] = s.BankAccountHolder
-	s.fieldMap["bank_iban"] = s.BankIban
-	s.fieldMap["bank_bic"] = s.BankBic
-	s.fieldMap["payment_account_uid"] = s.PaymentAccountUID
-	s.fieldMap["payment_account_label"] = s.PaymentAccountLabel
-	s.fieldMap["account_paid_date"] = s.AccountPaidDate
-	s.fieldMap["account_payment_reference"] = s.AccountPaymentReference
-	s.fieldMap["vendor_name"] = s.VendorName
-	s.fieldMap["vendor_iban"] = s.VendorIban
-	s.fieldMap["vendor_bic"] = s.VendorBic
-	s.fieldMap["vendor_timing"] = s.VendorTiming
+	s.fieldMap["person_payout_method"] = s.PersonPayoutMethod
+	s.fieldMap["person_bank_account_holder"] = s.PersonBankAccountHolder
+	s.fieldMap["person_bank_iban"] = s.PersonBankIban
+	s.fieldMap["person_bank_bic"] = s.PersonBankBic
+	s.fieldMap["person_bank_account_number"] = s.PersonBankAccountNumber
+	s.fieldMap["committee_payment_account_id"] = s.CommitteePaymentAccountID
+	s.fieldMap["committee_payment_account_label"] = s.CommitteePaymentAccountLabel
+	s.fieldMap["committee_account_paid_date"] = s.CommitteeAccountPaidDate
+	s.fieldMap["committee_account_payment_reference"] = s.CommitteeAccountPaymentReference
+	s.fieldMap["payment_request_bank_account_holder"] = s.PaymentRequestBankAccountHolder
+	s.fieldMap["payment_request_bank_iban"] = s.PaymentRequestBankIban
+	s.fieldMap["payment_request_bank_bic"] = s.PaymentRequestBankBic
+	s.fieldMap["payment_request_bank_account_number"] = s.PaymentRequestBankAccountNumber
 	s.fieldMap["completion_paid_date"] = s.CompletionPaidDate
 	s.fieldMap["completion_payment_reference"] = s.CompletionPaymentReference
 	s.fieldMap["deleted_at"] = s.DeletedAt

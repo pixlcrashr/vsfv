@@ -10,6 +10,7 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
 	"github.com/pixlcrashr/vsfv/pkg/query/order"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -36,30 +38,24 @@ var (
 
 type organizationServiceServer struct {
 	gen.UnimplementedOrganizationServiceServer
-	repo         *repository.OrganizationRepository
-	settingsRepo *repository.OrganizationSubmissionSettingsRepository
-	audits       *auditWriter
-	enforcer     *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newOrganizationServiceServer(repo *repository.OrganizationRepository, settingsRepo *repository.OrganizationSubmissionSettingsRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.OrganizationServiceServer {
-	return &organizationServiceServer{repo: repo, settingsRepo: settingsRepo, audits: audits, enforcer: enforcer}
+func newOrganizationServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.OrganizationServiceServer {
+	return &organizationServiceServer{db: db, enforcer: enforcer}
 }
 
 // submissionSettingsToProto loads the submission settings of an organization
 // and maps them to their proto representation. A missing row maps to default
-// settings.
-func (s *organizationServiceServer) submissionSettingsToProto(ctx context.Context, orgID uuid.UUID) *gen.SubmissionSettings {
-	settings, err := s.settingsRepo.GetOrDefault(ctx, orgID)
+// settings. The stored enabled settlement kinds are deliberately not exposed:
+// the API surface currently only carries the deadline.
+func (s *organizationServiceServer) submissionSettingsToProto(ctx context.Context, settingsRepo *repository.OrganizationSubmissionSettingsRepository, orgID uuid.UUID) *gen.OrganizationSubmissionSettings {
+	settings, err := settingsRepo.GetOrDefault(ctx, orgID)
 	if err != nil {
 		return nil
 	}
-	out := &gen.SubmissionSettings{}
-	for _, name := range settings.EnabledSettlementKinds {
-		if v, ok := gen.Settlement_value[name]; ok {
-			out.EnabledSettlementKinds = append(out.EnabledSettlementKinds, gen.Settlement(v))
-		}
-	}
+	out := &gen.OrganizationSubmissionSettings{}
 	if settings.SubmissionDeadline != nil {
 		d := settings.SubmissionDeadline
 		out.SubmissionDeadline = &date.Date{Year: int32(d.Year()), Month: int32(d.Month()), Day: int32(d.Day())}
@@ -68,8 +64,10 @@ func (s *organizationServiceServer) submissionSettingsToProto(ctx context.Contex
 }
 
 // applySubmissionSettingsUpdate persists the submission settings from an
-// UpdateOrganization request when the field mask covers them.
-func (s *organizationServiceServer) applySubmissionSettingsUpdate(ctx context.Context, orgID uuid.UUID, mask []string, settings *gen.SubmissionSettings) error {
+// UpdateOrganization request when the field mask covers them. The enabled
+// settlement kinds are not part of the API surface anymore, so the stored
+// configuration is preserved and only the deadline is updated.
+func (s *organizationServiceServer) applySubmissionSettingsUpdate(ctx context.Context, settingsRepo *repository.OrganizationSubmissionSettingsRepository, orgID uuid.UUID, mask []string, settings *gen.OrganizationSubmissionSettings) error {
 	if len(mask) != 0 && !slices.Contains(mask, "submission_settings") {
 		return nil
 	}
@@ -77,9 +75,9 @@ func (s *organizationServiceServer) applySubmissionSettingsUpdate(ctx context.Co
 		return nil
 	}
 
-	var kinds []string
-	for _, k := range settings.EnabledSettlementKinds {
-		kinds = append(kinds, k.String())
+	current, err := settingsRepo.GetOrDefault(ctx, orgID)
+	if err != nil {
+		return err
 	}
 
 	var deadline *time.Time
@@ -88,7 +86,7 @@ func (s *organizationServiceServer) applySubmissionSettingsUpdate(ctx context.Co
 		deadline = &t
 	}
 
-	_, err := s.settingsRepo.Upsert(ctx, orgID, kinds, deadline)
+	_, err = settingsRepo.Upsert(ctx, orgID, current.EnabledSettlementKinds, deadline)
 	return err
 }
 
@@ -103,18 +101,24 @@ func (s *organizationServiceServer) GetOrganization(ctx context.Context, req *ge
 		return nil, authError(err)
 	}
 
-	m, err := s.repo.GetByResourceName(ctx, n.Organization)
-	if err != nil {
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Organization, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Organization()
+		settingsRepo := f.OrganizationSubmissionSettings()
+
+		m, err := repo.GetByResourceName(ctx, n.Organization)
+		if err != nil {
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
-	}
-
-	proto := OrganizationToProto(m)
-	proto.SubmissionSettings = s.submissionSettingsToProto(ctx, m.ID)
-	return proto, nil
+		proto := OrganizationToProto(m)
+		proto.SubmissionSettings = s.submissionSettingsToProto(ctx, settingsRepo, m.ID)
+		return proto, nil
+	})
 }
 
 func (s *organizationServiceServer) ListOrganizations(ctx context.Context, req *gen.ListOrganizationsRequest) (*gen.ListOrganizationsResponse, error) {
@@ -148,24 +152,30 @@ func (s *organizationServiceServer) ListOrganizations(ctx context.Context, req *
 		OrderBy:  orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListOrganizations}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListOrganizationsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Organization()
+		settingsRepo := f.OrganizationSubmissionSettings()
 
-	resp := &gen.ListOrganizationsResponse{TotalSize: total}
-	for _, m := range ms {
-		proto := OrganizationToProto(m)
-		proto.SubmissionSettings = s.submissionSettingsToProto(ctx, m.ID)
-		resp.Organizations = append(resp.Organizations, proto)
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListOrganizations}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListOrganizationsResponse{TotalSize: total}
+		for _, m := range ms {
+			proto := OrganizationToProto(m)
+			proto.SubmissionSettings = s.submissionSettingsToProto(ctx, settingsRepo, m.ID)
+			resp.Organizations = append(resp.Organizations, proto)
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *organizationServiceServer) CreateOrganization(ctx context.Context, req *gen.CreateOrganizationRequest) (*gen.Organization, error) {
@@ -177,28 +187,34 @@ func (s *organizationServiceServer) CreateOrganization(ctx context.Context, req 
 		return nil, authError(err)
 	}
 
-	m, err := s.repo.Create(ctx, repository.CreateOrganizationParams{
-		DisplayName:        req.Organization.DisplayName,
-		DisplayDescription: req.Organization.DisplayDescription,
-		StartMonth:         time.Month(req.Organization.StartMonth),
-		CustomID:           req.OrganizationId,
-	})
-	if err != nil {
-		if errors.Is(err, repository.ErrOrganizationAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationAlreadyExists}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Organization, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Organization()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.Create(ctx, repository.CreateOrganizationParams{
+			DisplayName:        req.Organization.DisplayName,
+			DisplayDescription: req.Organization.DisplayDescription,
+			StartMonth:         time.Month(req.Organization.StartMonth),
+			CustomID:           req.OrganizationId,
+		})
+		if err != nil {
+			if errors.Is(err, repository.ErrOrganizationAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationAlreadyExists}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateOrganization}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedCreateOrganization}
-	}
+		if err := audits.Record(ctx, auditSubject{
+			ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
+			ResourceID:   m.ID,
+		}, AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, auditSubject{
-		ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
-		ResourceID:   m.ID,
-	}, AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return OrganizationToProto(m), nil
+		return OrganizationToProto(m), nil
+	})
 }
 
 func (s *organizationServiceServer) UpdateOrganization(ctx context.Context, req *gen.UpdateOrganizationRequest) (*gen.Organization, error) {
@@ -221,44 +237,51 @@ func (s *organizationServiceServer) UpdateOrganization(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Organization, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Organization()
+		settingsRepo := f.OrganizationSubmissionSettings()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
-	}
+		before := *m
 
-	before := *m
+		updateParams := repository.UpdateOrganizationParams{
+			DisplayName:        optional.From(req.Organization.DisplayName),
+			DisplayDescription: optional.From(req.Organization.DisplayDescription),
+		}
 
-	updateParams := repository.UpdateOrganizationParams{
-		DisplayName:        optional.From(req.Organization.DisplayName),
-		DisplayDescription: optional.From(req.Organization.DisplayDescription),
-	}
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
+		}
 
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
-	}
+		if err := s.applySubmissionSettingsUpdate(ctx, settingsRepo, m.ID, req.UpdateMask.GetPaths(), req.Organization.SubmissionSettings); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
+		}
 
-	if err := s.applySubmissionSettingsUpdate(ctx, m.ID, req.UpdateMask.GetPaths(), req.Organization.SubmissionSettings); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
-	}
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
+		}
 
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateOrganization}
-	}
+		if err := audits.Record(ctx, auditSubject{
+			ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
+			ResourceID:   m.ID,
+		}, AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, auditSubject{
-		ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
-		ResourceID:   m.ID,
-	}, AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return OrganizationToProto(m), nil
+		return OrganizationToProto(m), nil
+	})
 }
 
 func (s *organizationServiceServer) CheckOrganizationId(ctx context.Context, req *gen.CheckOrganizationIdRequest) (*gen.CheckOrganizationIdResponse, error) {
@@ -270,12 +293,16 @@ func (s *organizationServiceServer) CheckOrganizationId(ctx context.Context, req
 		return nil, authError(err)
 	}
 
-	exists, err := s.repo.ExistsByCustomID(ctx, req.OrganizationId)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedCheckOrganization}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.CheckOrganizationIdResponse, error) {
+		repo := repository.NewFactory(tx, s.enforcer).Organization()
 
-	return &gen.CheckOrganizationIdResponse{Available: !exists}, nil
+		exists, err := repo.ExistsByCustomID(ctx, req.OrganizationId)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedCheckOrganization}
+		}
+
+		return &gen.CheckOrganizationIdResponse{Available: !exists}, nil
+	})
 }
 
 func (s *organizationServiceServer) DeleteOrganization(ctx context.Context, req *gen.DeleteOrganizationRequest) (*emptypb.Empty, error) {
@@ -294,29 +321,35 @@ func (s *organizationServiceServer) DeleteOrganization(ctx context.Context, req 
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Organization()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetOrganization}
-	}
+		if err := repo.Delete(ctx, id); err != nil {
+			if errors.Is(err, repository.ErrOrganizationNotFound) {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
 
-	if err := s.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrOrganizationNotFound) {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteOrganization}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteOrganization}
-	}
+		if err := audits.Record(ctx, auditSubject{
+			ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
+			ResourceID:   m.ID,
+		}, AuditActionDelete, m, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, auditSubject{
-		ResourceName: gen.OrganizationResourceName{Organization: m.CustomID}.String(),
-		ResourceID:   m.ID,
-	}, AuditActionDelete, m, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return &emptypb.Empty{}, nil
+		return &emptypb.Empty{}, nil
+	})
 }

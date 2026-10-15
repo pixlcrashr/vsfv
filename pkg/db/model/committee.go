@@ -11,8 +11,7 @@ import (
 type PaymentAccountKind int
 
 const (
-	PaymentAccountKindUnspecified PaymentAccountKind = iota
-	PaymentAccountKindBankAccount
+	PaymentAccountKindBankAccount PaymentAccountKind = iota + 1
 	PaymentAccountKindCashBox
 )
 

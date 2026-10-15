@@ -21,6 +21,7 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/cfg"
 	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
+	"github.com/pixlcrashr/vsfv/pkg/storage"
 )
 
 // Run boots the server stack described by cfg: it connects to the database,
@@ -44,7 +45,9 @@ func Run(cfg *cfg.Config) error {
 		return err
 	}
 
-	authDeps, err := newAuthDeps(gormDB, cfg)
+	audits := audit.NewWriter(gormDB)
+
+	authDeps, err := newAuthDeps(gormDB, cfg, audits)
 	if err != nil {
 		return err
 	}
@@ -56,7 +59,12 @@ func Run(cfg *cfg.Config) error {
 		return fmt.Errorf("creating gRPC server: %w", err)
 	}
 
-	srv := api.New(gormDB, svcSet, "dev", cfg.CORS, authDeps.server, authDeps.gitlabHandler, enforcer, cfg.Storage.AttachmentsPath)
+	fileStorage, err := storage.NewFileStorage(cfg.Storage.DataPath)
+	if err != nil {
+		return fmt.Errorf("creating file storage: %w", err)
+	}
+
+	srv := api.New(gormDB, svcSet, "dev", cfg.CORS, authDeps.server, authDeps.gitlabHandler, enforcer, fileStorage, audits)
 
 	// Background sweeper: auto-rejects pending submissions whose
 	// organization-wide deadline has passed.
@@ -85,12 +93,18 @@ func newEnforcer(gormDB *gorm.DB) (*authz.Enforcer, error) {
 	if err := authz.SeedAdminGroup(context.Background(), gormDB, enforcer); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to seed admin group: %v\n", err)
 	}
+
+	// Re-sync the system group's wildcard policy on every startup so a group
+	// editor save or manual casbin edit can never permanently strip it.
+	if err := authz.SeedSystemGroup(context.Background(), gormDB, enforcer); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to seed system group: %v\n", err)
+	}
 	return enforcer, nil
 }
 
 // newAuthDeps builds the OAuth2 server plus the GitLab and password login
 // handlers, and best-effort seeds the default OAuth2 client.
-func newAuthDeps(gormDB *gorm.DB, cfg *cfg.Config) (*authDeps, error) {
+func newAuthDeps(gormDB *gorm.DB, cfg *cfg.Config, audits *audit.Writer) (*authDeps, error) {
 	userRepo := repository.NewUserRepository(gormDB)
 	identityRepo := repository.NewUserIdentityRepository(gormDB)
 	clientRepo := repository.NewOAuth2ClientRepository(gormDB)
@@ -106,7 +120,7 @@ func newAuthDeps(gormDB *gorm.DB, cfg *cfg.Config) (*authDeps, error) {
 		return nil, fmt.Errorf("creating auth server: %w", err)
 	}
 
-	gitlabHandler := auth.NewGitLabHandler(cfg.Auth, cfg.Server.PublicURL, userRepo, identityRepo, authSrv.SessionManager(), audit.NewWriter(gormDB))
+	gitlabHandler := auth.NewGitLabHandler(cfg.Auth, cfg.Server.PublicURL, userRepo, identityRepo, authSrv.SessionManager(), audits)
 
 	passwordLogin, err := auth.NewPasswordLoginProvider(userRepo, authSrv.SessionManager(), cfg.Auth.Password.Enabled, auth.WebClientAuthorizeURL(cfg.Server.PublicURL))
 	if err != nil {

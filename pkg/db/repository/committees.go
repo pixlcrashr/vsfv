@@ -142,10 +142,10 @@ type CreateCommitteeParams struct {
 	DisplayDescription  string
 	AllowScopeSelection bool
 	CustomID            string
-	PaymentAccounts     []model.CommitteePaymentAccount
 }
 
-// Create inserts a new committee together with its payment accounts.
+// Create inserts a new committee. Payment accounts are managed separately via
+// CommitteePaymentAccountRepository.
 func (r *CommitteeRepository) Create(ctx context.Context, params CreateCommitteeParams) (*model.Committee, error) {
 	m := &model.Committee{
 		OrganizationID:      params.OrganizationID,
@@ -153,7 +153,6 @@ func (r *CommitteeRepository) Create(ctx context.Context, params CreateCommittee
 		DisplayDescription:  params.DisplayDescription,
 		AllowScopeSelection: params.AllowScopeSelection,
 		CustomID:            params.CustomID,
-		PaymentAccounts:     params.PaymentAccounts,
 	}
 
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
@@ -173,7 +172,7 @@ type UpdateCommitteeParams struct {
 }
 
 // Update updates scalar fields of an existing committee matched by its primary
-// key. Payment accounts are managed separately via ReplacePaymentAccounts.
+// key. Payment accounts are managed via CommitteePaymentAccountRepository.
 func (r *CommitteeRepository) Update(ctx context.Context, id uuid.UUID, params UpdateCommitteeParams) error {
 	sets := map[string]any{}
 
@@ -197,65 +196,24 @@ func (r *CommitteeRepository) Update(ctx context.Context, id uuid.UUID, params U
 	return nil
 }
 
-// ReplacePaymentAccounts replaces the payment accounts of a committee.
-// Accounts with an existing ID keep that ID (so submission references stay
-// valid); accounts without an ID are created; accounts missing from the input
-// are removed.
-func (r *CommitteeRepository) ReplacePaymentAccounts(ctx context.Context, committeeID uuid.UUID, accounts []model.CommitteePaymentAccount) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var existing []model.CommitteePaymentAccount
-		if err := tx.Where("committee_id = ?", committeeID).Find(&existing).Error; err != nil {
-			return fmt.Errorf("load payment accounts committee_id=%s: %w", committeeID, err)
-		}
-
-		keep := make(map[uuid.UUID]bool, len(accounts))
-		for i := range accounts {
-			a := &accounts[i]
-			a.CommitteeID = committeeID
-			if a.ID != uuid.Nil {
-				keep[a.ID] = true
-				if err := tx.Omit("CreatedAt").Save(a).Error; err != nil {
-					return fmt.Errorf("update payment account id=%s: %w", a.ID, err)
-				}
-			}
-		}
-
-		for _, e := range existing {
-			if !keep[e.ID] {
-				if err := tx.Delete(&model.CommitteePaymentAccount{}, e.ID).Error; err != nil {
-					return fmt.Errorf("delete payment account id=%s: %w", e.ID, err)
-				}
-			}
-		}
-
-		for i := range accounts {
-			if accounts[i].ID == uuid.Nil {
-				accounts[i].CommitteeID = committeeID
-				if err := tx.Create(&accounts[i]).Error; err != nil {
-					return fmt.Errorf("create payment account: %w", err)
-				}
-			}
-		}
-
-		return nil
-	})
-}
-
 // Delete removes the committee with the given ID together with its payment
-// accounts. It fails if the committee is still referenced by submissions
-// (checked by the service via CountSubmissionsByCommittee).
+// accounts and members. It fails if the committee is still referenced by
+// submissions (checked by the service via CountByCommittee). The caller is
+// responsible for the surrounding transaction.
 func (r *CommitteeRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("committee_id = ?", id).Delete(&model.CommitteePaymentAccount{}).Error; err != nil {
-			return fmt.Errorf("delete committee payment accounts id=%s: %w", id, err)
-		}
-		result := tx.Delete(&model.Committee{}, id)
-		if result.Error != nil {
-			return fmt.Errorf("delete committee id=%s: %w", id, result.Error)
-		}
-		if result.RowsAffected == 0 {
-			return errors.Join(ErrCommitteeNotFound, fmt.Errorf("id=%s: %w", id, gorm.ErrRecordNotFound))
-		}
-		return nil
-	})
+	db := r.db.WithContext(ctx)
+	if err := db.Where("committee_id = ?", id).Delete(&model.CommitteePaymentAccount{}).Error; err != nil {
+		return fmt.Errorf("delete committee payment accounts id=%s: %w", id, err)
+	}
+	if err := db.Where("committee_id = ?", id).Delete(&model.CommitteeMember{}).Error; err != nil {
+		return fmt.Errorf("delete committee members id=%s: %w", id, err)
+	}
+	result := db.Delete(&model.Committee{}, id)
+	if result.Error != nil {
+		return fmt.Errorf("delete committee id=%s: %w", id, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.Join(ErrCommitteeNotFound, fmt.Errorf("id=%s: %w", id, gorm.ErrRecordNotFound))
+	}
+	return nil
 }

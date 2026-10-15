@@ -10,6 +10,7 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -20,6 +21,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -39,16 +41,12 @@ var (
 
 type transactionAssignmentServiceServer struct {
 	gen.UnimplementedTransactionAssignmentServiceServer
-	repo             *repository.TransactionAssignmentRepository
-	accountRepo      *repository.AccountRepository
-	organizationRepo *repository.OrganizationRepository
-	transactionRepo  *repository.TransactionRepository
-	audits           *auditWriter
-	enforcer         *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newTransactionAssignmentServiceServer(repo *repository.TransactionAssignmentRepository, accountRepo *repository.AccountRepository, organizationRepo *repository.OrganizationRepository, transactionRepo *repository.TransactionRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.TransactionAssignmentServiceServer {
-	return &transactionAssignmentServiceServer{repo: repo, accountRepo: accountRepo, organizationRepo: organizationRepo, transactionRepo: transactionRepo, audits: audits, enforcer: enforcer}
+func newTransactionAssignmentServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.TransactionAssignmentServiceServer {
+	return &transactionAssignmentServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *transactionAssignmentServiceServer) GetTransactionAssignment(ctx context.Context, req *gen.GetTransactionAssignmentRequest) (*gen.TransactionAssignment, error) {
@@ -67,21 +65,27 @@ func (s *transactionAssignmentServiceServer) GetTransactionAssignment(ctx contex
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
 	}
 
-	m, err := s.repo.GetByID(ctx, assignmentID)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.TransactionAssignment, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.TransactionAssignment()
+		accountRepo := f.Account()
+
+		m, err := repo.GetByID(ctx, assignmentID)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
-	}
+		a, err := accountRepo.GetByID(ctx, m.AccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
+		}
 
-	a, err := s.accountRepo.GetByID(ctx, m.AccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
-	}
-
-	return TransactionAssignmentToProto(n.TransactionResourceName(), m, a), nil
+		return TransactionAssignmentToProto(n.TransactionResourceName(), m, a), nil
+	})
 }
 
 func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx context.Context, req *gen.ListTransactionAssignmentsRequest) (*gen.ListTransactionAssignmentsResponse, error) {
@@ -137,132 +141,138 @@ func (s *transactionAssignmentServiceServer) ListTransactionAssignments(ctx cont
 		}
 	})
 
-	// Batch-resolve account resource names -> UUID strings.
-	accountUUIDByResourceName := make(map[string]string)
-	if len(accountLookups) > 0 {
-		accounts, err := s.accountRepo.BatchGetByResourceName(ctx, accountLookups)
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListTransactionAssignmentsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.TransactionAssignment()
+		accountRepo := f.Account()
+
+		// Batch-resolve account resource names -> UUID strings.
+		accountUUIDByResourceName := make(map[string]string)
+		if len(accountLookups) > 0 {
+			accounts, err := accountRepo.BatchGetByResourceName(ctx, accountLookups)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
+			}
+			for i, l := range accountLookups {
+				if accounts[i] != nil {
+					rn := gen.AccountResourceName{
+						Organization: l.OrganizationCustomID,
+						Account:      l.AccountCustomID,
+					}
+					accountUUIDByResourceName[rn.String()] = accounts[i].ID.String()
+				}
+			}
+		}
+
+		// Transform the condition tree, replacing resource name values with
+		// resolved UUIDs.
+		// - account: resolved via the batch lookup above.
+		// - transaction: the resource name segment is already the transaction
+		//   UUID, so parse it directly and pass it through.
+		c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
+			switch field {
+			case "account":
+				accountName, ok := value.(string)
+				if !ok {
+					return field, value, true
+				}
+				uid, found := accountUUIDByResourceName[accountName]
+				if !found {
+					return field, value, false
+				}
+				return "account", uid, true
+			case "transaction":
+				txName, ok := value.(string)
+				if !ok {
+					return field, value, true
+				}
+				var rn gen.TransactionResourceName
+				if err := rn.UnmarshalString(txName); err != nil {
+					return field, value, false
+				}
+				if _, err := uuid.Parse(rn.Transaction); err != nil {
+					return field, value, false
+				}
+				return "transaction", rn.Transaction, true
+			default:
+				return field, value, true
+			}
+		})
+
+		offset, err := pagetoken.Decode(req.PageToken)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
+		}
+
+		pageSize := normalizePageSize(req.PageSize)
+
+		// Parse order_by
+		orderBy, err := ordering.ParseOrderBy(req)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidOrderBy}
+		}
+
+		orderExprs, _ := order.Resolve(orderBy, repository.TransactionAssignmentOrderFieldMapper)
+
+		params := repository.ListTransactionAssignmentsParams{
+			TransactionID:  transID,
+			OrganizationID: orgID,
+			Page:           int(offset/int64(pageSize)) + 1,
+			PageSize:       pageSize,
+			Cond:           c,
+			OrderBy:        orderExprs,
+		}
+
+		ms, total, err := repo.List(ctx, params)
 		if err != nil {
 			return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
 		}
-		for i, l := range accountLookups {
-			if accounts[i] != nil {
-				rn := gen.AccountResourceName{
-					Organization: l.OrganizationCustomID,
-					Account:      l.AccountCustomID,
+
+		resp := &gen.ListTransactionAssignmentsResponse{TotalSize: total}
+
+		// Batch-resolve the referenced accounts so the assignment's account
+		// resource name uses the account custom ID, consistent with
+		// Get/Create/UpdateTransactionAssignment.
+		accountIDSet := make(map[uuid.UUID]struct{})
+		for _, m := range ms {
+			accountIDSet[m.AccountID] = struct{}{}
+		}
+		accountIDs := make([]uuid.UUID, 0, len(accountIDSet))
+		for id := range accountIDSet {
+			accountIDs = append(accountIDs, id)
+		}
+		accounts, err := accountRepo.GetByIDs(ctx, accountIDs)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
+		}
+		accountByID := make(map[uuid.UUID]*model.Account, len(accounts))
+		for _, a := range accounts {
+			accountByID[a.ID] = a
+		}
+
+		for _, m := range ms {
+			a, ok := accountByID[m.AccountID]
+			if !ok {
+				a = &model.Account{CustomID: m.AccountID.String()}
+			}
+			if isWildcard {
+				txRN := gen.TransactionResourceName{
+					Organization: pn.Organization,
+					Transaction:  m.TransactionID.String(),
 				}
-				accountUUIDByResourceName[rn.String()] = accounts[i].ID.String()
+				resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(txRN, m, a))
+			} else {
+				resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(pn, m, a))
 			}
 		}
-	}
 
-	// Transform the condition tree, replacing resource name values with
-	// resolved UUIDs.
-	// - account: resolved via the batch lookup above.
-	// - transaction: the resource name segment is already the transaction
-	//   UUID, so parse it directly and pass it through.
-	c = cond.Transform(c, func(field string, value interface{}) (string, interface{}, bool) {
-		switch field {
-		case "account":
-			accountName, ok := value.(string)
-			if !ok {
-				return field, value, true
-			}
-			uid, found := accountUUIDByResourceName[accountName]
-			if !found {
-				return field, value, false
-			}
-			return "account", uid, true
-		case "transaction":
-			txName, ok := value.(string)
-			if !ok {
-				return field, value, true
-			}
-			var rn gen.TransactionResourceName
-			if err := rn.UnmarshalString(txName); err != nil {
-				return field, value, false
-			}
-			if _, err := uuid.Parse(rn.Transaction); err != nil {
-				return field, value, false
-			}
-			return "transaction", rn.Transaction, true
-		default:
-			return field, value, true
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
 		}
+
+		return resp, nil
 	})
-
-	offset, err := pagetoken.Decode(req.PageToken)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
-	}
-
-	pageSize := normalizePageSize(req.PageSize)
-
-	// Parse order_by
-	orderBy, err := ordering.ParseOrderBy(req)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidOrderBy}
-	}
-
-	orderExprs, _ := order.Resolve(orderBy, repository.TransactionAssignmentOrderFieldMapper)
-
-	params := repository.ListTransactionAssignmentsParams{
-		TransactionID:  transID,
-		OrganizationID: orgID,
-		Page:           int(offset/int64(pageSize)) + 1,
-		PageSize:       pageSize,
-		Cond:           c,
-		OrderBy:        orderExprs,
-	}
-
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
-	}
-
-	resp := &gen.ListTransactionAssignmentsResponse{TotalSize: total}
-
-	// Batch-resolve the referenced accounts so the assignment's account
-	// resource name uses the account custom ID, consistent with
-	// Get/Create/UpdateTransactionAssignment.
-	accountIDSet := make(map[uuid.UUID]struct{})
-	for _, m := range ms {
-		accountIDSet[m.AccountID] = struct{}{}
-	}
-	accountIDs := make([]uuid.UUID, 0, len(accountIDSet))
-	for id := range accountIDSet {
-		accountIDs = append(accountIDs, id)
-	}
-	accounts, err := s.accountRepo.GetByIDs(ctx, accountIDs)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListTransactionAssignments}
-	}
-	accountByID := make(map[uuid.UUID]*model.Account, len(accounts))
-	for _, a := range accounts {
-		accountByID[a.ID] = a
-	}
-
-	for _, m := range ms {
-		a, ok := accountByID[m.AccountID]
-		if !ok {
-			a = &model.Account{CustomID: m.AccountID.String()}
-		}
-		if isWildcard {
-			txRN := gen.TransactionResourceName{
-				Organization: pn.Organization,
-				Transaction:  m.TransactionID.String(),
-			}
-			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(txRN, m, a))
-		} else {
-			resp.Assignments = append(resp.Assignments, TransactionAssignmentToProto(pn, m, a))
-		}
-	}
-
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
-
-	return resp, nil
 }
 
 // collectResourceNames walks a cond.Cond tree and calls fn for each FieldCond
@@ -320,41 +330,49 @@ func (s *transactionAssignmentServiceServer) CreateTransactionAssignment(ctx con
 		return nil, &ServerError{Err: err, Status: statusInvalidParentTransaction}
 	}
 
-	o, err := s.organizationRepo.GetByID(ctx, orgID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.TransactionAssignment, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.TransactionAssignment()
+		accountRepo := f.Account()
+		organizationRepo := f.Organization()
+		audits := newAuditWriter(tx)
 
-	a, err := s.accountRepo.GetByCustomID(ctx, o.ID, accountResourceName.Account)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusAccountNotFound}
-	}
+		o, err := organizationRepo.GetByID(ctx, orgID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+		}
 
-	m, err := s.repo.Create(ctx, repository.CreateTransactionAssignmentParams{
-		OrganizationID: o.ID,
-		TransactionID:  transID,
-		AccountID:      a.ID,
-		Value:          decimalProtoToApd(req.Assignment.Value),
+		a, err := accountRepo.GetByCustomID(ctx, o.ID, accountResourceName.Account)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+		}
+
+		m, err := repo.Create(ctx, repository.CreateTransactionAssignmentParams{
+			OrganizationID: o.ID,
+			TransactionID:  transID,
+			AccountID:      a.ID,
+			Value:          decimalProtoToApd(req.Assignment.Value),
+		})
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionAssignmentAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAssignmentAlreadyExists}
+			}
+
+			if errors.Is(err, repository.ErrTransactionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedCreateTransactionAssignment}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			pn.TransactionAssignmentResourceName(m.ID.String()).String(), o.ID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return TransactionAssignmentToProto(pn, m, a), nil
 	})
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionAssignmentAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentAlreadyExists}
-		}
-
-		if errors.Is(err, repository.ErrTransactionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionNotFound}
-		}
-
-		return nil, &ServerError{Err: err, Status: statusFailedCreateTransactionAssignment}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		pn.TransactionAssignmentResourceName(m.ID.String()).String(), o.ID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return TransactionAssignmentToProto(pn, m, a), nil
 }
 
 func (s *transactionAssignmentServiceServer) UpdateTransactionAssignment(ctx context.Context, req *gen.UpdateTransactionAssignmentRequest) (*gen.TransactionAssignment, error) {
@@ -377,105 +395,113 @@ func (s *transactionAssignmentServiceServer) UpdateTransactionAssignment(ctx con
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
 	}
 
-	m, err := s.repo.GetByID(ctx, assignmentID)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.TransactionAssignment, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.TransactionAssignment()
+		accountRepo := f.Account()
+		organizationRepo := f.Organization()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, assignmentID)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
-	}
+		before := *m
 
-	before := *m
+		updateParams := repository.UpdateTransactionAssignmentParams{}
 
-	updateParams := repository.UpdateTransactionAssignmentParams{}
-
-	// Determine which fields are in the update_mask. If no mask is provided,
-	// grpc-gateway auto-generates one from the JSON body. For nested message
-	// fields (e.g. the Decimal "value"), the auto-generated mask contains the
-	// fully-qualified leaf path (e.g. "value.value") rather than the top-level
-	// field name. We therefore treat a path as matching if it equals or is a
-	// sub-path of the requested field.
-	mask := req.UpdateMask
-	maskContains := func(path string) bool {
-		if mask == nil || len(mask.Paths) == 0 {
-			return true
-		}
-		for _, p := range mask.Paths {
-			if p == path || strings.HasPrefix(p, path+".") {
+		// Determine which fields are in the update_mask. If no mask is provided,
+		// grpc-gateway auto-generates one from the JSON body. For nested message
+		// fields (e.g. the Decimal "value"), the auto-generated mask contains the
+		// fully-qualified leaf path (e.g. "value.value") rather than the top-level
+		// field name. We therefore treat a path as matching if it equals or is a
+		// sub-path of the requested field.
+		mask := req.UpdateMask
+		maskContains := func(path string) bool {
+			if mask == nil || len(mask.Paths) == 0 {
 				return true
 			}
+			for _, p := range mask.Paths {
+				if p == path || strings.HasPrefix(p, path+".") {
+					return true
+				}
+			}
+			return false
 		}
-		return false
-	}
 
-	if maskContains("account") {
-		var accountResourceName gen.AccountResourceName
-		if err := accountResourceName.UnmarshalString(req.Assignment.Account); err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidAccountID}
+		if maskContains("account") {
+			var accountResourceName gen.AccountResourceName
+			if err := accountResourceName.UnmarshalString(req.Assignment.Account); err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidAccountID}
+			}
+
+			orgID, err := uuid.Parse(n.Organization)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidParentTransaction}
+			}
+
+			o, err := organizationRepo.GetByID(ctx, orgID)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+			}
+
+			a, err := accountRepo.GetByCustomID(ctx, o.ID, accountResourceName.Account)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusAccountNotFound}
+			}
+
+			if a.IsContainer {
+				return nil, &ServerError{Status: statusAccountIsContainer}
+			}
+
+			updateParams.AccountID = optional.From(a.ID)
+		}
+
+		if maskContains("value") && req.Assignment.Value != nil {
+			v := decimalProtoToApd(req.Assignment.Value)
+			if v.Sign() < 0 {
+				return nil, &ServerError{Status: statusNegativeAssignmentValue}
+			}
+			updateParams.Value = optional.From(v)
+		}
+
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			if errors.Is(err, repository.ErrTransactionAssignmentAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAssignmentAlreadyExists}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
+		}
+
+		// Refresh the model after update.
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
+		}
+
+		a, err := accountRepo.GetByID(ctx, m.AccountID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
 		}
 
 		orgID, err := uuid.Parse(n.Organization)
 		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusInvalidParentTransaction}
+			return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
 		}
 
-		o, err := s.organizationRepo.GetByID(ctx, orgID)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusOrganizationNotFound}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
 		}
 
-		a, err := s.accountRepo.GetByCustomID(ctx, o.ID, accountResourceName.Account)
-		if err != nil {
-			return nil, &ServerError{Err: err, Status: statusAccountNotFound}
-		}
-
-		if a.IsContainer {
-			return nil, &ServerError{Status: statusAccountIsContainer}
-		}
-
-		updateParams.AccountID = optional.From(a.ID)
-	}
-
-	if maskContains("value") && req.Assignment.Value != nil {
-		v := decimalProtoToApd(req.Assignment.Value)
-		if v.Sign() < 0 {
-			return nil, &ServerError{Status: statusNegativeAssignmentValue}
-		}
-		updateParams.Value = optional.From(v)
-	}
-
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		if errors.Is(err, repository.ErrTransactionAssignmentAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentAlreadyExists}
-		}
-
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
-	}
-
-	// Refresh the model after update.
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
-	}
-
-	a, err := s.accountRepo.GetByID(ctx, m.AccountID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateTransactionAssignment}
-	}
-
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return TransactionAssignmentToProto(n.TransactionResourceName(), m, a), nil
+		return TransactionAssignmentToProto(n.TransactionResourceName(), m, a), nil
+	})
 }
 
 func (s *transactionAssignmentServiceServer) DeleteTransactionAssignment(ctx context.Context, req *gen.DeleteTransactionAssignmentRequest) (*emptypb.Empty, error) {
@@ -494,35 +520,41 @@ func (s *transactionAssignmentServiceServer) DeleteTransactionAssignment(ctx con
 		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
 	}
 
-	m, err := s.repo.GetByID(ctx, assignmentID)
-	if err != nil {
-		if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.TransactionAssignment()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.GetByID(ctx, assignmentID)
+		if err != nil {
+			if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetTransactionAssignment}
-	}
+		if err := repo.Delete(ctx, assignmentID); err != nil {
+			if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
+				return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+			}
 
-	if err := s.repo.Delete(ctx, assignmentID); err != nil {
-		if errors.Is(err, repository.ErrTransactionAssignmentNotFound) {
-			return nil, &ServerError{Err: err, Status: statusTransactionAssignmentNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteTransactionAssignment}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteTransactionAssignment}
-	}
+		orgID, err := uuid.Parse(n.Organization)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
+		}
 
-	orgID, err := uuid.Parse(n.Organization)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidTransactionAssignmentName}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionDelete, m, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionDelete, m, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return &emptypb.Empty{}, nil
+		return &emptypb.Empty{}, nil
+	})
 }
 
 // decimalProtoToApd converts a gen.Decimal to apd.Decimal

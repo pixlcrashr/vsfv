@@ -16,6 +16,7 @@ type Account struct {
 	DisplayCode        string        `gorm:"not null;default:'';index:idx_accounts_display_code"`
 	DisplayDescription string        `gorm:"not null;default:''"`
 	IsContainer        bool          `gorm:"not null;default:false;index:idx_accounts_is_container"`
+	InvertSign         bool          `gorm:"not null;default:false"`
 	IsArchived         bool          `gorm:"not null;default:false"`
 	UpdatedAt          time.Time     `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	CreatedAt          time.Time     `gorm:"not null;default:CURRENT_TIMESTAMP"`

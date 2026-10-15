@@ -22,8 +22,8 @@ var (
 
 // LedgerAccountOrderFieldMapper maps API order_by field names to database column names.
 var LedgerAccountOrderFieldMapper = order.FieldMapper{
+	"type":        "type",
 	"code":        "code",
-	"accountType": "account_type",
 	"displayName": "display_name",
 	"createTime":  "created_at",
 	"updateTime":  "updated_at",
@@ -46,8 +46,8 @@ func ledgerAccountColumnMapper(field string) (string, bool) {
 	switch field {
 	case "code":
 		return "code", true
-	case "account_type":
-		return "account_type", true
+	case "type":
+		return "type", true
 	case "display_name":
 		return "display_name", true
 	default:
@@ -180,7 +180,7 @@ func (r *LedgerAccountRepository) GetByCode(ctx context.Context, code string) (*
 type CreateLedgerAccountParams struct {
 	OrganizationID     uuid.UUID
 	Code               string
-	AccountType        model.AccountType
+	Type               *model.LedgerAccountType
 	DisplayName        string
 	DisplayDescription string
 	CustomID           string
@@ -198,7 +198,7 @@ func (r *LedgerAccountRepository) Create(ctx context.Context, params CreateLedge
 	m := &model.LedgerAccount{
 		OrganizationID:     params.OrganizationID,
 		Code:               params.Code,
-		AccountType:        params.AccountType,
+		Type:               params.Type,
 		DisplayName:        params.DisplayName,
 		DisplayDescription: params.DisplayDescription,
 		CustomID:           params.CustomID,
@@ -215,7 +215,7 @@ func (r *LedgerAccountRepository) Create(ctx context.Context, params CreateLedge
 // UpdateLedgerAccountParams holds the fields that can be updated for a ledger account.
 type UpdateLedgerAccountParams struct {
 	Code               optional.Optional[string]
-	AccountType        optional.Optional[model.AccountType]
+	Type               optional.Optional[*model.LedgerAccountType]
 	DisplayName        optional.Optional[string]
 	DisplayDescription optional.Optional[string]
 	CustomID           optional.Optional[string]
@@ -229,8 +229,15 @@ func (r *LedgerAccountRepository) Update(ctx context.Context, id uuid.UUID, para
 		cols = append(cols, r.q.LedgerAccount.Code.Value(params.Code.Value))
 	}
 
-	if params.AccountType.IsSet {
-		cols = append(cols, r.q.LedgerAccount.AccountType.Value(int(params.AccountType.Value)))
+	var nullType bool
+	if params.Type.IsSet {
+		if params.Type.Value == nil {
+			// A NULL assignment has no gen field helper; handled below via a
+			// plain update.
+			nullType = true
+		} else {
+			cols = append(cols, r.q.LedgerAccount.Type.Value(int(*params.Type.Value)))
+		}
 	}
 
 	if params.DisplayName.IsSet {
@@ -245,12 +252,29 @@ func (r *LedgerAccountRepository) Update(ctx context.Context, id uuid.UUID, para
 		cols = append(cols, r.q.LedgerAccount.CustomID.Value(params.CustomID.Value))
 	}
 
+	if nullType && len(cols) == 0 {
+		if err := r.db.WithContext(ctx).Model(&model.LedgerAccount{}).
+			Where("id = ?", id).
+			Update("type", nil).Error; err != nil {
+			return fmt.Errorf("clear ledger account type id=%s: %w", id, err)
+		}
+		return nil
+	}
+
 	if len(cols) == 0 {
 		return nil
 	}
 
 	if _, err := r.q.LedgerAccount.WithContext(ctx).Where(r.q.LedgerAccount.ID.Eq(id)).UpdateSimple(cols...); err != nil {
 		return fmt.Errorf("update ledger account id=%s: %w", id, err)
+	}
+
+	if nullType {
+		if err := r.db.WithContext(ctx).Model(&model.LedgerAccount{}).
+			Where("id = ?", id).
+			Update("type", nil).Error; err != nil {
+			return fmt.Errorf("clear ledger account type id=%s: %w", id, err)
+		}
 	}
 
 	return nil

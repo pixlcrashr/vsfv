@@ -13,7 +13,7 @@ import (
 type CommitteePaymentAccount struct {
 	ID           uuid.UUID          `gorm:"type:uuid;primaryKey"`
 	CommitteeID  uuid.UUID          `gorm:"type:uuid;not null;index:idx_committee_payment_accounts_committee_id"`
-	Kind         PaymentAccountKind `gorm:"type:int;not null;default:0"`
+	Kind         PaymentAccountKind `gorm:"type:int;not null"`
 	DisplayLabel string             `gorm:"not null;default:''"`
 	CreatedAt    time.Time          `gorm:"not null;default:CURRENT_TIMESTAMP"`
 

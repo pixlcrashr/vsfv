@@ -31,11 +31,16 @@ var BudgetRevisionOrderFieldMapper = order.FieldMapper{
 
 // ListBudgetRevisionsParams drives the List query.
 type ListBudgetRevisionsParams struct {
+	// BudgetID scopes the query to a single budget. When zero, the query
+	// spans every budget of OrganizationID (wildcard parent).
 	BudgetID uuid.UUID
-	Cond     cond.Cond
-	OrderBy  []order.Expr
-	Page     int
-	PageSize int
+	// OrganizationID scopes the query to an organization; required when
+	// BudgetID is zero, honored always.
+	OrganizationID uuid.UUID
+	Cond           cond.Cond
+	OrderBy        []order.Expr
+	Page           int
+	PageSize       int
 }
 
 func budgetRevisionColumnMapper(field string) (string, bool) {
@@ -62,7 +67,8 @@ func NewBudgetRevisionRepository(db *gorm.DB) *BudgetRevisionRepository {
 	return &BudgetRevisionRepository{db: db, q: dao.Use(db)}
 }
 
-// List returns budget revisions for the given budget.
+// List returns budget revisions for the given budget, or for every budget of
+// the organization when BudgetID is zero.
 func (r *BudgetRevisionRepository) List(ctx context.Context, params ListBudgetRevisionsParams) ([]*model.BudgetRevision, int64, error) {
 	if params.PageSize <= 0 {
 		params.PageSize = 20
@@ -71,8 +77,12 @@ func (r *BudgetRevisionRepository) List(ctx context.Context, params ListBudgetRe
 		params.Page = 1
 	}
 
-	db := r.db.WithContext(ctx).Table("budget_revisions").
-		Where("budget_id = ?", params.BudgetID)
+	db := r.db.WithContext(ctx).Table("budget_revisions")
+	if params.BudgetID != uuid.Nil {
+		db = db.Where("budget_id = ?", params.BudgetID)
+	} else {
+		db = db.Where("organization_id = ?", params.OrganizationID)
+	}
 
 	db = cond.Apply(db, params.Cond, budgetRevisionColumnMapper)
 
@@ -88,6 +98,8 @@ func (r *BudgetRevisionRepository) List(ctx context.Context, params ListBudgetRe
 	} else {
 		db = db.Order("created_at DESC")
 	}
+	// Deterministic tiebreaker so offset pagination is stable across pages.
+	db = db.Order("id ASC")
 
 	offset := (params.Page - 1) * params.PageSize
 	if offset > 0 {
@@ -180,7 +192,8 @@ type CreateWithSnapshotParams struct {
 }
 
 // CreateWithSnapshot inserts a new revision from params and copies the current budget account
-// values as budget revision account values, all within a single transaction.
+// values as budget revision account values. The caller is responsible for the
+// surrounding transaction.
 func (r *BudgetRevisionRepository) CreateWithSnapshot(ctx context.Context, params CreateWithSnapshotParams) (*model.BudgetRevision, error) {
 	m := &model.BudgetRevision{
 		OrganizationID:     params.OrganizationID,
@@ -199,27 +212,21 @@ func (r *BudgetRevisionRepository) CreateWithSnapshot(ctx context.Context, param
 		return nil, errors.Join(ErrBudgetNotFound, fmt.Errorf("budget_id=%s: %w", m.BudgetID, gorm.ErrRecordNotFound))
 	}
 
-	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		q := dao.Use(tx)
-
-		if err := q.BudgetRevision.WithContext(ctx).Create(m); err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return errors.Join(ErrBudgetRevisionAlreadyExists, fmt.Errorf("budget_id=%s custom_id=%s: %w", m.BudgetID, m.CustomID, err))
-			}
-			return fmt.Errorf("create budget revision budget_id=%s custom_id=%s: %w", m.BudgetID, m.CustomID, err)
+	if err := r.q.BudgetRevision.WithContext(ctx).Create(m); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, errors.Join(ErrBudgetRevisionAlreadyExists, fmt.Errorf("budget_id=%s custom_id=%s: %w", m.BudgetID, m.CustomID, err))
 		}
+		return nil, fmt.Errorf("create budget revision budget_id=%s custom_id=%s: %w", m.BudgetID, m.CustomID, err)
+	}
 
-		var bavs []*model.BudgetAccountValue
-		if err := tx.Table("budget_account_values").
-			Where("budget_id = ?", m.BudgetID).
-			Find(&bavs).Error; err != nil {
-			return fmt.Errorf("snapshot budget account values budget_id=%s: %w", m.BudgetID, err)
-		}
+	var bavs []*model.BudgetAccountValue
+	if err := r.db.WithContext(ctx).Table("budget_account_values").
+		Where("budget_id = ?", m.BudgetID).
+		Find(&bavs).Error; err != nil {
+		return nil, fmt.Errorf("snapshot budget account values budget_id=%s: %w", m.BudgetID, err)
+	}
 
-		if len(bavs) == 0 {
-			return nil
-		}
-
+	if len(bavs) > 0 {
 		ravs := make([]*model.BudgetRevisionAccountValue, 0, len(bavs))
 		for _, bav := range bavs {
 			ravs = append(ravs, &model.BudgetRevisionAccountValue{
@@ -230,13 +237,9 @@ func (r *BudgetRevisionRepository) CreateWithSnapshot(ctx context.Context, param
 				Value:            bav.Value,
 			})
 		}
-		if err := q.BudgetRevisionAccountValue.WithContext(ctx).Create(ravs...); err != nil {
-			return fmt.Errorf("create snapshot revision account values budget_id=%s: %w", m.BudgetID, err)
+		if err := r.q.BudgetRevisionAccountValue.WithContext(ctx).Create(ravs...); err != nil {
+			return nil, fmt.Errorf("create snapshot revision account values budget_id=%s: %w", m.BudgetID, err)
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 	return m, nil
 }

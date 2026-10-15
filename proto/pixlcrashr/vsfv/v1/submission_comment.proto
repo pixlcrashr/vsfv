@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package pixlcrashr.vsfv.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+import "pixlcrashr/vsfv/v1/submission.proto";
+
+option csharp_namespace = "Pixlcrashr.Vsfv.Sdk.V1";
+option go_package = "github.com/pixlcrashr/vsfv/pkg/grpc/gen";
+
+// SubmissionStatusChange describes a status transition associated with a
+// comment.
+message SubmissionStatusChange {
+  // The status before the transition.
+  SubmissionStatus from = 1;
+
+  // The status after the transition.
+  SubmissionStatus to = 2;
+}
+
+// SubmissionComment is a comment on a submission, written either by the
+// submitter or by the reviewing treasury. Admin-only comments are only
+// visible to the treasury.
+message SubmissionComment {
+  option (google.api.resource) = {
+    type: "vsfv.pixlcrashr.dev/SubmissionComment"
+    pattern: "organizations/{organization}/submissions/{submission}/comments/{comment}"
+  };
+
+  // The resource name of the comment.
+  // Format: organizations/{organization}/submissions/{submission}/comments/{comment}
+  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The UUID of the comment.
+  string uid = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info) = {format: UUID4}
+  ];
+
+  // The comment text.
+  string content = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Whether the comment is only visible to the treasury. Can only be set by
+  // users holding the treasury comment permission.
+  bool is_admin_only = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // The user that wrote the comment.
+  // Format: users/{user}
+  string created_by_user = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/User"}
+  ];
+
+  // The status change caused by this comment, if any (e.g. a rejection).
+  SubmissionStatusChange status_change = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+message ListSubmissionCommentsRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // Maximum number of comments to return. The service may return fewer.
+  // If unspecified, at most 20 are returned. Maximum value is 100.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A page token from a previous ListSubmissionComments call.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListSubmissionCommentsResponse {
+  // The comments returned (admin-only comments are omitted for requesters
+  // without the treasury comment permission).
+  repeated SubmissionComment comments = 1;
+
+  // A token to retrieve the next page of results.
+  string next_page_token = 2;
+}
+
+message CreateSubmissionCommentRequest {
+  // The parent submission resource name.
+  // Format: organizations/{organization}/submissions/{submission}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "vsfv.pixlcrashr.dev/Submission"}
+  ];
+
+  // The comment to create.
+  SubmissionComment comment = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// SubmissionCommentService manages the comments of a submission.
+service SubmissionCommentService {
+  option (google.api.default_host) = "vsfv.pixlcrashr.dev";
+
+  // Lists the comments of a submission. Admin-only comments are omitted for
+  // requesters without the treasury comment permission.
+  // Authorization:
+  //   Scope: submissions:read
+  //   Permission: submissions:read, submissions:read_own, submissions:comment or submissions:comment_own
+  //   Domain: organization-scoped
+  rpc ListSubmissionComments(ListSubmissionCommentsRequest) returns (ListSubmissionCommentsResponse) {
+    option (google.api.http) = {get: "/v1/{parent=organizations/*/submissions/*}/comments"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a comment on a submission.
+  // Authorization:
+  //   Scope: submissions:write
+  //   Permission: submissions:comment or submissions:comment_own
+  //   Domain: organization-scoped
+  rpc CreateSubmissionComment(CreateSubmissionCommentRequest) returns (SubmissionComment) {
+    option (google.api.http) = {
+      post: "/v1/{parent=organizations/*/submissions/*}/comments"
+      body: "comment"
+    };
+    option (google.api.method_signature) = "parent,comment";
+  }
+}

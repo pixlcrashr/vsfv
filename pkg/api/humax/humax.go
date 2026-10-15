@@ -6,6 +6,7 @@ package humax
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -74,7 +75,8 @@ func writeError(humactx huma.Context, status int, message string) {
 
 // statusError is a Huma StatusError whose marshaled body keeps the legacy
 // `{"error": ...}` shape that the SPA expects (huma writes the returned error
-// object itself as the response body).
+// object itself as the response body; without MarshalJSON the unexported
+// fields would render as an empty `{}`).
 type statusError struct {
 	status  int
 	message string
@@ -86,6 +88,10 @@ func (e *statusError) Error() string {
 
 func (e *statusError) GetStatus() int {
 	return e.status
+}
+
+func (e *statusError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{"error": e.message})
 }
 
 // NewError returns an error carrying an HTTP status whose response body keeps

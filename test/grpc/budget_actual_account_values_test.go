@@ -78,7 +78,7 @@ var _ = Describe("BudgetActualAccountValueService", func() {
 			creditAccount, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
 				OrganizationID: orgUUID,
 				Code:           "CREDIT-001",
-				AccountType:    model.AccountTypeRevenue,
+				Type:           nil,
 				DisplayName:    "Credit Account",
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -87,7 +87,7 @@ var _ = Describe("BudgetActualAccountValueService", func() {
 			debitAccount, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
 				OrganizationID: orgUUID,
 				Code:           "DEBIT-001",
-				AccountType:    model.AccountTypeAsset,
+				Type:           accType(model.LedgerAccountTypeLiquidity),
 				DisplayName:    "Debit Account",
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -140,6 +140,105 @@ var _ = Describe("BudgetActualAccountValueService", func() {
 			Expect(resp.Value).NotTo(BeNil())
 		})
 
+		It("nets an expense and its partial refund booked through distinct accounts", func() {
+			orgUUID, err := uuid.Parse(orgUid)
+			Expect(err).NotTo(HaveOccurred())
+
+			var orgRN gen.OrganizationResourceName
+			Expect(orgRN.UnmarshalString(orgName)).To(Succeed())
+
+			// Three distinct ledger accounts: 1800 (bank), 4000 (expense), 6000 (income)
+			bank, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
+				OrganizationID: orgUUID,
+				Code:           "1800",
+				Type:           accType(model.LedgerAccountTypeLiquidity),
+				DisplayName:    "Bank",
+			})
+			Expect(err).NotTo(HaveOccurred())
+			expense, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
+				OrganizationID: orgUUID,
+				Code:           "4000",
+				Type:           nil,
+				DisplayName:    "Expense",
+			})
+			Expect(err).NotTo(HaveOccurred())
+			income, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
+				OrganizationID: orgUUID,
+				Code:           "6000",
+				Type:           nil,
+				DisplayName:    "Income",
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			bankName := orgRN.LedgerAccountResourceName(bank.CustomID).String()
+			expenseName := orgRN.LedgerAccountResourceName(expense.CustomID).String()
+			incomeName := orgRN.LedgerAccountResourceName(income.CustomID).String()
+
+			// Expense: 1800 -> 4000, credit side bank (ASSET) => -100
+			tx1, err := TransactionClient.CreateTransaction(ctx, &gen.CreateTransactionRequest{
+				Parent: orgName,
+				Transaction: &gen.Transaction{
+					CreditLedgerAccount: bankName,
+					DebitLedgerAccount:  expenseName,
+					Description:         "Expense",
+					BookedAt:            timestamppb.New(time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)),
+					DocumentDate:        timestamppb.New(time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)),
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Partial refund: 6000 -> 1800, credit side income (REVENUE) => +30
+			tx2, err := TransactionClient.CreateTransaction(ctx, &gen.CreateTransactionRequest{
+				Parent: orgName,
+				Transaction: &gen.Transaction{
+					CreditLedgerAccount: incomeName,
+					DebitLedgerAccount:  bankName,
+					Description:         "Partial refund",
+					BookedAt:            timestamppb.New(time.Date(2024, 6, 15, 10, 0, 0, 0, time.UTC)),
+					DocumentDate:        timestamppb.New(time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)),
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			accountUID, err := uuid.Parse(account.Uid)
+			Expect(err).NotTo(HaveOccurred())
+
+			for _, pair := range []struct {
+				txUID string
+				value string
+			}{
+				{tx1.Uid, "100"},
+				{tx2.Uid, "30"},
+			} {
+				txUID, err := uuid.Parse(pair.txUID)
+				Expect(err).NotTo(HaveOccurred())
+
+				var v apd.Decimal
+				_, _, err = v.SetString(pair.value)
+				Expect(err).NotTo(HaveOccurred())
+
+				_, err = TransactionAssignmentRepo.Create(ctx, repository.CreateTransactionAssignmentParams{
+					OrganizationID: orgUUID,
+					TransactionID:  txUID,
+					AccountID:      accountUID,
+					Value:          v,
+				})
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			var budgetRN gen.BudgetResourceName
+			Expect(budgetRN.UnmarshalString(budget.Name)).To(Succeed())
+			var accRN gen.AccountResourceName
+			Expect(accRN.UnmarshalString(account.Name)).To(Succeed())
+			actualValueName := budgetRN.BudgetActualAccountValueResourceName(accRN.Account).String()
+			resp, err := BudgetActualAccountValueClient.GetBudgetActualAccountValue(ctx, &gen.GetBudgetActualAccountValueRequest{
+				Name: actualValueName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			// -100 (credit bank) + 30 (credit income) = -70
+			Expect(resp.Value.GetValue()).To(Equal("-70"))
+		})
+
 		It("returns NotFound for a non-existent budget", func() {
 			_, err := BudgetActualAccountValueClient.GetBudgetActualAccountValue(ctx, &gen.GetBudgetActualAccountValueRequest{
 				Name: "organizations/00000000-0000-0000-0000-000000000000/budgets/00000000-0000-0000-0000-000000000000/actualAccountValues/00000000-0000-0000-0000-000000000000",
@@ -183,7 +282,7 @@ var _ = Describe("BudgetActualAccountValueService", func() {
 			creditAccount, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
 				OrganizationID: orgUUID,
 				Code:           "CREDIT-" + acc.Uid[:8],
-				AccountType:    model.AccountTypeRevenue,
+				Type:           nil,
 				DisplayName:    "Credit Account for " + acc.DisplayName,
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -192,7 +291,7 @@ var _ = Describe("BudgetActualAccountValueService", func() {
 			debitAccount, err := LedgerAccountRepo.Create(ctx, repository.CreateLedgerAccountParams{
 				OrganizationID: orgUUID,
 				Code:           "DEBIT-" + acc.Uid[:8],
-				AccountType:    model.AccountTypeAsset,
+				Type:           accType(model.LedgerAccountTypeLiquidity),
 				DisplayName:    "Debit Account for " + acc.DisplayName,
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -340,8 +439,8 @@ var _ = Describe("BudgetActualAccountValueService", func() {
 			setupAssignment(account)
 			setupAssignment(account2)
 
-			// Filter by the second account's UUID
-			filter := "account_id=\"" + account2.Uid + "\""
+			// Filter by the second account's resource name
+			filter := "account=\"" + account2.Name + "\""
 			resp, err := BudgetActualAccountValueClient.ListBudgetActualAccountValues(ctx, &gen.ListBudgetActualAccountValuesRequest{
 				Parent: budget.Name,
 				Filter: filter,

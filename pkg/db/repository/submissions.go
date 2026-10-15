@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	ErrSubmissionNotFound          = errors.New("submission not found")
-	ErrSubmissionItemNotFound      = errors.New("submission item not found")
-	ErrSubmissionCommentNotFound   = errors.New("submission comment not found")
+	ErrSubmissionNotFound           = errors.New("submission not found")
+	ErrSubmissionItemNotFound       = errors.New("submission item not found")
+	ErrSubmissionCommentNotFound    = errors.New("submission comment not found")
 	ErrSubmissionAttachmentNotFound = errors.New("submission attachment not found")
-	ErrSubmissionAlreadyExists     = errors.New("submission already exists")
+	ErrSubmissionAlreadyExists      = errors.New("submission already exists")
 )
 
 // SubmissionOrderFieldMapper maps API order_by field names to database column names.
@@ -35,8 +35,9 @@ type ListSubmissionsParams struct {
 	// Cond is an optional abstract condition chain.
 	Cond cond.Cond
 	// Explicit filters resolved by the service from extracted AIP-160 filters.
-	Direction       *model.Direction
-	Settlement      *model.Settlement
+	Type            *model.SubmissionType
+	Direction       *model.SubmissionDirection
+	SettlementType  *model.SubmissionSettlementType
 	Status          *model.SubmissionStatus
 	CommitteeID     *uuid.UUID
 	CreatedByUserID *uuid.UUID
@@ -62,10 +63,11 @@ func submissionColumnMapper(field string) (string, bool) {
 
 // visibilityWhere restricts results to non-purged rows. With showDeleted, rows
 // that are soft-deleted but not yet purged remain visible (AIP-164); without
-// it, only live rows are returned.
+// it, only live rows are returned. CURRENT_TIMESTAMP is used instead of NOW()
+// because it works on both PostgreSQL and SQLite.
 func visibilityWhere(showDeleted bool) string {
 	if showDeleted {
-		return "deleted_at IS NULL OR purge_time IS NULL OR purge_time > NOW()"
+		return "deleted_at IS NULL OR purge_time IS NULL OR purge_time > CURRENT_TIMESTAMP"
 	}
 	return "deleted_at IS NULL"
 }
@@ -98,11 +100,14 @@ func (r *SubmissionRepository) List(ctx context.Context, params ListSubmissionsP
 
 	db = cond.Apply(db, params.Cond, submissionColumnMapper)
 
+	if params.Type != nil {
+		db = db.Where("type = ?", int(*params.Type))
+	}
 	if params.Direction != nil {
 		db = db.Where("direction = ?", int(*params.Direction))
 	}
-	if params.Settlement != nil {
-		db = db.Where("settlement = ?", int(*params.Settlement))
+	if params.SettlementType != nil {
+		db = db.Where("settlement_type = ?", int(*params.SettlementType))
 	}
 	if params.Status != nil {
 		db = db.Where("status = ?", int(*params.Status))
@@ -179,14 +184,31 @@ func (r *SubmissionRepository) GetByCustomID(ctx context.Context, orgID uuid.UUI
 }
 
 // CreateSubmissionParams holds the fields required to create a submission.
+// The nullable detail fields mirror the model: any field gated by a switch
+// the draft has not picked yet stays unset (drafts are validated on submit).
 type CreateSubmissionParams struct {
-	OrganizationID uuid.UUID
+	OrganizationID  uuid.UUID
 	CreatedByUserID uuid.UUID
-	CommitteeID    uuid.UUID
-	Direction      model.Direction
-	Settlement     model.Settlement
-	Scope          model.Scope
-	Notice         string
+	CommitteeID     uuid.UUID
+	Type            model.SubmissionType
+	Direction       model.NullSubmissionDirection
+	SettlementType  model.NullSubmissionSettlementType
+	Scope           model.SubmissionScope
+	Notice          string
+
+	PersonPayoutMethod               model.NullSubmissionPersonPayoutMethod
+	PersonBankAccountHolder          *string
+	PersonBankIban                   *string
+	PersonBankBic                    *string
+	PersonBankAccountNumber          *string
+	CommitteePaymentAccountID        uuid.NullUUID
+	CommitteePaymentAccountLabel     *string
+	CommitteeAccountPaidDate         *time.Time
+	CommitteeAccountPaymentReference *string
+	PaymentRequestBankAccountHolder  *string
+	PaymentRequestBankIban           *string
+	PaymentRequestBankBic            *string
+	PaymentRequestBankAccountNumber  *string
 }
 
 // Create inserts a new submission in DRAFT state and assigns its per-org-year
@@ -196,72 +218,86 @@ func (r *SubmissionRepository) Create(ctx context.Context, params CreateSubmissi
 		OrganizationID:  params.OrganizationID,
 		CreatedByUserID: params.CreatedByUserID,
 		CommitteeID:     params.CommitteeID,
+		Type:            params.Type,
 		Direction:       params.Direction,
-		Settlement:      params.Settlement,
+		SettlementType:  params.SettlementType,
 		Scope:           params.Scope,
 		Status:          model.SubmissionStatusDraft,
 		Notice:          params.Notice,
+
+		PersonPayoutMethod:               params.PersonPayoutMethod,
+		PersonBankAccountHolder:          params.PersonBankAccountHolder,
+		PersonBankIban:                   params.PersonBankIban,
+		PersonBankBic:                    params.PersonBankBic,
+		PersonBankAccountNumber:          params.PersonBankAccountNumber,
+		CommitteePaymentAccountID:        params.CommitteePaymentAccountID,
+		CommitteePaymentAccountLabel:     params.CommitteePaymentAccountLabel,
+		CommitteeAccountPaidDate:         params.CommitteeAccountPaidDate,
+		CommitteeAccountPaymentReference: params.CommitteeAccountPaymentReference,
+		PaymentRequestBankAccountHolder:  params.PaymentRequestBankAccountHolder,
+		PaymentRequestBankIban:           params.PaymentRequestBankIban,
+		PaymentRequestBankBic:            params.PaymentRequestBankBic,
+		PaymentRequestBankAccountNumber:  params.PaymentRequestBankAccountNumber,
 	}
 
 	year := time.Now().UTC().Year()
-	for attempt := 0; attempt < 10; attempt++ {
-		seq, err := r.nextSubmissionSequence(ctx, params.OrganizationID, year)
-		if err != nil {
-			return nil, err
-		}
-		m.PublicID = fmt.Sprintf("%d/%02d", year, seq)
-
-		err = r.db.WithContext(ctx).Create(m).Error
-		if err == nil {
-			return m, nil
-		}
-		if !errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, fmt.Errorf("create submission custom_id=%s: %w", m.CustomID, err)
-		}
-		// Public ID taken (concurrent creation) — retry with the next sequence.
+	seq, err := r.nextSubmissionSequence(ctx, params.OrganizationID, year)
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.Join(ErrSubmissionAlreadyExists, fmt.Errorf("public_id allocation failed for organization_id=%s", params.OrganizationID))
+	m.PublicID = fmt.Sprintf("%d/%02d", year, seq)
+
+	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+		return nil, fmt.Errorf("create submission custom_id=%s: %w", m.CustomID, err)
+	}
+	return m, nil
 }
 
-// nextSubmissionSequence returns the next free sequence number for the given
-// organization and year, counting all submissions (including soft-deleted) so
-// IDs are never reused.
-func (r *SubmissionRepository) nextSubmissionSequence(ctx context.Context, orgID uuid.UUID, year int) (int, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Unscoped().Model(&model.Submission{}).
-		Where("organization_id = ?", orgID).
-		Where("created_at >= ? AND created_at < ?", fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-01-01", year+1)).
-		Count(&count).Error
+// nextSubmissionSequence claims the next public-ID sequence number for the
+// given organization and year with a single atomic upsert on the
+// submission_sequences counter table. Concurrent creations serialize on the
+// counter row; the increment participates in the surrounding transaction, so
+// a rollback also rolls back the count. Sequence numbers are not gap-free.
+func (r *SubmissionRepository) nextSubmissionSequence(ctx context.Context, orgID uuid.UUID, year int) (int64, error) {
+	var seq int64
+	err := r.db.WithContext(ctx).Raw(`
+		INSERT INTO submission_sequences (organization_id, year, next_value)
+		VALUES (?, ?, 1)
+		ON CONFLICT (organization_id, year)
+		DO UPDATE SET next_value = submission_sequences.next_value + 1
+		RETURNING next_value
+	`, orgID, year).Scan(&seq).Error
 	if err != nil {
-		return 0, fmt.Errorf("count submissions for public id organization_id=%s year=%d: %w", orgID, year, err)
+		return 0, fmt.Errorf("allocate submission sequence organization_id=%s year=%d: %w", orgID, year, err)
 	}
-	return int(count) + 1, nil
+	return seq, nil
 }
 
 // UpdateSubmissionParams holds the mutable fields of a submission. Pointer
 // slices/nullable columns use optional wrappers; the service builds the set
 // from the update field mask.
 type UpdateSubmissionParams struct {
-	CommitteeID            optional.Optional[uuid.UUID]
-	Direction              optional.Optional[model.Direction]
-	Settlement             optional.Optional[model.Settlement]
-	Scope                  optional.Optional[model.Scope]
-	Notice                 optional.Optional[string]
-	PayoutMethod           optional.Optional[model.PayoutMethod]
-	BankAccountHolder      optional.Optional[string]
-	BankIban               optional.Optional[string]
-	BankBic                optional.Optional[string]
-	PaymentAccountUID      optional.Optional[uuid.NullUUID]
-	PaymentAccountLabel    optional.Optional[string]
-	AccountPaidDate        optional.Optional[*time.Time]
-	AccountPaymentReference optional.Optional[string]
-	VendorName             optional.Optional[string]
-	VendorIban             optional.Optional[string]
-	VendorBic              optional.Optional[string]
-	VendorTiming           optional.Optional[model.PaymentRequestTiming]
-	CompletionPaidDate     optional.Optional[*time.Time]
-	CompletionPaymentReference optional.Optional[string]
-	Etag                   optional.Optional[string]
+	CommitteeID                      optional.Optional[uuid.UUID]
+	Type                             optional.Optional[model.SubmissionType]
+	Direction                        optional.Optional[model.NullSubmissionDirection]
+	SettlementType                   optional.Optional[model.NullSubmissionSettlementType]
+	Scope                            optional.Optional[model.SubmissionScope]
+	Notice                           optional.Optional[string]
+	PersonPayoutMethod               optional.Optional[model.NullSubmissionPersonPayoutMethod]
+	PersonBankAccountHolder          optional.Optional[*string]
+	PersonBankIban                   optional.Optional[*string]
+	PersonBankBic                    optional.Optional[*string]
+	PersonBankAccountNumber          optional.Optional[*string]
+	CommitteePaymentAccountID        optional.Optional[uuid.NullUUID]
+	CommitteePaymentAccountLabel     optional.Optional[*string]
+	CommitteeAccountPaidDate         optional.Optional[*time.Time]
+	CommitteeAccountPaymentReference optional.Optional[*string]
+	PaymentRequestBankAccountHolder  optional.Optional[*string]
+	PaymentRequestBankIban           optional.Optional[*string]
+	PaymentRequestBankBic            optional.Optional[*string]
+	PaymentRequestBankAccountNumber  optional.Optional[*string]
+	CompletionPaidDate               optional.Optional[*time.Time]
+	CompletionPaymentReference       optional.Optional[string]
 }
 
 // Update updates fields of an existing submission matched by its primary key.
@@ -272,11 +308,14 @@ func (r *SubmissionRepository) Update(ctx context.Context, id uuid.UUID, params 
 	if params.CommitteeID.IsSet {
 		put("committee_id", params.CommitteeID.Value)
 	}
-	if params.Direction.IsSet {
-		put("direction", int(params.Direction.Value))
+	if params.Type.IsSet {
+		put("type", int(params.Type.Value))
 	}
-	if params.Settlement.IsSet {
-		put("settlement", int(params.Settlement.Value))
+	if params.Direction.IsSet {
+		put("direction", params.Direction.Value)
+	}
+	if params.SettlementType.IsSet {
+		put("settlement_type", params.SettlementType.Value)
 	}
 	if params.Scope.IsSet {
 		put("scope", int(params.Scope.Value))
@@ -284,50 +323,50 @@ func (r *SubmissionRepository) Update(ctx context.Context, id uuid.UUID, params 
 	if params.Notice.IsSet {
 		put("notice", params.Notice.Value)
 	}
-	if params.PayoutMethod.IsSet {
-		put("payout_method", int(params.PayoutMethod.Value))
+	if params.PersonPayoutMethod.IsSet {
+		put("person_payout_method", params.PersonPayoutMethod.Value)
 	}
-	if params.BankAccountHolder.IsSet {
-		put("bank_account_holder", params.BankAccountHolder.Value)
+	if params.PersonBankAccountHolder.IsSet {
+		put("person_bank_account_holder", params.PersonBankAccountHolder.Value)
 	}
-	if params.BankIban.IsSet {
-		put("bank_iban", params.BankIban.Value)
+	if params.PersonBankIban.IsSet {
+		put("person_bank_iban", params.PersonBankIban.Value)
 	}
-	if params.BankBic.IsSet {
-		put("bank_bic", params.BankBic.Value)
+	if params.PersonBankBic.IsSet {
+		put("person_bank_bic", params.PersonBankBic.Value)
 	}
-	if params.PaymentAccountUID.IsSet {
-		put("payment_account_uid", params.PaymentAccountUID.Value)
+	if params.PersonBankAccountNumber.IsSet {
+		put("person_bank_account_number", params.PersonBankAccountNumber.Value)
 	}
-	if params.PaymentAccountLabel.IsSet {
-		put("payment_account_label", params.PaymentAccountLabel.Value)
+	if params.CommitteePaymentAccountID.IsSet {
+		put("committee_payment_account_id", params.CommitteePaymentAccountID.Value)
 	}
-	if params.AccountPaidDate.IsSet {
-		put("account_paid_date", params.AccountPaidDate.Value)
+	if params.CommitteePaymentAccountLabel.IsSet {
+		put("committee_payment_account_label", params.CommitteePaymentAccountLabel.Value)
 	}
-	if params.AccountPaymentReference.IsSet {
-		put("account_payment_reference", params.AccountPaymentReference.Value)
+	if params.CommitteeAccountPaidDate.IsSet {
+		put("committee_account_paid_date", params.CommitteeAccountPaidDate.Value)
 	}
-	if params.VendorName.IsSet {
-		put("vendor_name", params.VendorName.Value)
+	if params.CommitteeAccountPaymentReference.IsSet {
+		put("committee_account_payment_reference", params.CommitteeAccountPaymentReference.Value)
 	}
-	if params.VendorIban.IsSet {
-		put("vendor_iban", params.VendorIban.Value)
+	if params.PaymentRequestBankAccountHolder.IsSet {
+		put("payment_request_bank_account_holder", params.PaymentRequestBankAccountHolder.Value)
 	}
-	if params.VendorBic.IsSet {
-		put("vendor_bic", params.VendorBic.Value)
+	if params.PaymentRequestBankIban.IsSet {
+		put("payment_request_bank_iban", params.PaymentRequestBankIban.Value)
 	}
-	if params.VendorTiming.IsSet {
-		put("vendor_timing", int(params.VendorTiming.Value))
+	if params.PaymentRequestBankBic.IsSet {
+		put("payment_request_bank_bic", params.PaymentRequestBankBic.Value)
+	}
+	if params.PaymentRequestBankAccountNumber.IsSet {
+		put("payment_request_bank_account_number", params.PaymentRequestBankAccountNumber.Value)
 	}
 	if params.CompletionPaidDate.IsSet {
 		put("completion_paid_date", params.CompletionPaidDate.Value)
 	}
 	if params.CompletionPaymentReference.IsSet {
 		put("completion_payment_reference", params.CompletionPaymentReference.Value)
-	}
-	if params.Etag.IsSet {
-		put("etag", params.Etag.Value)
 	}
 
 	if len(sets) == 0 {
@@ -409,6 +448,34 @@ func (r *SubmissionRepository) CountByCommittee(ctx context.Context, committeeID
 	return count, nil
 }
 
+// CountByCommittees returns how many (non-purged) submissions reference each
+// committee of an organization, keyed by committee ID. Committees without
+// submissions are absent from the map; used to surface reference counts to
+// clients (e.g. to disable delete actions).
+func (r *SubmissionRepository) CountByCommittees(ctx context.Context, orgID uuid.UUID) (map[uuid.UUID]int64, error) {
+	type row struct {
+		CommitteeID uuid.UUID
+		Count       int64
+	}
+
+	var rows []row
+	err := r.db.WithContext(ctx).Unscoped().Model(&model.Submission{}).
+		Select("committee_id, COUNT(*) AS count").
+		Where("organization_id = ?", orgID).
+		Where(visibilityWhere(true)).
+		Group("committee_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("count submissions by committee organization_id=%s: %w", orgID, err)
+	}
+
+	counts := make(map[uuid.UUID]int64, len(rows))
+	for _, row := range rows {
+		counts[row.CommitteeID] = row.Count
+	}
+	return counts, nil
+}
+
 // ListDecayable returns all non-draft, non-terminal submissions of an
 // organization that are still open (used by the deadline sweeper).
 func (r *SubmissionRepository) ListDecayable(ctx context.Context, orgID uuid.UUID) ([]*model.Submission, error) {
@@ -430,7 +497,7 @@ type CreateItemParams struct {
 	SubmissionID uuid.UUID
 	PublicIDBase string // submission public ID, e.g. "2026/04"
 	Category     string
-	DocumentForm model.DocumentForm
+	DocumentForm *model.DocumentForm
 	Source       string
 	Description  string
 	Amount       apd.Decimal
@@ -471,7 +538,7 @@ func (r *SubmissionRepository) CreateItem(ctx context.Context, params CreateItem
 // UpdateItemParams holds the mutable fields of a submission item.
 type UpdateItemParams struct {
 	Category     optional.Optional[string]
-	DocumentForm optional.Optional[model.DocumentForm]
+	DocumentForm optional.Optional[*model.DocumentForm]
 	Source       optional.Optional[string]
 	Description  optional.Optional[string]
 	Amount       optional.Optional[apd.Decimal]
@@ -484,7 +551,7 @@ func (r *SubmissionRepository) UpdateItem(ctx context.Context, id uuid.UUID, par
 		sets["category"] = params.Category.Value
 	}
 	if params.DocumentForm.IsSet {
-		sets["document_form"] = int(params.DocumentForm.Value)
+		sets["document_form"] = documentFormDBValue(params.DocumentForm.Value)
 	}
 	if params.Source.IsSet {
 		sets["source"] = params.Source.Value
@@ -552,14 +619,22 @@ func (r *SubmissionRepository) ListItems(ctx context.Context, submissionID uuid.
 // RecomputeTotal recalculates the total amount of a submission from its items
 // and persists it. Returns the new total.
 func (r *SubmissionRepository) RecomputeTotal(ctx context.Context, submissionID uuid.UUID) (apd.Decimal, error) {
-	var total apd.Decimal
+	// The sum is cast to text: SQLite's SUM yields a float and PostgreSQL's a
+	// numeric, neither of which GORM can scan into a plain apd.Decimal.
+	var totalStr string
 	err := r.db.WithContext(ctx).Model(&model.SubmissionItem{}).
 		Where("submission_id = ?", submissionID).
-		Select("COALESCE(SUM(amount), 0) AS total").
-		Scan(&total).Error
+		Select("COALESCE(CAST(SUM(amount) AS TEXT), '0') AS total").
+		Scan(&totalStr).Error
 	if err != nil {
 		return apd.Decimal{}, fmt.Errorf("sum submission items submission_id=%s: %w", submissionID, err)
 	}
+
+	d, _, err := apd.NewFromString(totalStr)
+	if err != nil {
+		return apd.Decimal{}, fmt.Errorf("parse submission total %q submission_id=%s: %w", totalStr, submissionID, err)
+	}
+	total := *d
 
 	if err := r.db.WithContext(ctx).Unscoped().Model(&model.Submission{}).
 		Where("id = ?", submissionID).
@@ -596,7 +671,9 @@ func (r *SubmissionRepository) ListComments(ctx context.Context, submissionID uu
 
 // ── Attachments ──────────────────────────────────────────────────────────────
 
-// CreateAttachment inserts new attachment metadata.
+// CreateAttachment inserts a new attachment relation. If m carries a DataItem
+// (metadata without IDs), the data item row is created alongside and linked
+// to the relation in the same transaction.
 func (r *SubmissionRepository) CreateAttachment(ctx context.Context, m *model.SubmissionAttachment) error {
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
 		return fmt.Errorf("create submission attachment item_id=%s: %w", m.SubmissionItemID, err)
@@ -604,10 +681,11 @@ func (r *SubmissionRepository) CreateAttachment(ctx context.Context, m *model.Su
 	return nil
 }
 
-// GetAttachmentByID returns the attachment metadata with the given ID.
+// GetAttachmentByID returns the attachment relation with the given ID,
+// including its data item.
 func (r *SubmissionRepository) GetAttachmentByID(ctx context.Context, id uuid.UUID) (*model.SubmissionAttachment, error) {
 	var m model.SubmissionAttachment
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error
+	err := r.db.WithContext(ctx).Preload("DataItem").Where("id = ?", id).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.Join(ErrSubmissionAttachmentNotFound, fmt.Errorf("id=%s: %w", id, err))
@@ -617,10 +695,12 @@ func (r *SubmissionRepository) GetAttachmentByID(ctx context.Context, id uuid.UU
 	return &m, nil
 }
 
-// ListAttachments returns the attachments of an item in insertion order.
+// ListAttachments returns the attachments of an item in insertion order,
+// including their data items.
 func (r *SubmissionRepository) ListAttachments(ctx context.Context, itemID uuid.UUID) ([]*model.SubmissionAttachment, error) {
 	var ms []*model.SubmissionAttachment
 	err := r.db.WithContext(ctx).
+		Preload("DataItem").
 		Where("submission_item_id = ?", itemID).
 		Order("created_at ASC, id ASC").
 		Find(&ms).Error
@@ -630,15 +710,31 @@ func (r *SubmissionRepository) ListAttachments(ctx context.Context, itemID uuid.
 	return ms, nil
 }
 
-// DeleteAttachment removes the attachment metadata with the given ID. The
-// caller is responsible for deleting the binary from storage.
+// DeleteAttachment removes the attachment relation together with its data
+// item. The caller is responsible for the surrounding transaction and for
+// deleting the binary from storage.
 func (r *SubmissionRepository) DeleteAttachment(ctx context.Context, id uuid.UUID) (*model.SubmissionAttachment, error) {
 	m, err := r.GetAttachmentByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Delete(&model.SubmissionAttachment{}, id).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	if err := db.Delete(&model.SubmissionAttachment{}, id).Error; err != nil {
 		return nil, fmt.Errorf("delete submission attachment id=%s: %w", id, err)
 	}
+	if err := db.Delete(&model.DataItem{}, m.DataItemID).Error; err != nil {
+		return nil, fmt.Errorf("delete data item id=%s: %w", m.DataItemID, err)
+	}
 	return m, nil
+}
+
+// ── nullable enum helpers ────────────────────────────────────────────────────
+// Absent enum values are stored as NULL; the None zero values of the Go types
+// exist only as in-memory fillers and are never written.
+
+func documentFormDBValue(f *model.DocumentForm) any {
+	if f == nil {
+		return nil
+	}
+	return int(*f)
 }

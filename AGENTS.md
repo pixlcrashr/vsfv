@@ -86,6 +86,18 @@ Conventions:
 - List requests that support soft-deleted resources expose a `show_deleted` query parameter (bool, default false)
 - The corresponding Go struct field may be named `IncludeArchived` or `IncludeClosed` — only the tag/parameter name must be `show_deleted`
 
+## Audit Logging
+
+All mutating endpoints — gRPC services and Huma exception endpoints alike — must record audit log entries for the resources they change. Writes go through the shared `pkg/audit` Writer: gRPC services receive an `*auditWriter` (see `pkg/api/grpc/services/audit_writer.go`), Huma endpoints take an `*audit.Writer` via their `Deps`.
+
+Conventions:
+
+- Record after the mutation has persisted: `audits.Record(ctx, subject, action, before, after)` with `before = nil` for creations and `after = nil` for deletions. Custom state-transition methods (e.g. `:submit`, `:approve`) record the action name (`"submit"`, `"approve"`, ...).
+- The subject's `ResourceName` mirrors the resource's API path (e.g. `organizations/{org}/submissions/{submission}/items/{item}/attachments/{attachment}`).
+- A failed audit write must fail the request (gRPC: `statusFailedRecordAudit`; Huma: an internal-error response). A persisted mutation must never be reported as success without its audit entry.
+- Read-only endpoints (Get/List) are not audited.
+- **If you encounter an endpoint that does not yet record audit entries, add them automatically as part of your work** — even when the task you were given did not ask for it.
+
 ## Database Migrations
 
 **NEVER manually create or edit migration files in `migrations/postgresql/`.** Migration files are generated automatically by [Atlas](https://atlasgo.io) from the GORM models.

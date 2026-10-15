@@ -8,6 +8,7 @@ import (
 	"github.com/cockroachdb/apd/v3"
 	"github.com/google/uuid"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -31,13 +33,12 @@ var (
 
 // submissionItemServiceServer implements gen.SubmissionItemServiceServer.
 type submissionItemServiceServer struct {
-	repo     *repository.SubmissionRepository
-	audits   *auditWriter
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newSubmissionItemServiceServer(repo *repository.SubmissionRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.SubmissionItemServiceServer {
-	return &submissionItemServiceServer{repo: repo, audits: audits, enforcer: enforcer}
+func newSubmissionItemServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.SubmissionItemServiceServer {
+	return &submissionItemServiceServer{db: db, enforcer: enforcer}
 }
 
 func submissionItemToProto(n gen.SubmissionItemResourceName, m *model.SubmissionItem) *gen.SubmissionItem {
@@ -46,7 +47,7 @@ func submissionItemToProto(n gen.SubmissionItemResourceName, m *model.Submission
 		Uid:          m.ID.String(),
 		PublicId:     m.PublicID,
 		Category:     m.Category,
-		DocumentForm: gen.DocumentForm(m.DocumentForm),
+		DocumentForm: documentFormToProto(m.DocumentForm),
 		Source:       m.Source,
 		Description:  m.Description,
 		Amount:       &gen.Decimal{Value: m.Amount.String()},
@@ -97,24 +98,29 @@ func (s *submissionItemServiceServer) GetSubmissionItem(ctx context.Context, req
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionItemName}
 	}
 
-	item, err := s.repo.GetItemByID(ctx, itemID)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionItemNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.SubmissionItem, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+
+		item, err := repo.GetItemByID(ctx, itemID)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionItemNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
 
-	parent, err := s.repo.GetByID(ctx, item.SubmissionID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
+		parent, err := repo.GetByID(ctx, item.SubmissionID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
+		}
 
-	if err := s.checkItemAccess(ctx, n.Organization, parent, false, false); err != nil {
-		return nil, err
-	}
+		if err := s.checkItemAccess(ctx, n.Organization, parent, false, false); err != nil {
+			return nil, err
+		}
 
-	return submissionItemToProto(n, item), nil
+		return submissionItemToProto(n, item), nil
+	})
 }
 
 func (s *submissionItemServiceServer) ListSubmissionItems(ctx context.Context, req *gen.ListSubmissionItemsRequest) (*gen.ListSubmissionItemsResponse, error) {
@@ -128,30 +134,35 @@ func (s *submissionItemServiceServer) ListSubmissionItems(ctx context.Context, r
 		return nil, &ServerError{Err: err, Status: statusInvalidParent}
 	}
 
-	parent, err := s.repo.GetByID(ctx, submissionID)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListSubmissionItemsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+
+		parent, err := repo.GetByID(ctx, submissionID)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
 
-	if err := s.checkItemAccess(ctx, pn.Organization, parent, false, false); err != nil {
-		return nil, err
-	}
+		if err := s.checkItemAccess(ctx, pn.Organization, parent, false, false); err != nil {
+			return nil, err
+		}
 
-	items, err := s.repo.ListItems(ctx, submissionID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
+		items, err := repo.ListItems(ctx, submissionID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
+		}
 
-	resp := &gen.ListSubmissionItemsResponse{}
-	for _, item := range items {
-		resp.Items = append(resp.Items, submissionItemToProto(
-			gen.SubmissionItemResourceName{Organization: pn.Organization, Submission: pn.Submission, Item: item.ID.String()}, item,
-		))
-	}
-	return resp, nil
+		resp := &gen.ListSubmissionItemsResponse{}
+		for _, item := range items {
+			resp.Items = append(resp.Items, submissionItemToProto(
+				gen.SubmissionItemResourceName{Organization: pn.Organization, Submission: pn.Submission, Item: item.ID.String()}, item,
+			))
+		}
+		return resp, nil
+	})
 }
 
 func (s *submissionItemServiceServer) CreateSubmissionItem(ctx context.Context, req *gen.CreateSubmissionItemRequest) (*gen.SubmissionItem, error) {
@@ -169,50 +180,56 @@ func (s *submissionItemServiceServer) CreateSubmissionItem(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidParent}
 	}
 
-	parent, err := s.repo.GetByID(ctx, submissionID)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.SubmissionItem, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		parent, err := repo.GetByID(ctx, submissionID)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
 
-	if err := s.checkItemAccess(ctx, pn.Organization, parent, true, false); err != nil {
-		return nil, err
-	}
+		if err := s.checkItemAccess(ctx, pn.Organization, parent, true, false); err != nil {
+			return nil, err
+		}
 
-	amount, ok := parseDecimalString(req.Item.Amount)
-	if !ok {
-		return nil, &ServerError{Status: statusInvalidAmount}
-	}
+		amount, ok := parseDecimalString(req.Item.Amount)
+		if !ok {
+			return nil, &ServerError{Status: statusInvalidAmount}
+		}
 
-	item, err := s.repo.CreateItem(ctx, repository.CreateItemParams{
-		SubmissionID: submissionID,
-		PublicIDBase: parent.PublicID,
-		Category:     req.Item.Category,
-		DocumentForm: model.DocumentForm(req.Item.DocumentForm),
-		Source:       req.Item.Source,
-		Description:  req.Item.Description,
-		Amount:       amount,
+		item, err := repo.CreateItem(ctx, repository.CreateItemParams{
+			SubmissionID: submissionID,
+			PublicIDBase: parent.PublicID,
+			Category:     req.Item.Category,
+			DocumentForm: documentFormFromProto(req.Item.DocumentForm),
+			Source:       req.Item.Source,
+			Description:  req.Item.Description,
+			Amount:       amount,
+		})
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedCreateItem}
+		}
+
+		if _, err := repo.RecomputeTotal(ctx, submissionID); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			(&gen.SubmissionItemResourceName{Organization: pn.Organization, Submission: pn.Submission, Item: item.ID.String()}).String(),
+			orgIDFromSegment(pn.Organization), item.ID,
+		), AuditActionCreate, nil, item); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionItemToProto(
+			gen.SubmissionItemResourceName{Organization: pn.Organization, Submission: pn.Submission, Item: item.ID.String()}, item,
+		), nil
 	})
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedCreateItem}
-	}
-
-	if _, err := s.repo.RecomputeTotal(ctx, submissionID); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
-	}
-
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		(&gen.SubmissionItemResourceName{Organization: pn.Organization, Submission: pn.Submission, Item: item.ID.String()}).String(),
-		orgIDFromSegment(pn.Organization), item.ID,
-	), AuditActionCreate, nil, item); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return submissionItemToProto(
-		gen.SubmissionItemResourceName{Organization: pn.Organization, Submission: pn.Submission, Item: item.ID.String()}, item,
-	), nil
 }
 
 func (s *submissionItemServiceServer) UpdateSubmissionItem(ctx context.Context, req *gen.UpdateSubmissionItemRequest) (*gen.SubmissionItem, error) {
@@ -230,66 +247,72 @@ func (s *submissionItemServiceServer) UpdateSubmissionItem(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionItemName}
 	}
 
-	item, err := s.repo.GetItemByID(ctx, itemID)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionItemNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.SubmissionItem, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		item, err := repo.GetItemByID(ctx, itemID)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionItemNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
 
-	parent, err := s.repo.GetByID(ctx, item.SubmissionID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
-
-	if err := s.checkItemAccess(ctx, n.Organization, parent, true, false); err != nil {
-		return nil, err
-	}
-
-	mask := req.UpdateMask.GetPaths()
-	params := repository.UpdateItemParams{}
-	if len(mask) == 0 || slices.Contains(mask, "category") {
-		params.Category = optional.From(req.Item.Category)
-	}
-	if len(mask) == 0 || slices.Contains(mask, "document_form") {
-		params.DocumentForm = optional.From(model.DocumentForm(req.Item.DocumentForm))
-	}
-	if len(mask) == 0 || slices.Contains(mask, "source") {
-		params.Source = optional.From(req.Item.Source)
-	}
-	if len(mask) == 0 || slices.Contains(mask, "description") {
-		params.Description = optional.From(req.Item.Description)
-	}
-	if len(mask) == 0 || slices.Contains(mask, "amount") {
-		amount, ok := parseDecimalString(req.Item.Amount)
-		if !ok {
-			return nil, &ServerError{Status: statusInvalidAmount}
+		parent, err := repo.GetByID(ctx, item.SubmissionID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		params.Amount = optional.From(amount)
-	}
 
-	if err := s.repo.UpdateItem(ctx, itemID, params); err != nil {
-		if errors.Is(err, repository.ErrSubmissionItemNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+		if err := s.checkItemAccess(ctx, n.Organization, parent, true, false); err != nil {
+			return nil, err
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateItem}
-	}
 
-	if _, err := s.repo.RecomputeTotal(ctx, item.SubmissionID); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
-	}
+		mask := req.UpdateMask.GetPaths()
+		params := repository.UpdateItemParams{}
+		if len(mask) == 0 || slices.Contains(mask, "category") {
+			params.Category = optional.From(req.Item.Category)
+		}
+		if len(mask) == 0 || slices.Contains(mask, "document_form") {
+			params.DocumentForm = optional.From(documentFormFromProto(req.Item.DocumentForm))
+		}
+		if len(mask) == 0 || slices.Contains(mask, "source") {
+			params.Source = optional.From(req.Item.Source)
+		}
+		if len(mask) == 0 || slices.Contains(mask, "description") {
+			params.Description = optional.From(req.Item.Description)
+		}
+		if len(mask) == 0 || slices.Contains(mask, "amount") {
+			amount, ok := parseDecimalString(req.Item.Amount)
+			if !ok {
+				return nil, &ServerError{Status: statusInvalidAmount}
+			}
+			params.Amount = optional.From(amount)
+		}
 
-	after, err := s.repo.GetItemByID(ctx, itemID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
+		if err := repo.UpdateItem(ctx, itemID, params); err != nil {
+			if errors.Is(err, repository.ErrSubmissionItemNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateItem}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgIDFromSegment(n.Organization), itemID), AuditActionUpdate, item, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		if _, err := repo.RecomputeTotal(ctx, item.SubmissionID); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
+		}
 
-	return submissionItemToProto(n, after), nil
+		after, err := repo.GetItemByID(ctx, itemID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgIDFromSegment(n.Organization), itemID), AuditActionUpdate, item, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionItemToProto(n, after), nil
+	})
 }
 
 func (s *submissionItemServiceServer) DeleteSubmissionItem(ctx context.Context, req *gen.DeleteSubmissionItemRequest) (*emptypb.Empty, error) {
@@ -303,39 +326,45 @@ func (s *submissionItemServiceServer) DeleteSubmissionItem(ctx context.Context, 
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionItemName}
 	}
 
-	item, err := s.repo.GetItemByID(ctx, itemID)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionItemNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		item, err := repo.GetItemByID(ctx, itemID)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionItemNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
 
-	parent, err := s.repo.GetByID(ctx, item.SubmissionID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
-	}
-
-	if err := s.checkItemAccess(ctx, n.Organization, parent, true, false); err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.DeleteItem(ctx, itemID); err != nil {
-		if errors.Is(err, repository.ErrSubmissionItemNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+		parent, err := repo.GetByID(ctx, item.SubmissionID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmissionItems}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteItem}
-	}
 
-	if _, err := s.repo.RecomputeTotal(ctx, item.SubmissionID); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
-	}
+		if err := s.checkItemAccess(ctx, n.Organization, parent, true, false); err != nil {
+			return nil, err
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgIDFromSegment(n.Organization), itemID), AuditActionDelete, item, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		if err := repo.DeleteItem(ctx, itemID); err != nil {
+			if errors.Is(err, repository.ErrSubmissionItemNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionItemNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteItem}
+		}
 
-	return &emptypb.Empty{}, nil
+		if _, err := repo.RecomputeTotal(ctx, item.SubmissionID); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgIDFromSegment(n.Organization), itemID), AuditActionDelete, item, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return &emptypb.Empty{}, nil
+	})
 }
 
 // parseDecimalString parses a Decimal.value string into apd.Decimal.
@@ -348,4 +377,27 @@ func parseDecimalString(d *gen.Decimal) (apd.Decimal, bool) {
 		return apd.Decimal{}, false
 	}
 	return v, true
+}
+
+// documentFormFromProto maps the request's document form; the UNSPECIFIED
+// filler and NONE both mean "absent" and are stored as NULL.
+func documentFormFromProto(v gen.DocumentForm) *model.DocumentForm {
+	switch v {
+	case gen.DocumentForm_DOCUMENT_FORM_PAPER_ORIGINAL:
+		f := model.DocumentFormPaperOriginal
+		return &f
+	case gen.DocumentForm_DOCUMENT_FORM_DIGITAL_ORIGINAL:
+		f := model.DocumentFormDigitalOriginal
+		return &f
+	default:
+		return nil
+	}
+}
+
+// documentFormToProto maps an absent document form to the filler value.
+func documentFormToProto(f *model.DocumentForm) gen.DocumentForm {
+	if f == nil {
+		return gen.DocumentForm_DOCUMENT_FORM_UNSPECIFIED
+	}
+	return gen.DocumentForm(*f)
 }

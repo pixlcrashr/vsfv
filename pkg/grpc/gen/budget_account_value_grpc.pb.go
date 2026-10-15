@@ -41,7 +41,10 @@ type BudgetAccountValueServiceClient interface {
 	//	Permission: budgets:read
 	//	Domain: organization-scoped
 	GetBudgetAccountValue(ctx context.Context, in *GetBudgetAccountValueRequest, opts ...grpc.CallOption) (*BudgetAccountValue, error)
-	// Lists account values for a budget.
+	// Lists account values for a budget. The wildcard parent form
+	// (organizations/{organization}/budgets/-) lists the values of every
+	// budget of the organization in a single request, optionally restricted
+	// via the `budget` filter.
 	// Authorization:
 	//
 	//	Scope: budgets:read
@@ -160,7 +163,10 @@ type BudgetAccountValueServiceServer interface {
 	//	Permission: budgets:read
 	//	Domain: organization-scoped
 	GetBudgetAccountValue(context.Context, *GetBudgetAccountValueRequest) (*BudgetAccountValue, error)
-	// Lists account values for a budget.
+	// Lists account values for a budget. The wildcard parent form
+	// (organizations/{organization}/budgets/-) lists the values of every
+	// budget of the organization in a single request, optionally restricted
+	// via the `budget` filter.
 	// Authorization:
 	//
 	//	Scope: budgets:read

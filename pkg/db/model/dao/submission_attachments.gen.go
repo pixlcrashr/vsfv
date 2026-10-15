@@ -29,10 +29,7 @@ func newSubmissionAttachment(db *gorm.DB, opts ...gen.DOOption) submissionAttach
 	_submissionAttachment.ALL = field.NewAsterisk(tableName)
 	_submissionAttachment.ID = field.NewField(tableName, "id")
 	_submissionAttachment.SubmissionItemID = field.NewField(tableName, "submission_item_id")
-	_submissionAttachment.FileName = field.NewString(tableName, "file_name")
-	_submissionAttachment.MimeType = field.NewString(tableName, "mime_type")
-	_submissionAttachment.FileSize = field.NewInt64(tableName, "file_size")
-	_submissionAttachment.StorageKey = field.NewString(tableName, "storage_key")
+	_submissionAttachment.DataItemID = field.NewField(tableName, "data_item_id")
 	_submissionAttachment.CreatedAt = field.NewTime(tableName, "created_at")
 	_submissionAttachment.SubmissionItem = submissionAttachmentBelongsToSubmissionItem{
 		db: db.Session(&gorm.Session{}),
@@ -1120,6 +1117,12 @@ func newSubmissionAttachment(db *gorm.DB, opts ...gen.DOOption) submissionAttach
 		},
 	}
 
+	_submissionAttachment.DataItem = submissionAttachmentBelongsToDataItem{
+		db: db.Session(&gorm.Session{}),
+
+		RelationField: field.NewRelation("DataItem", "model.DataItem"),
+	}
+
 	_submissionAttachment.fillFieldMap()
 
 	return _submissionAttachment
@@ -1131,12 +1134,11 @@ type submissionAttachment struct {
 	ALL              field.Asterisk
 	ID               field.Field
 	SubmissionItemID field.Field
-	FileName         field.String
-	MimeType         field.String
-	FileSize         field.Int64
-	StorageKey       field.String
+	DataItemID       field.Field
 	CreatedAt        field.Time
 	SubmissionItem   submissionAttachmentBelongsToSubmissionItem
+
+	DataItem submissionAttachmentBelongsToDataItem
 
 	fieldMap map[string]field.Expr
 }
@@ -1155,10 +1157,7 @@ func (s *submissionAttachment) updateTableName(table string) *submissionAttachme
 	s.ALL = field.NewAsterisk(table)
 	s.ID = field.NewField(table, "id")
 	s.SubmissionItemID = field.NewField(table, "submission_item_id")
-	s.FileName = field.NewString(table, "file_name")
-	s.MimeType = field.NewString(table, "mime_type")
-	s.FileSize = field.NewInt64(table, "file_size")
-	s.StorageKey = field.NewString(table, "storage_key")
+	s.DataItemID = field.NewField(table, "data_item_id")
 	s.CreatedAt = field.NewTime(table, "created_at")
 
 	s.fillFieldMap()
@@ -1188,13 +1187,10 @@ func (s *submissionAttachment) GetFieldByName(fieldName string) (field.OrderExpr
 }
 
 func (s *submissionAttachment) fillFieldMap() {
-	s.fieldMap = make(map[string]field.Expr, 8)
+	s.fieldMap = make(map[string]field.Expr, 6)
 	s.fieldMap["id"] = s.ID
 	s.fieldMap["submission_item_id"] = s.SubmissionItemID
-	s.fieldMap["file_name"] = s.FileName
-	s.fieldMap["mime_type"] = s.MimeType
-	s.fieldMap["file_size"] = s.FileSize
-	s.fieldMap["storage_key"] = s.StorageKey
+	s.fieldMap["data_item_id"] = s.DataItemID
 	s.fieldMap["created_at"] = s.CreatedAt
 
 }
@@ -1203,12 +1199,15 @@ func (s submissionAttachment) clone(db *gorm.DB) submissionAttachment {
 	s.submissionAttachmentDo.ReplaceConnPool(db.Statement.ConnPool)
 	s.SubmissionItem.db = db.Session(&gorm.Session{Initialized: true})
 	s.SubmissionItem.db.Statement.ConnPool = db.Statement.ConnPool
+	s.DataItem.db = db.Session(&gorm.Session{Initialized: true})
+	s.DataItem.db.Statement.ConnPool = db.Statement.ConnPool
 	return s
 }
 
 func (s submissionAttachment) replaceDB(db *gorm.DB) submissionAttachment {
 	s.submissionAttachmentDo.ReplaceDB(db)
 	s.SubmissionItem.db = db.Session(&gorm.Session{})
+	s.DataItem.db = db.Session(&gorm.Session{})
 	return s
 }
 
@@ -1488,6 +1487,87 @@ func (a submissionAttachmentBelongsToSubmissionItemTx) Count() int64 {
 }
 
 func (a submissionAttachmentBelongsToSubmissionItemTx) Unscoped() *submissionAttachmentBelongsToSubmissionItemTx {
+	a.tx = a.tx.Unscoped()
+	return &a
+}
+
+type submissionAttachmentBelongsToDataItem struct {
+	db *gorm.DB
+
+	field.RelationField
+}
+
+func (a submissionAttachmentBelongsToDataItem) Where(conds ...field.Expr) *submissionAttachmentBelongsToDataItem {
+	if len(conds) == 0 {
+		return &a
+	}
+
+	exprs := make([]clause.Expression, 0, len(conds))
+	for _, cond := range conds {
+		exprs = append(exprs, cond.BeCond().(clause.Expression))
+	}
+	a.db = a.db.Clauses(clause.Where{Exprs: exprs})
+	return &a
+}
+
+func (a submissionAttachmentBelongsToDataItem) WithContext(ctx context.Context) *submissionAttachmentBelongsToDataItem {
+	a.db = a.db.WithContext(ctx)
+	return &a
+}
+
+func (a submissionAttachmentBelongsToDataItem) Session(session *gorm.Session) *submissionAttachmentBelongsToDataItem {
+	a.db = a.db.Session(session)
+	return &a
+}
+
+func (a submissionAttachmentBelongsToDataItem) Model(m *model.SubmissionAttachment) *submissionAttachmentBelongsToDataItemTx {
+	return &submissionAttachmentBelongsToDataItemTx{a.db.Model(m).Association(a.Name())}
+}
+
+func (a submissionAttachmentBelongsToDataItem) Unscoped() *submissionAttachmentBelongsToDataItem {
+	a.db = a.db.Unscoped()
+	return &a
+}
+
+type submissionAttachmentBelongsToDataItemTx struct{ tx *gorm.Association }
+
+func (a submissionAttachmentBelongsToDataItemTx) Find() (result *model.DataItem, err error) {
+	return result, a.tx.Find(&result)
+}
+
+func (a submissionAttachmentBelongsToDataItemTx) Append(values ...*model.DataItem) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Append(targetValues...)
+}
+
+func (a submissionAttachmentBelongsToDataItemTx) Replace(values ...*model.DataItem) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Replace(targetValues...)
+}
+
+func (a submissionAttachmentBelongsToDataItemTx) Delete(values ...*model.DataItem) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Delete(targetValues...)
+}
+
+func (a submissionAttachmentBelongsToDataItemTx) Clear() error {
+	return a.tx.Clear()
+}
+
+func (a submissionAttachmentBelongsToDataItemTx) Count() int64 {
+	return a.tx.Count()
+}
+
+func (a submissionAttachmentBelongsToDataItemTx) Unscoped() *submissionAttachmentBelongsToDataItemTx {
 	a.tx = a.tx.Unscoped()
 	return &a
 }

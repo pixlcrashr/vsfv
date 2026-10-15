@@ -191,3 +191,263 @@ var _ = Describe("BudgetRevisionService", func() {
 		})
 	})
 })
+
+var _ = Describe("BudgetRevisionService ListBudgetRevisions (org-wide)", func() {
+	var ctx context.Context
+	var orgName string
+
+	BeforeEach(func() {
+		ctx = context.Background()
+
+		org, err := OrgClient.CreateOrganization(ctx, &gen.CreateOrganizationRequest{
+			Organization: &gen.Organization{DisplayName: "Test Org for Org-Wide Revision Lists"},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		orgName = org.Name
+	})
+
+	createBudgetWithRevision := func(name string) (*gen.Budget, *gen.BudgetRevision) {
+		budget, err := BudgetClient.CreateBudget(ctx, &gen.CreateBudgetRequest{
+			Parent: orgName,
+			Budget: &gen.Budget{
+				DisplayName: name,
+				PeriodStart: &date.Date{Year: 2024, Month: 1, Day: 1},
+				PeriodEnd:   &date.Date{Year: 2024, Month: 12, Day: 31},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		revision, err := BudgetRevisionClient.CreateBudgetRevision(ctx, &gen.CreateBudgetRevisionRequest{
+			Parent: budget.Name,
+			Revision: &gen.BudgetRevision{
+				DisplayName: name + " Revision",
+				Date:        &date.Date{Year: 2024, Month: 6, Day: 30},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		return budget, revision
+	}
+
+	It("lists the revisions of every budget in one request and returns real resource names", func() {
+		budgetA, revisionA := createBudgetWithRevision("Budget A")
+		budgetB, revisionB := createBudgetWithRevision("Budget B")
+
+		resp, err := BudgetRevisionClient.ListBudgetRevisions(ctx, &gen.ListBudgetRevisionsRequest{
+			Parent:  orgName + "/budgets/-",
+			OrderBy: "create_time asc",
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resp.TotalSize).To(Equal(int64(2)))
+
+		revisionNames := make([]string, 0, len(resp.Revisions))
+		budgetNames := make([]string, 0, len(resp.Revisions))
+		for _, revision := range resp.Revisions {
+			revisionNames = append(revisionNames, revision.Name)
+			budgetNames = append(budgetNames, revision.Budget)
+			// Names carry the real budget segment, never the wildcard.
+			Expect(revision.Name).NotTo(ContainSubstring("/budgets/-/"))
+		}
+		Expect(revisionNames).To(ConsistOf(revisionA.Name, revisionB.Name))
+		Expect(budgetNames).To(ConsistOf(budgetA.Name, budgetB.Name))
+	})
+
+	It("returns InvalidArgument for a literal * budget segment", func() {
+		_, err := BudgetRevisionClient.ListBudgetRevisions(ctx, &gen.ListBudgetRevisionsRequest{
+			Parent: orgName + "/budgets/*",
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+	})
+})
+
+var _ = Describe("BudgetRevisionAccountValueService ListBudgetRevisionAccountValues", func() {
+	var ctx context.Context
+	var orgName string
+	var budgetName string
+
+	createAccountWithValue := func(value string) *gen.Account {
+		account, err := AccountClient.CreateAccount(ctx, &gen.CreateAccountRequest{
+			Parent:  orgName,
+			Account: &gen.Account{DisplayName: "Account " + value},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = BudgetAccountValueClient.CreateBudgetAccountValue(ctx, &gen.CreateBudgetAccountValueRequest{
+			Parent: budgetName,
+			AccountValue: &gen.BudgetAccountValue{
+				Account: account.Name,
+				Value:   &gen.Decimal{Value: value},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		return account
+	}
+
+	BeforeEach(func() {
+		ctx = context.Background()
+
+		org, err := OrgClient.CreateOrganization(ctx, &gen.CreateOrganizationRequest{
+			Organization: &gen.Organization{DisplayName: "Test Org for Revision Value Lists"},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		orgName = org.Name
+
+		budget, err := BudgetClient.CreateBudget(ctx, &gen.CreateBudgetRequest{
+			Parent: orgName,
+			Budget: &gen.Budget{
+				DisplayName: "Test Budget",
+				PeriodStart: &date.Date{Year: 2024, Month: 1, Day: 1},
+				PeriodEnd:   &date.Date{Year: 2024, Month: 12, Day: 31},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		budgetName = budget.Name
+	})
+
+	Describe("multi-revision wildcard parent", func() {
+		It("fetches values of multiple revisions in one request and returns real resource names", func() {
+			account1, err := AccountClient.CreateAccount(ctx, &gen.CreateAccountRequest{
+				Parent:  orgName,
+				Account: &gen.Account{DisplayName: "Account A"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			bav1, err := BudgetAccountValueClient.CreateBudgetAccountValue(ctx, &gen.CreateBudgetAccountValueRequest{
+				Parent: budgetName,
+				AccountValue: &gen.BudgetAccountValue{
+					Account: account1.Name,
+					Value:   &gen.Decimal{Value: "100.00"},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			createAccountWithValue("250.50")
+
+			rev1, err := BudgetRevisionClient.CreateBudgetRevision(ctx, &gen.CreateBudgetRevisionRequest{
+				Parent: budgetName,
+				Revision: &gen.BudgetRevision{
+					DisplayName: "Revision 1",
+					Date:        &date.Date{Year: 2024, Month: 3, Day: 31},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Change one value so the second revision differs.
+			_, err = BudgetAccountValueClient.UpdateBudgetAccountValue(ctx, &gen.UpdateBudgetAccountValueRequest{
+				AccountValue: &gen.BudgetAccountValue{
+					Name:  bav1.Name,
+					Value: &gen.Decimal{Value: "999.99"},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			rev2, err := BudgetRevisionClient.CreateBudgetRevision(ctx, &gen.CreateBudgetRevisionRequest{
+				Parent: budgetName,
+				Revision: &gen.BudgetRevision{
+					DisplayName: "Revision 2",
+					Date:        &date.Date{Year: 2024, Month: 6, Day: 30},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			wildcardParent := orgName + "/budgets/-/revisions/-"
+			avResp, err := BudgetRevisionAccountValueClient.ListBudgetRevisionAccountValues(ctx, &gen.ListBudgetRevisionAccountValuesRequest{
+				Parent: wildcardParent,
+				Filter: `revision="` + rev1.Name + `" OR revision="` + rev2.Name + `"`,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(avResp.TotalSize).To(Equal(int64(4)))
+
+			revisionNames := make([]string, 0, len(avResp.AccountValues))
+			for _, av := range avResp.AccountValues {
+				revisionNames = append(revisionNames, av.Revision)
+				// Resource names carry the real budget/revision segments,
+				// never the wildcard.
+				Expect(av.Name).NotTo(ContainSubstring("/budgets/-/"))
+				Expect(av.Name).NotTo(ContainSubstring("/revisions/-/"))
+			}
+			Expect(revisionNames).To(ConsistOf(rev1.Name, rev2.Name, rev1.Name, rev2.Name))
+		})
+
+		It("returns InvalidArgument when the wildcard parent names no revisions", func() {
+			_, err := BudgetRevisionAccountValueClient.ListBudgetRevisionAccountValues(ctx, &gen.ListBudgetRevisionAccountValuesRequest{
+				Parent: orgName + "/budgets/-/revisions/-",
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+		})
+
+		It("returns InvalidArgument for a literal * wildcard parent", func() {
+			_, err := BudgetRevisionAccountValueClient.ListBudgetRevisionAccountValues(ctx, &gen.ListBudgetRevisionAccountValuesRequest{
+				Parent: orgName + "/budgets/*/revisions/*",
+				Filter: `revision="` + orgName + `/budgets/x/revisions/y"`,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+		})
+
+		It("returns InvalidArgument for mixed wildcard parents", func() {
+			_, err := BudgetRevisionAccountValueClient.ListBudgetRevisionAccountValues(ctx, &gen.ListBudgetRevisionAccountValuesRequest{
+				Parent: budgetName + "/revisions/-",
+				Filter: `revision="` + orgName + `/budgets/x/revisions/y"`,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+		})
+
+		It("returns InvalidArgument when the revision filter is combined with a concrete parent", func() {
+			createAccountWithValue("100.00")
+
+			rev, err := BudgetRevisionClient.CreateBudgetRevision(ctx, &gen.CreateBudgetRevisionRequest{
+				Parent: budgetName,
+				Revision: &gen.BudgetRevision{
+					DisplayName: "Revision 1",
+					Date:        &date.Date{Year: 2024, Month: 3, Day: 31},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = BudgetRevisionAccountValueClient.ListBudgetRevisionAccountValues(ctx, &gen.ListBudgetRevisionAccountValuesRequest{
+				Parent: rev.Name,
+				Filter: `revision="` + rev.Name + `"`,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+		})
+
+		It("returns InvalidArgument when the filter names a revision of another organization", func() {
+			createAccountWithValue("100.00")
+
+			otherOrg, err := OrgClient.CreateOrganization(ctx, &gen.CreateOrganizationRequest{
+				Organization: &gen.Organization{DisplayName: "Other Org"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			otherBudget, err := BudgetClient.CreateBudget(ctx, &gen.CreateBudgetRequest{
+				Parent: otherOrg.Name,
+				Budget: &gen.Budget{
+					DisplayName: "Other Budget",
+					PeriodStart: &date.Date{Year: 2024, Month: 1, Day: 1},
+					PeriodEnd:   &date.Date{Year: 2024, Month: 12, Day: 31},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			otherRev, err := BudgetRevisionClient.CreateBudgetRevision(ctx, &gen.CreateBudgetRevisionRequest{
+				Parent: otherBudget.Name,
+				Revision: &gen.BudgetRevision{
+					DisplayName: "Other Revision",
+					Date:        &date.Date{Year: 2024, Month: 3, Day: 31},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = BudgetRevisionAccountValueClient.ListBudgetRevisionAccountValues(ctx, &gen.ListBudgetRevisionAccountValuesRequest{
+				Parent: orgName + "/budgets/-/revisions/-",
+				Filter: `revision="` + otherRev.Name + `"`,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(status.Code(err)).To(Equal(codes.InvalidArgument))
+		})
+	})
+})

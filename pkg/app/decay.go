@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pixlcrashr/vsfv/pkg/audit"
+	pkgdb "github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -21,7 +22,6 @@ func runSubmissionDecaySweeper(ctx context.Context, db *gorm.DB, interval time.D
 	orgRepo := repository.NewOrganizationRepository(db)
 	settingsRepo := repository.NewOrganizationSubmissionSettingsRepository(db)
 	submissionRepo := repository.NewSubmissionRepository(db)
-	audits := audit.NewWriter(db)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -48,27 +48,38 @@ func runSubmissionDecaySweeper(ctx context.Context, db *gorm.DB, interval time.D
 				continue
 			}
 			for _, sub := range subs {
-				if err := submissionRepo.UpdateStatus(ctx, sub.ID, sub.Status, model.SubmissionStatusRejected); err != nil {
+				// Status update, system comment, and audit entry join one
+				// transaction so a failed write rolls back the rejection.
+				err := pkgdb.TransactVoid(ctx, db, func(tx *gorm.DB) error {
+					repo := repository.NewFactory(tx, nil).Submission()
+					audits := audit.NewWriter(tx)
+					if err := repo.UpdateStatus(ctx, sub.ID, sub.Status, model.SubmissionStatusRejected); err != nil {
+						return err
+					}
+					comment := &model.SubmissionComment{
+						SubmissionID: sub.ID,
+						Content:      "Automatically rejected: the organization-wide submission deadline has passed.",
+						IsAdminOnly:  false,
+						StatusFrom:   int32(sub.Status),
+						StatusTo:     int32(model.SubmissionStatusRejected),
+					}
+					if err := repo.CreateComment(ctx, comment); err != nil {
+						return err
+					}
+
+					resourceName := (&gen.SubmissionResourceName{
+						Organization: org.ID.String(),
+						Submission:   sub.ID.String(),
+					}).String()
+					return audits.Record(ctx, audit.Subject{
+						ResourceName:   resourceName,
+						ResourceID:     sub.ID,
+						OrganizationID: toNullUUID(org.ID),
+					}, "decay", sub, nil)
+				})
+				if err != nil {
 					continue
 				}
-				comment := &model.SubmissionComment{
-					SubmissionID: sub.ID,
-					Content:      "Automatically rejected: the organization-wide submission deadline has passed.",
-					IsAdminOnly:  false,
-					StatusFrom:   int32(sub.Status),
-					StatusTo:     int32(model.SubmissionStatusRejected),
-				}
-				_ = submissionRepo.CreateComment(ctx, comment)
-
-				resourceName := (&gen.SubmissionResourceName{
-					Organization: org.ID.String(),
-					Submission:   sub.ID.String(),
-				}).String()
-				_ = audits.Record(ctx, audit.Subject{
-					ResourceName:   resourceName,
-					ResourceID:     sub.ID,
-					OrganizationID: toNullUUID(org.ID),
-				}, "decay", sub, nil)
 			}
 		}
 	}

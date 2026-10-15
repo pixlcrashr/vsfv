@@ -17,11 +17,16 @@ var ErrBudgetRevisionAccountValueNotFound = errors.New("budget revision account 
 
 // ListBudgetRevisionAccountValuesParams drives the List query.
 type ListBudgetRevisionAccountValuesParams struct {
+	// BudgetRevisionID selects the values of a single revision. Mutually
+	// exclusive with BudgetRevisionIDs.
 	BudgetRevisionID uuid.UUID
-	Cond             cond.Cond
-	OrderBy          []order.Expr
-	Page             int
-	PageSize         int
+	// BudgetRevisionIDs selects the values of multiple revisions in one query.
+	// Takes precedence over BudgetRevisionID when non-empty.
+	BudgetRevisionIDs []uuid.UUID
+	Cond              cond.Cond
+	OrderBy           []order.Expr
+	Page              int
+	PageSize          int
 }
 
 func budgetRevisionAccountValueColumnMapper(field string) (string, bool) {
@@ -44,7 +49,7 @@ func NewBudgetRevisionAccountValueRepository(db *gorm.DB) *BudgetRevisionAccount
 	return &BudgetRevisionAccountValueRepository{db: db, q: dao.Use(db)}
 }
 
-// List returns account values for the given revision.
+// List returns account values for the given revision or revisions.
 func (r *BudgetRevisionAccountValueRepository) List(ctx context.Context, params ListBudgetRevisionAccountValuesParams) ([]*model.BudgetRevisionAccountValue, int64, error) {
 	if params.PageSize <= 0 {
 		params.PageSize = 20
@@ -53,8 +58,12 @@ func (r *BudgetRevisionAccountValueRepository) List(ctx context.Context, params 
 		params.Page = 1
 	}
 
-	db := r.db.WithContext(ctx).Table("budget_revision_account_values").
-		Where("budget_revision_id = ?", params.BudgetRevisionID)
+	db := r.db.WithContext(ctx).Table("budget_revision_account_values")
+	if len(params.BudgetRevisionIDs) > 0 {
+		db = db.Where("budget_revision_id IN ?", params.BudgetRevisionIDs)
+	} else {
+		db = db.Where("budget_revision_id = ?", params.BudgetRevisionID)
+	}
 
 	db = cond.Apply(db, params.Cond, budgetRevisionAccountValueColumnMapper)
 
@@ -70,6 +79,8 @@ func (r *BudgetRevisionAccountValueRepository) List(ctx context.Context, params 
 	} else {
 		db = db.Order("created_at ASC")
 	}
+	// Deterministic tiebreaker so offset pagination is stable across pages.
+	db = db.Order("account_id ASC")
 
 	offset := (params.Page - 1) * params.PageSize
 	if offset > 0 {

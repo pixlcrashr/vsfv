@@ -12,8 +12,7 @@ import (
 type DocumentForm int
 
 const (
-	DocumentFormUnspecified DocumentForm = iota
-	DocumentFormPaperOriginal
+	DocumentFormPaperOriginal DocumentForm = iota + 1
 	DocumentFormDigitalOriginal
 )
 
@@ -24,7 +23,7 @@ type SubmissionItem struct {
 	PublicID                 string        `gorm:"not null;default:'';uniqueIndex:idx_submission_items_submission_public_id,priority:2"`
 	SubmissionID             uuid.UUID     `gorm:"type:uuid;not null;uniqueIndex:idx_submission_items_submission_public_id,priority:1;index:idx_submission_items_submission_id"`
 	Category                 string        `gorm:"not null;default:''"`
-	DocumentForm             DocumentForm  `gorm:"type:int;not null;default:0"`
+	DocumentForm             *DocumentForm `gorm:"type:int"`
 	Source                   string        `gorm:"not null;default:''"`
 	Description              string        `gorm:"not null;default:''"`
 	Amount                   apd.Decimal   `gorm:"type:decimal;not null"`

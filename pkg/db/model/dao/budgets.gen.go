@@ -38,6 +38,7 @@ func newBudget(db *gorm.DB, opts ...gen.DOOption) budget {
 	_budget.PublishActualValuesUntil = field.NewField(tableName, "publish_actual_values_until")
 	_budget.PeriodStart = field.NewTime(tableName, "period_start")
 	_budget.PeriodEnd = field.NewTime(tableName, "period_end")
+	_budget.Order = field.NewInt32(tableName, "sort_order")
 	_budget.UpdatedAt = field.NewTime(tableName, "updated_at")
 	_budget.CreatedAt = field.NewTime(tableName, "created_at")
 	_budget.BudgetRevisions = budgetHasManyBudgetRevisions{
@@ -947,6 +948,7 @@ type budget struct {
 	PublishActualValuesUntil field.Field
 	PeriodStart              field.Time
 	PeriodEnd                field.Time
+	Order                    field.Int32
 	UpdatedAt                field.Time
 	CreatedAt                field.Time
 	BudgetRevisions          budgetHasManyBudgetRevisions
@@ -981,6 +983,7 @@ func (b *budget) updateTableName(table string) *budget {
 	b.PublishActualValuesUntil = field.NewField(table, "publish_actual_values_until")
 	b.PeriodStart = field.NewTime(table, "period_start")
 	b.PeriodEnd = field.NewTime(table, "period_end")
+	b.Order = field.NewInt32(table, "sort_order")
 	b.UpdatedAt = field.NewTime(table, "updated_at")
 	b.CreatedAt = field.NewTime(table, "created_at")
 
@@ -1007,7 +1010,7 @@ func (b *budget) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (b *budget) fillFieldMap() {
-	b.fieldMap = make(map[string]field.Expr, 16)
+	b.fieldMap = make(map[string]field.Expr, 17)
 	b.fieldMap["id"] = b.ID
 	b.fieldMap["custom_id"] = b.CustomID
 	b.fieldMap["organization_id"] = b.OrganizationID
@@ -1019,6 +1022,7 @@ func (b *budget) fillFieldMap() {
 	b.fieldMap["publish_actual_values_until"] = b.PublishActualValuesUntil
 	b.fieldMap["period_start"] = b.PeriodStart
 	b.fieldMap["period_end"] = b.PeriodEnd
+	b.fieldMap["sort_order"] = b.Order
 	b.fieldMap["updated_at"] = b.UpdatedAt
 	b.fieldMap["created_at"] = b.CreatedAt
 

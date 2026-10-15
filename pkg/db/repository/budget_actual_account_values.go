@@ -45,15 +45,46 @@ func NewBudgetActualAccountValueRepository(db *gorm.DB) *BudgetActualAccountValu
 	return &BudgetActualAccountValueRepository{db: db, q: dao.Use(db)}
 }
 
+// assignmentContributionExpr is the sign rule of the budget plan, expressed as
+// a per-assignment SQL CASE over the types of the transaction's debit
+// and credit ledger accounts (roles: NULL/unmarked=0, liquidity=1, counter=2,
+// start account=3). Debit-side role rows × credit-side role columns:
+//
+//	          credit →  liquidity  counter  start  unmarked
+//	  debit ↓
+//	  liquidity              0        0      +1      +1
+//	  counter                0        0       0      +1
+//	  start                 -1        0       0       0
+//	  unmarked              -1       -1       0       0
+//
+// A neutral assignment yields NULL and is excluded from aggregation.
+const assignmentContributionExpr = `CASE
+        WHEN (COALESCE(dl.type, 0) = 1 AND COALESCE(cl.type, 0) IN (0, 3))
+          OR (COALESCE(dl.type, 0) = 2 AND COALESCE(cl.type, 0) = 0)
+            THEN taa.value
+        WHEN (COALESCE(dl.type, 0) = 0 AND COALESCE(cl.type, 0) IN (1, 2))
+          OR (COALESCE(dl.type, 0) = 3 AND COALESCE(cl.type, 0) = 1)
+            THEN -taa.value
+        ELSE NULL
+    END`
+
+// assignmentContributionJoin is the shared FROM/JOIN clause pairing each
+// assignment's transaction with both of its ledger account sides.
+const assignmentContributionJoins = `FROM transaction_assignments taa
+JOIN transactions t ON t.id = taa.transaction_id
+JOIN ledger_accounts cl ON cl.id = t.credit_ledger_account_id
+JOIN ledger_accounts dl ON dl.id = t.debit_ledger_account_id
+JOIN accounts a ON a.id = taa.account_id`
+
 // ListByBudget computes the actual values for every account that has
-// assignments within the given budget's period.
+// plan-relevant assignments within the given budget's period.
 //
-// The calculation uses the credit-side ledger account type to determine the sign:
-//   - Credit to ASSET (1) or EXPENSE (5): negative value (outflow/expense reduction)
-//   - Credit to LIABILITY (2), EQUITY (3), or REVENUE (4): positive value (inflow)
-//
-// This implements standard double-entry booking logic where the credit side
-// determines the accounting effect on budget accounts.
+// The contribution sign follows the assignment rule documented on
+// assignmentContributionExpr: the budget plan measures value crossing between
+// the organization's disposal (liquidity, receivable/payable and
+// opening-balance accounts) and its income/expense side, so e.g. a payment
+// from bank to an expense account counts negatively while a refund on the
+// same budget account counts positively, netting correctly.
 func (r *BudgetActualAccountValueRepository) ListByBudget(
 	ctx context.Context,
 	organizationID uuid.UUID,
@@ -61,24 +92,24 @@ func (r *BudgetActualAccountValueRepository) ListByBudget(
 	periodEnd time.Time,
 ) ([]*ActualAccountValue, error) {
 	query := `
+WITH assignment_values AS (
+    SELECT
+        taa.account_id,
+        a.custom_id AS account_custom_id,
+        ` + assignmentContributionExpr + ` AS contribution
+    ` + assignmentContributionJoins + `
+    WHERE t.organization_id = ?
+      AND t.document_date >= ?
+      AND t.document_date <= ?
+)
 SELECT
-    taa.account_id,
-    a.custom_id AS account_custom_id,
-    SUM(
-        CASE
-            WHEN la.account_type IN (1, 5) THEN -taa.value
-            ELSE taa.value
-        END
-    ) AS amount
-FROM transaction_assignments taa
-JOIN transactions t ON t.id = taa.transaction_id
-JOIN ledger_accounts la ON la.id = t.credit_ledger_account_id
-JOIN accounts a ON a.id = taa.account_id
-WHERE t.organization_id = ?
-  AND t.document_date >= ?
-  AND t.document_date <= ?
-GROUP BY taa.account_id, a.custom_id
-ORDER BY taa.account_id
+    account_id,
+    account_custom_id,
+    SUM(contribution) AS amount
+FROM assignment_values
+WHERE contribution IS NOT NULL
+GROUP BY account_id, account_custom_id
+ORDER BY account_id
 `
 
 	var rows []budgetActualRow
@@ -104,7 +135,7 @@ ORDER BY taa.account_id
 // GetByBudgetAndAccount computes the actual value for a single account within
 // a budget period.
 //
-// Uses the same credit-side ledger account type logic as ListByBudget.
+// Uses the same assignment rule as ListByBudget.
 func (r *BudgetActualAccountValueRepository) GetByBudgetAndAccount(
 	ctx context.Context,
 	organizationID uuid.UUID,
@@ -112,24 +143,24 @@ func (r *BudgetActualAccountValueRepository) GetByBudgetAndAccount(
 	accountCustomID string,
 ) (*ActualAccountValue, error) {
 	query := `
+WITH assignment_values AS (
+    SELECT
+        taa.account_id,
+        a.custom_id AS account_custom_id,
+        ` + assignmentContributionExpr + ` AS contribution
+    ` + assignmentContributionJoins + `
+    WHERE t.organization_id = ?
+      AND t.document_date >= ?
+      AND t.document_date <= ?
+      AND a.custom_id = ?
+)
 SELECT
-    taa.account_id,
-    a.custom_id AS account_custom_id,
-    SUM(
-        CASE
-            WHEN la.account_type IN (1, 5) THEN -taa.value
-            ELSE taa.value
-        END
-    ) AS amount
-FROM transaction_assignments taa
-JOIN transactions t ON t.id = taa.transaction_id
-JOIN ledger_accounts la ON la.id = t.credit_ledger_account_id
-JOIN accounts a ON a.id = taa.account_id
-WHERE t.organization_id = ?
-  AND t.document_date >= ?
-  AND t.document_date <= ?
-  AND a.custom_id = ?
-GROUP BY taa.account_id, a.custom_id
+    account_id,
+    account_custom_id,
+    SUM(contribution) AS amount
+FROM assignment_values
+WHERE contribution IS NOT NULL
+GROUP BY account_id, account_custom_id
 `
 
 	var row budgetActualRow
@@ -164,8 +195,10 @@ type budgetActualMultiRow struct {
 }
 
 // ListByBudgets computes the actual values for every account that has
-// assignments within the requested budgets' periods. An optional document_date
-// range can further restrict the transactions that are summed.
+// plan-relevant assignments within the requested budgets' periods. An optional
+// document_date range can further restrict the transactions that are summed.
+//
+// Uses the same assignment rule as ListByBudget.
 func (r *BudgetActualAccountValueRepository) ListByBudgets(
 	ctx context.Context,
 	organizationID uuid.UUID,
@@ -174,42 +207,43 @@ func (r *BudgetActualAccountValueRepository) ListByBudgets(
 	documentDateTo *time.Time,
 ) ([]*ActualAccountValue, error) {
 	query := `
-SELECT
-    b.custom_id AS budget_custom_id,
-    a.id AS account_id,
-    a.custom_id AS account_custom_id,
-    SUM(
-        CASE
-            WHEN la.account_type IN (1, 5) THEN -taa.value
-            ELSE taa.value
-        END
-    ) AS amount
-FROM transaction_assignments taa
-JOIN transactions t ON t.id = taa.transaction_id
-JOIN ledger_accounts la ON la.id = t.credit_ledger_account_id
-JOIN accounts a ON a.id = taa.account_id
-JOIN budgets b ON b.organization_id = ? AND t.document_date >= b.period_start AND t.document_date <= b.period_end
-WHERE t.organization_id = ?
-  AND b.organization_id = ?
+WITH assignment_values AS (
+    SELECT
+        b.custom_id AS budget_custom_id,
+        a.id AS account_id,
+        a.custom_id AS account_custom_id,
+        ` + assignmentContributionExpr + ` AS contribution
+    ` + assignmentContributionJoins + `
+    JOIN budgets b ON b.organization_id = ? AND t.document_date >= b.period_start AND t.document_date <= b.period_end
+    WHERE t.organization_id = ?
+      AND b.organization_id = ?
 `
 	args := []interface{}{organizationID, organizationID, organizationID}
 
 	if len(budgetCustomIDs) > 0 {
-		query += " AND b.custom_id IN ?"
+		query += "      AND b.custom_id IN ?\n"
 		args = append(args, budgetCustomIDs)
 	}
 	if documentDateFrom != nil {
-		query += " AND t.document_date >= ?"
+		query += "      AND t.document_date >= ?\n"
 		args = append(args, *documentDateFrom)
 	}
 	if documentDateTo != nil {
-		query += " AND t.document_date <= ?"
+		query += "      AND t.document_date <= ?\n"
 		args = append(args, *documentDateTo)
 	}
 
 	query += `
-GROUP BY b.custom_id, a.id, a.custom_id
-ORDER BY b.custom_id, a.custom_id
+)
+SELECT
+    budget_custom_id,
+    account_id,
+    account_custom_id,
+    SUM(contribution) AS amount
+FROM assignment_values
+WHERE contribution IS NOT NULL
+GROUP BY budget_custom_id, account_id, account_custom_id
+ORDER BY budget_custom_id, account_custom_id
 `
 
 	var rows []budgetActualMultiRow

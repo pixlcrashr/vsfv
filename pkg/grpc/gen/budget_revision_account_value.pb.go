@@ -179,17 +179,28 @@ func (x *GetBudgetRevisionAccountValueRequest) GetName() string {
 
 type ListBudgetRevisionAccountValuesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The parent revision resource name.
-	// Format: organizations/{organization}/budgets/{budget}/revisions/{revision}
+	// The parent revision resource name. Two forms are accepted:
+	//   - A single revision:
+	//     organizations/{organization}/budgets/{budget}/revisions/{revision}
+	//   - The wildcard form organizations/{organization}/budgets/-/revisions/-,
+	//     which fetches the values of multiple revisions at once. The revisions
+	//     to fetch are selected via the `revision` filter field.
+	//
+	// The dash "-" is the only wildcard marker; "*" is not supported. Mixed
+	// forms (a concrete budget with a "-" revision or vice versa) are rejected.
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
 	// Maximum number of account values to return. The service may return fewer.
-	// If unspecified, at most 50 are returned. Maximum value is 200.
+	// If unspecified, at most 100 are returned. Maximum value is 500.
 	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// A page token from a previous ListBudgetRevisionAccountValues call.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Filter expression conforming to AIP-160.
-	// Supported fields: account.
-	// Example: "account=\"organizations/{organization}/accounts/{account}\"".
+	// Supported fields:
+	//   - account:  the account resource name (e.g.
+	//     "organizations/{organization}/accounts/{account}").
+	//   - revision: the revision resource name. Required (at least one) when the
+	//     budget and revision segments of the parent are the wildcard
+	//     "-", e.g.: revision="..." OR revision="...".
 	Filter string `protobuf:"bytes,4,opt,name=filter,proto3" json:"filter,omitempty"`
 	// Order by expression (e.g. "account", "value desc").
 	OrderBy       string `protobuf:"bytes,5,opt,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`
@@ -268,7 +279,7 @@ type ListBudgetRevisionAccountValuesResponse struct {
 	AccountValues []*BudgetRevisionAccountValue `protobuf:"bytes,1,rep,name=account_values,json=accountValues,proto3" json:"account_values,omitempty"`
 	// A token to retrieve the next page of results.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	// Total number of account values in this revision.
+	// Total number of account values matching the query.
 	TotalSize     int64 `protobuf:"varint,3,opt,name=total_size,json=totalSize,proto3" json:"total_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

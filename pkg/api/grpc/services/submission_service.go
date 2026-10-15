@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/amalfra/etag/v4"
 	"github.com/google/uuid"
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -31,6 +32,7 @@ var (
 	statusInvalidSubmissionName            = status.New(codes.InvalidArgument, "invalid submission name")
 	statusSubmissionNotFound               = status.New(codes.NotFound, "submission not found")
 	statusSubmissionAlreadyExists          = status.New(codes.AlreadyExists, "submission already exists")
+	statusSubmissionTypeRequired           = status.New(codes.InvalidArgument, "submission type is required")
 	statusSubmissionDirectionRequired      = status.New(codes.InvalidArgument, "direction is required")
 	statusSubmissionSettlementRequired     = status.New(codes.InvalidArgument, "settlement is required for expense submissions")
 	statusSubmissionSettlementNotAllowed   = status.New(codes.InvalidArgument, "settlement details do not match the settlement kind")
@@ -38,6 +40,7 @@ var (
 	statusSubmissionPersonDetailsRequired  = status.New(codes.InvalidArgument, "payout details are required for person settlements")
 	statusSubmissionPaymentAccountInvalid  = status.New(codes.InvalidArgument, "payment account does not belong to the committee")
 	statusSubmissionPaymentAccountRequired = status.New(codes.InvalidArgument, "payment account is required for committee account settlements")
+	statusInvalidPaymentAccountName        = status.New(codes.InvalidArgument, "invalid payment account name")
 	statusSubmissionPaidDateRequired       = status.New(codes.InvalidArgument, "paid date is required for committee account settlements")
 	statusSubmissionVendorDetailsRequired  = status.New(codes.InvalidArgument, "vendor details are required for payment requests")
 	statusSubmissionItemsRequired          = status.New(codes.FailedPrecondition, "submission requires at least one item")
@@ -48,6 +51,7 @@ var (
 	statusSubmissionDeadlinePassed         = status.New(codes.FailedPrecondition, "submission deadline has passed")
 	statusSubmissionDeleted                = status.New(codes.FailedPrecondition, "submission is deleted")
 	statusEtagMismatch                     = status.New(codes.Aborted, "etag mismatch")
+	statusInvalidUpdateMask                = status.New(codes.InvalidArgument, "invalid update mask")
 	statusFailedGetSubmission              = status.New(codes.Internal, "failed to get submission")
 	statusFailedListSubmissions            = status.New(codes.Internal, "failed to list submissions")
 	statusFailedCreateSubmission           = status.New(codes.Internal, "failed to create submission")
@@ -67,27 +71,12 @@ const submissionPurgeRetention = 90 * 24 * time.Hour
 
 // submissionServiceServer implements gen.SubmissionServiceServer.
 type submissionServiceServer struct {
-	repo          *repository.SubmissionRepository
-	committeeRepo *repository.CommitteeRepository
-	settingsRepo  *repository.OrganizationSubmissionSettingsRepository
-	audits        *auditWriter
-	enforcer      *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newSubmissionServiceServer(
-	repo *repository.SubmissionRepository,
-	committeeRepo *repository.CommitteeRepository,
-	settingsRepo *repository.OrganizationSubmissionSettingsRepository,
-	audits *auditWriter,
-	enforcer *authz.Enforcer,
-) gen.SubmissionServiceServer {
-	return &submissionServiceServer{
-		repo:          repo,
-		committeeRepo: committeeRepo,
-		settingsRepo:  settingsRepo,
-		audits:        audits,
-		enforcer:      enforcer,
-	}
+func newSubmissionServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.SubmissionServiceServer {
+	return &submissionServiceServer{db: db, enforcer: enforcer}
 }
 
 // ── access helpers ───────────────────────────────────────────────────────────
@@ -157,12 +146,71 @@ func requireOwner(ctx context.Context, m *model.Submission) error {
 	return nil
 }
 
+// parseSubmissionDirectionFilter resolves a direction filter value, accepting
+// both the short form ("INCOME") and the fully qualified proto enum name
+// ("DIRECTION_INCOME"). Misc is a type, not a direction, and is rejected here.
+func parseSubmissionDirectionFilter(v string) (model.SubmissionDirection, error) {
+	switch strings.ToUpper(strings.TrimSpace(v)) {
+	case "INCOME", "DIRECTION_INCOME":
+		return model.SubmissionDirectionIncome, nil
+	case "EXPENSE", "DIRECTION_EXPENSE":
+		return model.SubmissionDirectionExpense, nil
+	default:
+		return model.SubmissionDirection(-1), fmt.Errorf("invalid direction filter value %q", v)
+	}
+}
+
+// parseSubmissionTypeFilter resolves a type filter value; it exists for the
+// "MISC" direction filter alias, which selects misc-type submissions.
+func parseSubmissionTypeFilter(v string) (model.SubmissionType, error) {
+	switch strings.ToUpper(strings.TrimSpace(v)) {
+	case "MISC", "TYPE_MISC":
+		return model.SubmissionTypeMisc, nil
+	default:
+		return model.SubmissionType(-1), fmt.Errorf("invalid type filter value %q", v)
+	}
+}
+
+// parseSubmissionSettlementFilter resolves a settlement filter value.
+func parseSubmissionSettlementFilter(v string) (model.SubmissionSettlementType, error) {
+	switch strings.ToUpper(strings.TrimSpace(v)) {
+	case "PERSON", "SETTLEMENT_PERSON":
+		return model.SubmissionSettlementTypePerson, nil
+	case "COMMITTEE_ACCOUNT", "SETTLEMENT_COMMITTEE_ACCOUNT":
+		return model.SubmissionSettlementTypeCommitteeAccount, nil
+	case "PAYMENT_REQUEST", "SETTLEMENT_PAYMENT_REQUEST":
+		return model.SubmissionSettlementTypePaymentRequest, nil
+	default:
+		return model.SubmissionSettlementType(-1), fmt.Errorf("invalid settlement filter value %q", v)
+	}
+}
+
+// parseSubmissionStatusFilter resolves a status filter value.
+func parseSubmissionStatusFilter(v string) (model.SubmissionStatus, error) {
+	switch strings.ToUpper(strings.TrimSpace(v)) {
+	case "DRAFT", "SUBMISSION_STATUS_DRAFT":
+		return model.SubmissionStatusDraft, nil
+	case "PENDING", "SUBMISSION_STATUS_PENDING":
+		return model.SubmissionStatusPending, nil
+	case "FURTHER_INFO_REQUIRED", "SUBMISSION_STATUS_FURTHER_INFO_REQUIRED":
+		return model.SubmissionStatusFurtherInfoRequired, nil
+	case "REJECTED", "SUBMISSION_STATUS_REJECTED":
+		return model.SubmissionStatusRejected, nil
+	case "APPROVED", "SUBMISSION_STATUS_APPROVED":
+		return model.SubmissionStatusApproved, nil
+	case "COMPLETED", "SUBMISSION_STATUS_COMPLETED":
+		return model.SubmissionStatusCompleted, nil
+	default:
+		return model.SubmissionStatus(-1), fmt.Errorf("invalid status filter value %q", v)
+	}
+}
+
 // ── deadline & validation helpers ────────────────────────────────────────────
 
 // checkSubmissionDeadline enforces the organization-wide submission deadline.
 // Callers holding the full update permission bypass it (grace handling).
-func (s *submissionServiceServer) checkSubmissionDeadline(ctx context.Context, orgID uuid.UUID, orgSegment string) error {
-	settings, err := s.settingsRepo.GetOrDefault(ctx, orgID)
+func (s *submissionServiceServer) checkSubmissionDeadline(ctx context.Context, settingsRepo *repository.OrganizationSubmissionSettingsRepository, orgID uuid.UUID, orgSegment string) error {
+	settings, err := settingsRepo.GetOrDefault(ctx, orgID)
 	if err != nil {
 		return &ServerError{Err: err, Status: statusFailedGetSubmission}
 	}
@@ -181,18 +229,19 @@ func (s *submissionServiceServer) checkSubmissionDeadline(ctx context.Context, o
 }
 
 // checkSettlementEnabled verifies the settlement kind is enabled org-wide.
-func (s *submissionServiceServer) checkSettlementEnabled(ctx context.Context, orgID uuid.UUID, settlement model.Settlement) error {
-	if settlement == model.SettlementUnspecified {
+func (s *submissionServiceServer) checkSettlementEnabled(ctx context.Context, settingsRepo *repository.OrganizationSubmissionSettingsRepository, orgID uuid.UUID, settlement model.NullSubmissionSettlementType) error {
+	// An unset settlement (drafts, income) is not organization-restricted.
+	if !settlement.Valid {
 		return nil
 	}
-	settings, err := s.settingsRepo.GetOrDefault(ctx, orgID)
+	settings, err := settingsRepo.GetOrDefault(ctx, orgID)
 	if err != nil {
 		return &ServerError{Err: err, Status: statusFailedGetSubmission}
 	}
 	if len(settings.EnabledSettlementKinds) == 0 {
 		return nil
 	}
-	name := settlementName(settlement)
+	name := submissionSettlementTypeName(settlement.SubmissionSettlementType)
 	for _, k := range settings.EnabledSettlementKinds {
 		if k == name {
 			return nil
@@ -201,23 +250,23 @@ func (s *submissionServiceServer) checkSettlementEnabled(ctx context.Context, or
 	return &ServerError{Status: statusSubmissionSettlementDisabled}
 }
 
-// settlementName maps a settlement enum to its proto enum value name (the
+// submissionSettlementTypeName maps a settlement enum to its proto enum value name (the
 // representation stored in organization submission settings).
-func settlementName(s model.Settlement) string {
+func submissionSettlementTypeName(s model.SubmissionSettlementType) string {
 	switch s {
-	case model.SettlementPerson:
+	case model.SubmissionSettlementTypePerson:
 		return "PERSON"
-	case model.SettlementCommitteeAccount:
+	case model.SubmissionSettlementTypeCommitteeAccount:
 		return "COMMITTEE_ACCOUNT"
-	case model.SettlementPaymentRequest:
+	case model.SubmissionSettlementTypePaymentRequest:
 		return "PAYMENT_REQUEST"
 	default:
 		return ""
 	}
 }
 
-// parseCommitteeUID extracts the committee UUID from a committee resource name.
-func parseCommitteeUID(name string) (uuid.UUID, error) {
+// parseCommitteeID extracts the committee UUID from a committee resource name.
+func parseCommitteeID(name string) (uuid.UUID, error) {
 	var cn gen.CommitteeResourceName
 	if err := cn.UnmarshalString(name); err != nil {
 		return uuid.Nil, err
@@ -225,35 +274,262 @@ func parseCommitteeUID(name string) (uuid.UUID, error) {
 	return uuid.Parse(cn.Committee)
 }
 
-// normalizeSubmissionDetails validates and normalizes the settlement details
-// of m against its direction/settlement and the committee's payment accounts.
-// For committee account settlements the account label snapshot is resolved
-// here.
-func normalizeSubmissionDetails(ctx context.Context, committeeRepo *repository.CommitteeRepository, m *model.Submission) error {
-	if m.Direction == model.DirectionUnspecified {
-		return &ServerError{Status: statusSubmissionDirectionRequired}
+// parseCommitteePaymentAccountID extracts the payment account UUID from a committee
+// payment account resource name.
+func parseCommitteePaymentAccountID(name string) (uuid.UUID, error) {
+	var an gen.CommitteePaymentAccountResourceName
+	if err := an.UnmarshalString(name); err != nil {
+		return uuid.Nil, err
 	}
-	if m.Direction == model.DirectionIncome {
-		m.Settlement = model.SettlementUnspecified
+	return uuid.Parse(an.PaymentAccount)
+}
+
+// The database stores 0-based enum values without filler values, while the
+// proto enums reserve 0 as the unspecified filler. Explicit converters keep
+// the two numberings independent.
+
+func submissionScopeFromProto(v gen.SubmissionScope) model.SubmissionScope {
+	switch v {
+	case gen.SubmissionScope_SUBMISSION_SCOPE_COMMERCIAL:
+		return model.SubmissionScopeCommercial
+	case gen.SubmissionScope_SUBMISSION_SCOPE_NONPROFIT:
+		return model.SubmissionScopeNonprofit
+	default:
+		return model.SubmissionScopeNone
+	}
+}
+
+func submissionScopeToProto(s model.SubmissionScope) gen.SubmissionScope {
+	switch s {
+	case model.SubmissionScopeNonprofit:
+		return gen.SubmissionScope_SUBMISSION_SCOPE_NONPROFIT
+	case model.SubmissionScopeCommercial:
+		return gen.SubmissionScope_SUBMISSION_SCOPE_COMMERCIAL
+	case model.SubmissionScopeNone:
+		return gen.SubmissionScope_SUBMISSION_SCOPE_NONE
+	default:
+		return gen.SubmissionScope_SUBMISSION_SCOPE_UNSPECIFIED
+	}
+}
+
+func submissionStatusToProto(s model.SubmissionStatus) gen.SubmissionStatus {
+	switch s {
+	case model.SubmissionStatusDraft:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_DRAFT
+	case model.SubmissionStatusPending:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_PENDING
+	case model.SubmissionStatusFurtherInfoRequired:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_FURTHER_INFO_REQUIRED
+	case model.SubmissionStatusRejected:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_REJECTED
+	case model.SubmissionStatusApproved:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_APPROVED
+	case model.SubmissionStatusCompleted:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_COMPLETED
+	default:
+		return gen.SubmissionStatus_SUBMISSION_STATUS_UNSPECIFIED
+	}
+}
+
+// strPtr converts a proto string to a nullable column value: an empty string
+// means absent and stores NULL.
+func strPtr(s string) *string {
+	if s == "" {
 		return nil
 	}
-	if m.Settlement == model.SettlementUnspecified {
+	return &s
+}
+
+// ptrEq reports whether two comparable pointers are both nil or point at
+// equal values.
+func ptrEq[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+// clearSubmissionSettlementDetails zeroes every settlement detail column.
+func clearSubmissionSettlementDetails(m *model.Submission) {
+	m.SettlementType = model.NullSubmissionSettlementType{}
+	m.PersonPayoutMethod = model.NullSubmissionPersonPayoutMethod{}
+	m.PersonBankAccountHolder = nil
+	m.PersonBankIban = nil
+	m.PersonBankBic = nil
+	m.PersonBankAccountNumber = nil
+	m.CommitteePaymentAccountID = uuid.NullUUID{}
+	m.CommitteePaymentAccountLabel = nil
+	m.CommitteeAccountPaidDate = nil
+	m.CommitteeAccountPaymentReference = nil
+	m.PaymentRequestBankAccountHolder = nil
+	m.PaymentRequestBankIban = nil
+	m.PaymentRequestBankBic = nil
+	m.PaymentRequestBankAccountNumber = nil
+}
+
+// applySubmissionMiscType writes the misc submission type onto m.
+func applySubmissionMiscType(m *model.Submission) {
+	clearSubmissionSettlementDetails(m)
+	m.Type = model.SubmissionTypeMisc
+	m.Direction = model.NullSubmissionDirection{}
+}
+
+// applySubmissionIncomeSettlement writes the income direction onto m, keeping the scope.
+func applySubmissionIncomeSettlement(m *model.Submission) {
+	clearSubmissionSettlementDetails(m)
+	m.Type = model.SubmissionTypeIncomeExpense
+	m.Direction = model.NullSubmissionDirection{
+		SubmissionDirection: model.SubmissionDirectionIncome,
+		Valid:               true,
+	}
+}
+
+// applySubmissionExpenseSettlement writes the settlement oneof of an expense direction
+// onto m. Unset branch details (e.g. a not-yet-chosen payout method) are
+// stored as NULL so drafts may stay incomplete.
+func applySubmissionExpenseSettlement(m *model.Submission, e *gen.SubmissionDirectionExpenseDetails) error {
+	clearSubmissionSettlementDetails(m)
+	m.Type = model.SubmissionTypeIncomeExpense
+	m.Direction = model.NullSubmissionDirection{
+		SubmissionDirection: model.SubmissionDirectionExpense,
+		Valid:               true,
+	}
+
+	switch s := e.GetSettlement().(type) {
+	case *gen.SubmissionDirectionExpenseDetails_Person:
+		m.SettlementType = model.NullSubmissionSettlementType{
+			SubmissionSettlementType: model.SubmissionSettlementTypePerson,
+			Valid:                    true,
+		}
+		switch pm := s.Person.GetPayoutMethod().(type) {
+		case *gen.SubmissionSettlementPerson_BankTransfer:
+			m.PersonPayoutMethod = model.NullSubmissionPersonPayoutMethod{
+				SubmissionPersonPayoutMethod: model.SubmissionPersonPayoutMethodBankTransfer,
+				Valid:                        true,
+			}
+			ba := pm.BankTransfer.GetBankAccount()
+			m.PersonBankAccountHolder = strPtr(ba.GetAccountHolder())
+			m.PersonBankIban = strPtr(ba.GetIban())
+			m.PersonBankBic = strPtr(ba.GetBic())
+			m.PersonBankAccountNumber = strPtr(ba.GetAccountNumber())
+		case *gen.SubmissionSettlementPerson_Cash:
+			m.PersonPayoutMethod = model.NullSubmissionPersonPayoutMethod{
+				SubmissionPersonPayoutMethod: model.SubmissionPersonPayoutMethodCash,
+				Valid:                        true,
+			}
+		default:
+			m.PersonPayoutMethod = model.NullSubmissionPersonPayoutMethod{}
+		}
+	case *gen.SubmissionDirectionExpenseDetails_CommitteeAccount:
+		m.SettlementType = model.NullSubmissionSettlementType{
+			SubmissionSettlementType: model.SubmissionSettlementTypeCommitteeAccount,
+			Valid:                    true,
+		}
+		ca := s.CommitteeAccount
+		if ca.GetPaymentAccount() != "" {
+			uid, err := parseCommitteePaymentAccountID(ca.GetPaymentAccount())
+			if err != nil {
+				return &ServerError{Err: err, Status: statusInvalidPaymentAccountName}
+			}
+			m.CommitteePaymentAccountID = uuid.NullUUID{Valid: true, UUID: uid}
+		}
+		m.CommitteeAccountPaidDate = protoToDate(ca.GetPaidDate())
+		m.CommitteeAccountPaymentReference = strPtr(ca.GetPaymentReference())
+	case *gen.SubmissionDirectionExpenseDetails_PaymentRequest:
+		m.SettlementType = model.NullSubmissionSettlementType{
+			SubmissionSettlementType: model.SubmissionSettlementTypePaymentRequest,
+			Valid:                    true,
+		}
+		ba := s.PaymentRequest.GetBankAccount()
+		m.PaymentRequestBankAccountHolder = strPtr(ba.GetAccountHolder())
+		m.PaymentRequestBankIban = strPtr(ba.GetIban())
+		m.PaymentRequestBankBic = strPtr(ba.GetBic())
+		m.PaymentRequestBankAccountNumber = strPtr(ba.GetAccountNumber())
+	default:
+		// The settlement is not picked yet (drafts).
+		m.SettlementType = model.NullSubmissionSettlementType{}
+	}
+	return nil
+}
+
+// applySubmissionIncomeExpenseType writes the income/expense submission type onto m.
+func applySubmissionIncomeExpenseType(m *model.Submission, t *gen.SubmissionTypeIncomeExpenseDetails) error {
+	m.Scope = submissionScopeFromProto(t.GetScope())
+
+	switch t.GetDirection().(type) {
+	case *gen.SubmissionTypeIncomeExpenseDetails_Income:
+		applySubmissionIncomeSettlement(m)
+		return nil
+	case *gen.SubmissionTypeIncomeExpenseDetails_Expense:
+		return applySubmissionExpenseSettlement(m, t.GetExpense())
+	default:
+		return &ServerError{Status: statusSubmissionDirectionRequired}
+	}
+}
+
+// applySubmissionType writes the full type oneof of p onto m.
+func applySubmissionType(m *model.Submission, p *gen.Submission) error {
+	switch t := p.GetType().(type) {
+	case *gen.Submission_Misc:
+		applySubmissionMiscType(m)
+		return nil
+	case *gen.Submission_IncomeExpense:
+		return applySubmissionIncomeExpenseType(m, t.IncomeExpense)
+	default:
+		return &ServerError{Status: statusSubmissionTypeRequired}
+	}
+}
+
+// normalizeSubmissionDetails validates and normalizes the type, direction and
+// settlement details of m against the committee's payment accounts. For
+// committee account settlements the account label snapshot is resolved here.
+func normalizeSubmissionDetails(ctx context.Context, committeeRepo *repository.CommitteeRepository, m *model.Submission) error {
+	switch m.Type {
+	case model.SubmissionTypeMisc:
+		// Misc document collections carry neither a direction nor a scope
+		// nor a settlement.
+		m.Direction = model.NullSubmissionDirection{}
+		m.SettlementType = model.NullSubmissionSettlementType{}
+		return nil
+	case model.SubmissionTypeIncomeExpense:
+		// handled below
+	default:
+		return &ServerError{Status: statusSubmissionTypeRequired}
+	}
+
+	if !m.Direction.Valid {
+		return &ServerError{Status: statusSubmissionDirectionRequired}
+	}
+	switch m.Direction.SubmissionDirection {
+	case model.SubmissionDirectionIncome:
+		// Income submissions are pure documentation; no settlement applies.
+		m.SettlementType = model.NullSubmissionSettlementType{}
+		return nil
+	case model.SubmissionDirectionExpense:
+		// handled below
+	default:
+		return &ServerError{Status: statusSubmissionDirectionRequired}
+	}
+
+	// Only a concrete settlement satisfies an expense submission; an unset
+	// settlement means the submitter has not picked one yet.
+	if !m.SettlementType.Valid {
 		return &ServerError{Status: statusSubmissionSettlementRequired}
 	}
 
-	switch m.Settlement {
-	case model.SettlementPerson:
-		if m.PayoutMethod == model.PayoutMethodUnspecified {
+	switch m.SettlementType.SubmissionSettlementType {
+	case model.SubmissionSettlementTypePerson:
+		if !m.PersonPayoutMethod.Valid {
 			return &ServerError{Status: statusSubmissionPersonDetailsRequired}
 		}
-		if m.PayoutMethod == model.PayoutMethodBankTransfer && (m.BankAccountHolder == "" || m.BankIban == "") {
+		if m.PersonPayoutMethod.SubmissionPersonPayoutMethod == model.SubmissionPersonPayoutMethodBankTransfer && (m.PersonBankAccountHolder == nil || m.PersonBankIban == nil) {
 			return &ServerError{Status: statusSubmissionPersonDetailsRequired}
 		}
-	case model.SettlementCommitteeAccount:
-		if m.PaymentAccountUID == (uuid.NullUUID{}) {
+	case model.SubmissionSettlementTypeCommitteeAccount:
+		if !m.CommitteePaymentAccountID.Valid {
 			return &ServerError{Status: statusSubmissionPaymentAccountRequired}
 		}
-		if m.AccountPaidDate == nil {
+		if m.CommitteeAccountPaidDate == nil {
 			return &ServerError{Status: statusSubmissionPaidDateRequired}
 		}
 		committee, err := committeeRepo.GetByID(ctx, m.CommitteeID)
@@ -261,31 +537,25 @@ func normalizeSubmissionDetails(ctx context.Context, committeeRepo *repository.C
 			return &ServerError{Err: err, Status: statusSubmissionPaymentAccountInvalid}
 		}
 		for _, pa := range committee.PaymentAccounts {
-			if pa.ID == m.PaymentAccountUID.UUID {
-				m.PaymentAccountLabel = pa.DisplayLabel
+			if pa.ID == m.CommitteePaymentAccountID.UUID {
+				m.CommitteePaymentAccountLabel = &pa.DisplayLabel
 				return nil
 			}
 		}
 		return &ServerError{Status: statusSubmissionPaymentAccountInvalid}
-	case model.SettlementPaymentRequest:
-		if m.VendorName == "" || m.VendorIban == "" || m.VendorTiming == model.PaymentRequestTimingUnspecified {
+	case model.SubmissionSettlementTypePaymentRequest:
+		if m.PaymentRequestBankAccountHolder == nil || m.PaymentRequestBankIban == nil {
 			return &ServerError{Status: statusSubmissionVendorDetailsRequired}
 		}
+	default:
+		return &ServerError{Status: statusSubmissionSettlementRequired}
 	}
 	return nil
 }
 
-// computeSubmissionEtag derives an opaque etag from the submission's identity
-// and last modification time.
-func computeSubmissionEtag(m *model.Submission) string {
-	h := fnv.New64a()
-	fmt.Fprintf(h, "%s|%s", m.ID.String(), m.UpdatedAt.UTC().Format(time.RFC3339Nano))
-	return strconv.FormatUint(h.Sum64(), 16)
-}
-
 // loadSubmission resolves a submission resource name into the model,
 // verifying it exists (and is not purged).
-func (s *submissionServiceServer) loadSubmission(ctx context.Context, n gen.SubmissionResourceName) (*model.Submission, uuid.UUID, error) {
+func (s *submissionServiceServer) loadSubmission(ctx context.Context, repo *repository.SubmissionRepository, n gen.SubmissionResourceName) (*model.Submission, uuid.UUID, error) {
 	id, err := uuid.Parse(n.Submission)
 	if err != nil {
 		return nil, uuid.Nil, &ServerError{Err: err, Status: statusInvalidSubmissionName}
@@ -294,7 +564,7 @@ func (s *submissionServiceServer) loadSubmission(ctx context.Context, n gen.Subm
 	if err != nil {
 		return nil, uuid.Nil, &ServerError{Err: err, Status: statusInvalidSubmissionName}
 	}
-	m, err := s.repo.GetByID(ctx, id)
+	m, err := repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
@@ -303,6 +573,28 @@ func (s *submissionServiceServer) loadSubmission(ctx context.Context, n gen.Subm
 
 // ── proto mapping ────────────────────────────────────────────────────────────
 
+// bankAccountToProto maps stored bank details to the proto BankAccount, or
+// nil when every field is absent.
+func bankAccountToProto(holder, iban, bic, accountNumber *string) *gen.BankAccount {
+	if holder == nil && iban == nil && bic == nil && accountNumber == nil {
+		return nil
+	}
+	return &gen.BankAccount{
+		AccountHolder: derefStr(holder),
+		Iban:          derefStr(iban),
+		Bic:           derefStr(bic),
+		AccountNumber: derefStr(accountNumber),
+	}
+}
+
+// derefStr returns the pointed-at string or "" for nil.
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func submissionToProto(n gen.SubmissionResourceName, m *model.Submission) *gen.Submission {
 	p := &gen.Submission{
 		Name:          n.String(),
@@ -310,13 +602,9 @@ func submissionToProto(n gen.SubmissionResourceName, m *model.Submission) *gen.S
 		PublicId:      m.PublicID,
 		CreatedByUser: "users/" + m.CreatedByUserID.String(),
 		Committee:     (&gen.CommitteeResourceName{Organization: n.Organization, Committee: m.CommitteeID.String()}).String(),
-		Direction:     gen.Direction(m.Direction),
-		Settlement:    gen.Settlement(m.Settlement),
-		Scope:         gen.Scope(m.Scope),
-		Status:        gen.SubmissionStatus(m.Status),
+		Status:        submissionStatusToProto(m.Status),
 		Notice:        m.Notice,
 		TotalAmount:   &gen.Decimal{Value: m.TotalAmount.String()},
-		Etag:          computeSubmissionEtag(m),
 		CreateTime:    timestamppb.New(m.CreatedAt),
 		UpdateTime:    timestamppb.New(m.UpdatedAt),
 	}
@@ -327,37 +615,74 @@ func submissionToProto(n gen.SubmissionResourceName, m *model.Submission) *gen.S
 		p.PurgeTime = timestamppb.New(*m.PurgeTime)
 	}
 
-	switch m.Settlement {
-	case model.SettlementPerson:
-		details := &gen.PersonDetails{
-			PayoutMethod: gen.PayoutMethod(m.PayoutMethod),
-		}
-		if m.BankAccountHolder != "" || m.BankIban != "" {
-			details.BankDetails = &gen.BankDetails{
-				AccountHolder: m.BankAccountHolder,
-				Iban:          m.BankIban,
-				Bic:           m.BankBic,
-			}
-		}
-		p.SettlementDetails = &gen.Submission_PersonDetails{PersonDetails: details}
-	case model.SettlementCommitteeAccount:
-		details := &gen.CommitteeAccountDetails{
-			PaymentAccountUid:   m.PaymentAccountUID.UUID.String(),
-			PaymentAccountLabel: m.PaymentAccountLabel,
-			PaymentReference:    m.AccountPaymentReference,
-		}
-		if m.AccountPaidDate != nil {
-			details.PaidDate = dateToProto(m.AccountPaidDate)
-		}
-		p.SettlementDetails = &gen.Submission_CommitteeAccountDetails{CommitteeAccountDetails: details}
-	case model.SettlementPaymentRequest:
-		p.SettlementDetails = &gen.Submission_PaymentRequestDetails{PaymentRequestDetails: &gen.PaymentRequestDetails{
-			VendorName: m.VendorName,
-			VendorIban: m.VendorIban,
-			VendorBic:  m.VendorBic,
-			Timing:     gen.PaymentRequestTiming(m.VendorTiming),
-		}}
+	if m.Type == model.SubmissionTypeMisc {
+		p.Type = &gen.Submission_Misc{Misc: &gen.SubmissionTypeMiscDetails{}}
+		p.Etag = etag.Generate(p.String(), false)
+		return p
 	}
+
+	t := &gen.SubmissionTypeIncomeExpenseDetails{
+		Scope: submissionScopeToProto(m.Scope),
+	}
+	if m.Direction.Valid && m.Direction.SubmissionDirection == model.SubmissionDirectionExpense {
+		expense := &gen.SubmissionDirectionExpenseDetails{}
+		t.Direction = &gen.SubmissionTypeIncomeExpenseDetails_Expense{Expense: expense}
+
+		// An unset settlement must not fall through to the Person case (the
+		// enum's zero value), so unset maps to an out-of-range sentinel and
+		// lands in the default branch below.
+		settlement := model.SubmissionSettlementType(-1)
+		if m.SettlementType.Valid {
+			settlement = m.SettlementType.SubmissionSettlementType
+		}
+		switch settlement {
+		case model.SubmissionSettlementTypePerson:
+			person := &gen.SubmissionSettlementPerson{}
+			if m.PersonPayoutMethod.Valid {
+				if m.PersonPayoutMethod.SubmissionPersonPayoutMethod == model.SubmissionPersonPayoutMethodCash {
+					person.PayoutMethod = &gen.SubmissionSettlementPerson_Cash{Cash: &gen.SubmissionPayoutMethodCash{}}
+				} else {
+					person.PayoutMethod = &gen.SubmissionSettlementPerson_BankTransfer{
+						BankTransfer: &gen.SubmissionPayoutMethodBankTransfer{
+							BankAccount: bankAccountToProto(
+								m.PersonBankAccountHolder, m.PersonBankIban, m.PersonBankBic, m.PersonBankAccountNumber,
+							),
+						},
+					}
+				}
+			}
+			expense.Settlement = &gen.SubmissionDirectionExpenseDetails_Person{Person: person}
+		case model.SubmissionSettlementTypeCommitteeAccount:
+			ca := &gen.SubmissionSettlementCommitteeAccount{
+				PaymentReference: derefStr(m.CommitteeAccountPaymentReference),
+			}
+			if m.CommitteePaymentAccountID.Valid {
+				ca.PaymentAccount = (&gen.CommitteePaymentAccountResourceName{
+					Organization:   n.Organization,
+					Committee:      m.CommitteeID.String(),
+					PaymentAccount: m.CommitteePaymentAccountID.UUID.String(),
+				}).String()
+			}
+			if m.CommitteeAccountPaidDate != nil {
+				ca.PaidDate = dateToProto(m.CommitteeAccountPaidDate)
+			}
+			expense.Settlement = &gen.SubmissionDirectionExpenseDetails_CommitteeAccount{CommitteeAccount: ca}
+		case model.SubmissionSettlementTypePaymentRequest:
+			expense.Settlement = &gen.SubmissionDirectionExpenseDetails_PaymentRequest{
+				PaymentRequest: &gen.SubmissionSettlementPaymentRequest{
+					BankAccount: bankAccountToProto(
+						m.PaymentRequestBankAccountHolder, m.PaymentRequestBankIban, m.PaymentRequestBankBic, m.PaymentRequestBankAccountNumber,
+					),
+				},
+			}
+		default:
+			// The settlement is not picked yet (drafts).
+		}
+	} else {
+		t.Direction = &gen.SubmissionTypeIncomeExpenseDetails_Income{Income: &gen.SubmissionDirectionIncomeDetails{}}
+	}
+	p.Type = &gen.Submission_IncomeExpense{IncomeExpense: t}
+	p.Etag = etag.Generate(p.String(), false)
 	return p
 }
 
@@ -386,19 +711,24 @@ func (s *submissionServiceServer) GetSubmission(ctx context.Context, req *gen.Ge
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionName}
 	}
 
-	m, _, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+
+		m, _, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if err := checkSubmissionRead(ctx, s.enforcer, n.Organization, m); err != nil {
-		return nil, err
-	}
+		if err := checkSubmissionRead(ctx, s.enforcer, n.Organization, m); err != nil {
+			return nil, err
+		}
 
-	return submissionToProto(n, m), nil
+		return submissionToProto(n, m), nil
+	})
 }
 
 func (s *submissionServiceServer) ListSubmissions(ctx context.Context, req *gen.ListSubmissionsRequest) (*gen.ListSubmissionsResponse, error) {
@@ -446,15 +776,30 @@ func (s *submissionServiceServer) ListSubmissions(ctx context.Context, req *gen.
 	}
 
 	if filters.Direction != nil {
-		d := model.Direction(gen.Direction_value[*filters.Direction])
-		params.Direction = &d
+		// direction="MISC" selects misc-type submissions, which carry no
+		// direction of their own.
+		if t, err := parseSubmissionTypeFilter(*filters.Direction); err == nil {
+			params.Type = &t
+		} else {
+			d, err := parseSubmissionDirectionFilter(*filters.Direction)
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidFilter}
+			}
+			params.Direction = &d
+		}
 	}
 	if filters.Settlement != nil {
-		st := model.Settlement(gen.Settlement_value[*filters.Settlement])
-		params.Settlement = &st
+		st, err := parseSubmissionSettlementFilter(*filters.Settlement)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidFilter}
+		}
+		params.SettlementType = &st
 	}
 	if filters.Status != nil {
-		st := model.SubmissionStatus(gen.SubmissionStatus_value[*filters.Status])
+		st, err := parseSubmissionStatusFilter(*filters.Status)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidFilter}
+		}
 		params.Status = &st
 	}
 	// Drafts are only listed when explicitly filtered by status.
@@ -487,24 +832,29 @@ func (s *submissionServiceServer) ListSubmissions(ctx context.Context, req *gen.
 		params.CreatedByUserID = &uid
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListSubmissions}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListSubmissionsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
 
-	resp := &gen.ListSubmissionsResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.Submissions = append(resp.Submissions, submissionToProto(
-			gen.SubmissionResourceName{Organization: pn.Organization, Submission: m.ID.String()}, m,
-		))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListSubmissions}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListSubmissionsResponse{TotalSize: total}
+		for _, m := range ms {
+			resp.Submissions = append(resp.Submissions, submissionToProto(
+				gen.SubmissionResourceName{Organization: pn.Organization, Submission: m.ID.String()}, m,
+			))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *submissionServiceServer) CreateSubmission(ctx context.Context, req *gen.CreateSubmissionRequest) (*gen.Submission, error) {
@@ -526,69 +876,118 @@ func (s *submissionServiceServer) CreateSubmission(ctx context.Context, req *gen
 		return nil, &ServerError{Err: err, Status: statusInvalidParent}
 	}
 
-	committeeID, err := parseCommitteeUID(req.Submission.Committee)
+	committeeID, err := parseCommitteeID(req.Submission.GetCommittee())
 	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusInvalidParent}
+		return nil, &ServerError{Err: err, Status: statusInvalidCommitteeName}
 	}
-	committee, err := s.committeeRepo.GetByID(ctx, committeeID)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+
+	if req.Submission.GetType() == nil {
+		return nil, &ServerError{Status: statusSubmissionTypeRequired}
+	}
+
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		committeeRepo := f.Committee()
+		settingsRepo := f.OrganizationSubmissionSettings()
+		audits := newAuditWriter(tx)
+
+		committee, err := committeeRepo.GetByID(ctx, committeeID)
+		if err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedCreateSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedCreateSubmission}
-	}
 
-	if req.Submission.Direction == gen.Direction_DIRECTION_UNSPECIFIED {
-		return nil, &ServerError{Status: statusSubmissionDirectionRequired}
-	}
+		user, _ := authz.UserIDFromContext(ctx)
+		createdBy, err := uuid.Parse(user)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusUnauthenticated}
+		}
 
-	user, _ := authz.UserIDFromContext(ctx)
-	createdBy, err := uuid.Parse(user)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusUnauthenticated}
-	}
+		// Drafts may be incomplete: the type structure (direction, settlement,
+		// settlement details) is stored as provided and validated on submit.
+		var t model.Submission
+		if err := applySubmissionType(&t, req.Submission); err != nil {
+			return nil, err
+		}
+		if t.Type == model.SubmissionTypeIncomeExpense && !committee.AllowScopeSelection {
+			t.Scope = submissionScopeFromProto(gen.SubmissionScope_SUBMISSION_SCOPE_NONPROFIT)
+		}
 
-	scope := model.Scope(req.Submission.Scope)
-	if !committee.AllowScopeSelection {
-		scope = model.ScopeNonprofit
-	}
-	if scope == model.ScopeUnspecified {
-		scope = model.ScopeNonprofit
-	}
+		if err := s.checkSettlementEnabled(ctx, settingsRepo, orgID, t.SettlementType); err != nil {
+			return nil, err
+		}
 
-	direction := model.Direction(req.Submission.Direction)
-	settlement := model.Settlement(req.Submission.Settlement)
-	if direction == model.DirectionIncome {
-		settlement = model.SettlementUnspecified
-	}
+		m, err := repo.Create(ctx, repository.CreateSubmissionParams{
+			OrganizationID:  orgID,
+			CreatedByUserID: createdBy,
+			CommitteeID:     committeeID,
+			Type:            t.Type,
+			Direction:       t.Direction,
+			SettlementType:  t.SettlementType,
+			Scope:           t.Scope,
+			Notice:          req.Submission.GetNotice(),
 
-	if err := s.checkSettlementEnabled(ctx, orgID, settlement); err != nil {
-		return nil, err
-	}
+			PersonPayoutMethod:               t.PersonPayoutMethod,
+			PersonBankAccountHolder:          t.PersonBankAccountHolder,
+			PersonBankIban:                   t.PersonBankIban,
+			PersonBankBic:                    t.PersonBankBic,
+			PersonBankAccountNumber:          t.PersonBankAccountNumber,
+			CommitteePaymentAccountID:        t.CommitteePaymentAccountID,
+			CommitteePaymentAccountLabel:     t.CommitteePaymentAccountLabel,
+			CommitteeAccountPaidDate:         t.CommitteeAccountPaidDate,
+			CommitteeAccountPaymentReference: t.CommitteeAccountPaymentReference,
+			PaymentRequestBankAccountHolder:  t.PaymentRequestBankAccountHolder,
+			PaymentRequestBankIban:           t.PaymentRequestBankIban,
+			PaymentRequestBankBic:            t.PaymentRequestBankBic,
+			PaymentRequestBankAccountNumber:  t.PaymentRequestBankAccountNumber,
+		})
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionAlreadyExists}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedCreateSubmission}
+		}
 
-	m, err := s.repo.Create(ctx, repository.CreateSubmissionParams{
-		OrganizationID:  orgID,
-		CreatedByUserID: createdBy,
-		CommitteeID:     committeeID,
-		Direction:       direction,
-		Settlement:      settlement,
-		Scope:           scope,
-		Notice:          req.Submission.Notice,
+		if err := audits.Record(ctx, orgAuditSubject(
+			(&gen.SubmissionResourceName{Organization: pn.Organization, Submission: m.ID.String()}).String(), orgID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(gen.SubmissionResourceName{Organization: pn.Organization, Submission: m.ID.String()}, m), nil
 	})
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionAlreadyExists}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedCreateSubmission}
-	}
+}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		(&gen.SubmissionResourceName{Organization: pn.Organization, Submission: m.ID.String()}).String(), orgID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+// updateMaskPaths lists the update mask paths understood by UpdateSubmission.
+// The nested paths name the type oneof branches, so a path both selects the
+// fields to update and fixes the targeted type/direction/settlement.
+var updateMaskPaths = []string{
+	"committee",
+	"notice",
+	"type",
+	"misc",
+	"income_expense",
+	"income_expense.scope",
+	"income_expense.income",
+	"income_expense.expense",
+	"income_expense.expense.person",
+	"income_expense.expense.committee_account",
+	"income_expense.expense.payment_request",
+}
 
-	return submissionToProto(gen.SubmissionResourceName{Organization: pn.Organization, Submission: m.ID.String()}, m), nil
+// submissionUpdateMask classifies update mask paths for submissions: mutable
+// paths drive the update, other known field paths (e.g. the output-only
+// fields of a full-resource body) are ignored, unknown paths are rejected.
+var submissionUpdateMask = newResourceMask(&gen.Submission{}, updateMaskPaths)
+
+// scopeChanged reports whether an existing scope was replaced by a different
+// one. Giving a scope to a submission that had none (or dropping it by
+// switching the type) is not a scope change.
+func scopeChanged(before, after model.SubmissionScope) bool {
+	return before != model.SubmissionScopeNone && after != model.SubmissionScopeNone && before != after
 }
 
 func (s *submissionServiceServer) UpdateSubmission(ctx context.Context, req *gen.UpdateSubmissionRequest) (*gen.Submission, error) {
@@ -601,188 +1000,216 @@ func (s *submissionServiceServer) UpdateSubmission(ctx context.Context, req *gen
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionName}
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		committeeRepo := f.Committee()
+		settingsRepo := f.OrganizationSubmissionSettings()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	fullUpdate := hasFullAction(ctx, s.enforcer, n.Organization, authz.ActionUpdate)
-	if !fullUpdate {
-		if err := checkSubmissionWrite(ctx, s.enforcer, n.Organization, m); err != nil {
-			return nil, err
+		fullUpdate := hasFullAction(ctx, s.enforcer, n.Organization, authz.ActionUpdate)
+		if !fullUpdate {
+			if err := checkSubmissionWrite(ctx, s.enforcer, n.Organization, m); err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	if m.DeletedAt.Valid {
-		return nil, &ServerError{Status: statusSubmissionDeleted}
-	}
-	switch m.Status {
-	case model.SubmissionStatusDraft, model.SubmissionStatusPending, model.SubmissionStatusFurtherInfoRequired:
-	default:
-		return nil, &ServerError{Status: statusSubmissionNotEditable}
-	}
-
-	if req.Submission.Etag != "" && req.Submission.Etag != computeSubmissionEtag(m) {
-		return nil, &ServerError{Status: statusEtagMismatch}
-	}
-
-	mask := req.UpdateMask.GetPaths()
-	has := func(field string) bool { return len(mask) == 0 || slices.Contains(mask, field) }
-
-	// Scope changes after creation require the treasury update permission.
-	if has("scope") && gen.Scope(m.Scope) != req.Submission.Scope && !fullUpdate {
-		return nil, &ServerError{Status: statusSubmissionScopeLocked}
-	}
-
-	params := repository.UpdateSubmissionParams{}
-	if has("committee") {
-		if cid, err := parseCommitteeUID(req.Submission.Committee); err == nil && cid != m.CommitteeID {
-			params.CommitteeID = optional.From(cid)
+		if m.DeletedAt.Valid {
+			return nil, &ServerError{Status: statusSubmissionDeleted}
 		}
-	}
-	if has("direction") {
-		params.Direction = optional.From(model.Direction(req.Submission.Direction))
-	}
-	if has("settlement") {
-		params.Settlement = optional.From(model.Settlement(req.Submission.Settlement))
-	}
-	if has("scope") {
-		params.Scope = optional.From(model.Scope(req.Submission.Scope))
-	}
-	if has("notice") {
-		params.Notice = optional.From(req.Submission.Notice)
-	}
-	if has("person_details") && req.Submission.GetPersonDetails() != nil {
-		details := req.Submission.GetPersonDetails()
-		params.PayoutMethod = optional.From(model.PayoutMethod(details.PayoutMethod))
-		if details.BankDetails != nil {
-			params.BankAccountHolder = optional.From(details.BankDetails.AccountHolder)
-			params.BankIban = optional.From(details.BankDetails.Iban)
-			params.BankBic = optional.From(details.BankDetails.Bic)
+		switch m.Status {
+		case model.SubmissionStatusDraft, model.SubmissionStatusPending, model.SubmissionStatusFurtherInfoRequired:
+		default:
+			return nil, &ServerError{Status: statusSubmissionNotEditable}
 		}
-	}
-	if has("committee_account_details") && req.Submission.GetCommitteeAccountDetails() != nil {
-		details := req.Submission.GetCommitteeAccountDetails()
-		if uid, err := uuid.Parse(details.PaymentAccountUid); err == nil {
-			params.PaymentAccountUID = optional.From(uuid.NullUUID{Valid: true, UUID: uid})
-		}
-		if details.PaidDate != nil {
-			params.AccountPaidDate = optional.From(protoToDate(details.PaidDate))
-		}
-		params.AccountPaymentReference = optional.From(details.PaymentReference)
-	}
-	if has("payment_request_details") && req.Submission.GetPaymentRequestDetails() != nil {
-		details := req.Submission.GetPaymentRequestDetails()
-		params.VendorName = optional.From(details.VendorName)
-		params.VendorIban = optional.From(details.VendorIban)
-		params.VendorBic = optional.From(details.VendorBic)
-		params.VendorTiming = optional.From(model.PaymentRequestTiming(details.Timing))
-	}
 
-	target := *m
-	applySubmissionParams(&target, params)
-
-	committee, err := s.committeeRepo.GetByID(ctx, target.CommitteeID)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+		if req.Submission.Etag != "" && req.Submission.Etag != submissionToProto(n, m).GetEtag() {
+			return nil, &ServerError{Status: statusEtagMismatch}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
-	}
-	if !committee.AllowScopeSelection {
-		target.Scope = model.ScopeNonprofit
-	}
-	if err := normalizeSubmissionDetails(ctx, s.committeeRepo, &target); err != nil {
-		return nil, err
-	}
-	if err := s.checkSettlementEnabled(ctx, orgID, target.Settlement); err != nil {
-		return nil, err
-	}
 
-	if err := s.repo.Update(ctx, m.ID, params); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+		mask, err := submissionUpdateMask.resolve(req.UpdateMask.GetPaths())
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidUpdateMask}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
-	}
+		// An empty mask replaces every mutable field (AIP-134).
+		has := func(field string) bool { return len(mask) == 0 || slices.Contains(mask, field) }
 
-	// Persist the committee account label snapshot.
-	if target.Settlement == model.SettlementCommitteeAccount && target.PaymentAccountLabel != m.PaymentAccountLabel {
-		if err := s.repo.Update(ctx, m.ID, repository.UpdateSubmissionParams{
-			PaymentAccountLabel: optional.From(target.PaymentAccountLabel),
-		}); err != nil {
+		target := *m
+		ie := req.Submission.GetIncomeExpense()
+
+		if has("committee") {
+			cid, err := parseCommitteeID(req.Submission.GetCommittee())
+			if err != nil {
+				return nil, &ServerError{Err: err, Status: statusInvalidCommitteeName}
+			}
+			target.CommitteeID = cid
+		}
+		if has("notice") {
+			target.Notice = req.Submission.GetNotice()
+		}
+
+		// The type structure is applied according to the most specific masked
+		// path; with an empty mask the full type from the request replaces the
+		// stored one.
+		switch {
+		case len(mask) == 0 || slices.Contains(mask, "type"):
+			if err := applySubmissionType(&target, req.Submission); err != nil {
+				return nil, err
+			}
+		case slices.Contains(mask, "misc"):
+			applySubmissionMiscType(&target)
+		case slices.Contains(mask, "income_expense"):
+			if ie == nil {
+				return nil, &ServerError{Status: statusSubmissionTypeRequired}
+			}
+			if err := applySubmissionIncomeExpenseType(&target, ie); err != nil {
+				return nil, err
+			}
+		case slices.Contains(mask, "income_expense.income"):
+			applySubmissionIncomeSettlement(&target)
+		case slices.Contains(mask, "income_expense.expense"),
+			slices.Contains(mask, "income_expense.expense.person"),
+			slices.Contains(mask, "income_expense.expense.committee_account"),
+			slices.Contains(mask, "income_expense.expense.payment_request"):
+			if err := applySubmissionExpenseSettlement(&target, ie.GetExpense()); err != nil {
+				return nil, err
+			}
+		}
+		if slices.Contains(mask, "income_expense.scope") {
+			if ie == nil {
+				return nil, &ServerError{Status: statusSubmissionTypeRequired}
+			}
+			target.Scope = submissionScopeFromProto(ie.GetScope())
+		}
+
+		// Changing the scope of an existing submission requires the treasury
+		// update permission (submitters cannot change the scope after
+		// creation).
+		if !fullUpdate && scopeChanged(m.Scope, target.Scope) {
+			return nil, &ServerError{Status: statusSubmissionScopeLocked}
+		}
+
+		committee, err := committeeRepo.GetByID(ctx, target.CommitteeID)
+		if err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+			}
 			return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
 		}
-	}
+		if target.Type == model.SubmissionTypeIncomeExpense && !committee.AllowScopeSelection {
+			target.Scope = submissionScopeFromProto(gen.SubmissionScope_SUBMISSION_SCOPE_NONPROFIT)
+		}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		if m.Status != model.SubmissionStatusDraft {
+			// Submitted submissions must stay complete after the update; drafts
+			// may keep unset settlements and details until :submit.
+			if err := normalizeSubmissionDetails(ctx, committeeRepo, &target); err != nil {
+				return nil, err
+			}
+			if err := s.checkSettlementEnabled(ctx, settingsRepo, orgID, target.SettlementType); err != nil {
+				return nil, err
+			}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		params := diffSubmissionParams(m, &target)
+		if err := repo.Update(ctx, m.ID, params); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateSubmission}
+		}
 
-	return submissionToProto(n, after), nil
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
-// applySubmissionParams mirrors the optional update params onto a model copy
-// so validation sees the post-update state.
-func applySubmissionParams(m *model.Submission, params repository.UpdateSubmissionParams) {
-	if params.CommitteeID.IsSet {
-		m.CommitteeID = params.CommitteeID.Value
+// diffSubmissionParams returns update params for every mutable column whose
+// value differs between before and after. Nullable columns are expressed with
+// optional pointer values, so a cleared switch stores NULL.
+func diffSubmissionParams(before, after *model.Submission) repository.UpdateSubmissionParams {
+	var p repository.UpdateSubmissionParams
+
+	dateEq := func(a, b *time.Time) bool {
+		return (a == nil) == (b == nil) && (a == nil || a.Equal(*b))
 	}
-	if params.Direction.IsSet {
-		m.Direction = params.Direction.Value
+
+	if before.CommitteeID != after.CommitteeID {
+		p.CommitteeID = optional.From(after.CommitteeID)
 	}
-	if params.Settlement.IsSet {
-		m.Settlement = params.Settlement.Value
+	if before.Type != after.Type {
+		p.Type = optional.From(after.Type)
 	}
-	if params.Scope.IsSet {
-		m.Scope = params.Scope.Value
+	if before.Direction != after.Direction {
+		p.Direction = optional.From(after.Direction)
 	}
-	if params.Notice.IsSet {
-		m.Notice = params.Notice.Value
+	if before.SettlementType != after.SettlementType {
+		p.SettlementType = optional.From(after.SettlementType)
 	}
-	if params.PayoutMethod.IsSet {
-		m.PayoutMethod = params.PayoutMethod.Value
+	if before.Scope != after.Scope {
+		p.Scope = optional.From(after.Scope)
 	}
-	if params.BankAccountHolder.IsSet {
-		m.BankAccountHolder = params.BankAccountHolder.Value
+	if before.Notice != after.Notice {
+		p.Notice = optional.From(after.Notice)
 	}
-	if params.BankIban.IsSet {
-		m.BankIban = params.BankIban.Value
+	if before.PersonPayoutMethod != after.PersonPayoutMethod {
+		p.PersonPayoutMethod = optional.From(after.PersonPayoutMethod)
 	}
-	if params.BankBic.IsSet {
-		m.BankBic = params.BankBic.Value
+	if !ptrEq(before.PersonBankAccountHolder, after.PersonBankAccountHolder) {
+		p.PersonBankAccountHolder = optional.From(after.PersonBankAccountHolder)
 	}
-	if params.PaymentAccountUID.IsSet {
-		m.PaymentAccountUID = params.PaymentAccountUID.Value
+	if !ptrEq(before.PersonBankIban, after.PersonBankIban) {
+		p.PersonBankIban = optional.From(after.PersonBankIban)
 	}
-	if params.AccountPaidDate.IsSet {
-		m.AccountPaidDate = params.AccountPaidDate.Value
+	if !ptrEq(before.PersonBankBic, after.PersonBankBic) {
+		p.PersonBankBic = optional.From(after.PersonBankBic)
 	}
-	if params.AccountPaymentReference.IsSet {
-		m.AccountPaymentReference = params.AccountPaymentReference.Value
+	if !ptrEq(before.PersonBankAccountNumber, after.PersonBankAccountNumber) {
+		p.PersonBankAccountNumber = optional.From(after.PersonBankAccountNumber)
 	}
-	if params.VendorName.IsSet {
-		m.VendorName = params.VendorName.Value
+	if before.CommitteePaymentAccountID != after.CommitteePaymentAccountID {
+		p.CommitteePaymentAccountID = optional.From(after.CommitteePaymentAccountID)
 	}
-	if params.VendorIban.IsSet {
-		m.VendorIban = params.VendorIban.Value
+	if !ptrEq(before.CommitteePaymentAccountLabel, after.CommitteePaymentAccountLabel) {
+		p.CommitteePaymentAccountLabel = optional.From(after.CommitteePaymentAccountLabel)
 	}
-	if params.VendorBic.IsSet {
-		m.VendorBic = params.VendorBic.Value
+	if !dateEq(before.CommitteeAccountPaidDate, after.CommitteeAccountPaidDate) {
+		p.CommitteeAccountPaidDate = optional.From(after.CommitteeAccountPaidDate)
 	}
-	if params.VendorTiming.IsSet {
-		m.VendorTiming = params.VendorTiming.Value
+	if !ptrEq(before.CommitteeAccountPaymentReference, after.CommitteeAccountPaymentReference) {
+		p.CommitteeAccountPaymentReference = optional.From(after.CommitteeAccountPaymentReference)
 	}
+	if !ptrEq(before.PaymentRequestBankAccountHolder, after.PaymentRequestBankAccountHolder) {
+		p.PaymentRequestBankAccountHolder = optional.From(after.PaymentRequestBankAccountHolder)
+	}
+	if !ptrEq(before.PaymentRequestBankIban, after.PaymentRequestBankIban) {
+		p.PaymentRequestBankIban = optional.From(after.PaymentRequestBankIban)
+	}
+	if !ptrEq(before.PaymentRequestBankBic, after.PaymentRequestBankBic) {
+		p.PaymentRequestBankBic = optional.From(after.PaymentRequestBankBic)
+	}
+	if !ptrEq(before.PaymentRequestBankAccountNumber, after.PaymentRequestBankAccountNumber) {
+		p.PaymentRequestBankAccountNumber = optional.From(after.PaymentRequestBankAccountNumber)
+	}
+	return p
 }
 
 func (s *submissionServiceServer) DeleteSubmission(ctx context.Context, req *gen.DeleteSubmissionRequest) (*gen.Submission, error) {
@@ -791,35 +1218,41 @@ func (s *submissionServiceServer) DeleteSubmission(ctx context.Context, req *gen
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionName}
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if err := checkSubmissionDelete(ctx, s.enforcer, n.Organization, m); err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.SoftDelete(ctx, m.ID, submissionPurgeRetention); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+		if err := checkSubmissionDelete(ctx, s.enforcer, n.Organization, m); err != nil {
+			return nil, err
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteSubmission}
-	}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		if err := repo.SoftDelete(ctx, m.ID, submissionPurgeRetention); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteSubmission}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), AuditActionDelete, m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
 
-	return submissionToProto(n, after), nil
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), AuditActionDelete, m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
 func (s *submissionServiceServer) UndeleteSubmission(ctx context.Context, req *gen.UndeleteSubmissionRequest) (*gen.Submission, error) {
@@ -832,31 +1265,37 @@ func (s *submissionServiceServer) UndeleteSubmission(ctx context.Context, req *g
 		return nil, authError(err)
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if err := s.repo.Undelete(ctx, m.ID); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+		if err := repo.Undelete(ctx, m.ID); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedUndeleteSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedUndeleteSubmission}
-	}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "undelete", after, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "undelete", after, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	return submissionToProto(n, after), nil
+		return submissionToProto(n, after), nil
+	})
 }
 
 // ── lifecycle verbs ──────────────────────────────────────────────────────────
@@ -867,63 +1306,80 @@ func (s *submissionServiceServer) SubmitSubmission(ctx context.Context, req *gen
 		return nil, &ServerError{Err: err, Status: statusInvalidSubmissionName}
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		committeeRepo := f.Committee()
+		settingsRepo := f.OrganizationSubmissionSettings()
+		audits := newAuditWriter(tx)
 
-	fullUpdate := hasFullAction(ctx, s.enforcer, n.Organization, authz.ActionUpdate)
-	if !fullUpdate {
-		if err := checkSubmissionWrite(ctx, s.enforcer, n.Organization, m); err != nil {
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
+
+		fullUpdate := hasFullAction(ctx, s.enforcer, n.Organization, authz.ActionUpdate)
+		if !fullUpdate {
+			if err := checkSubmissionWrite(ctx, s.enforcer, n.Organization, m); err != nil {
+				return nil, err
+			}
+		}
+
+		if m.DeletedAt.Valid {
+			return nil, &ServerError{Status: statusSubmissionDeleted}
+		}
+		if m.Status != model.SubmissionStatusDraft {
+			return nil, &ServerError{Status: statusSubmissionInvalidTransition}
+		}
+		if err := s.checkSubmissionDeadline(ctx, settingsRepo, orgID, n.Organization); err != nil {
 			return nil, err
 		}
-	}
 
-	if m.DeletedAt.Valid {
-		return nil, &ServerError{Status: statusSubmissionDeleted}
-	}
-	if m.Status != model.SubmissionStatusDraft {
-		return nil, &ServerError{Status: statusSubmissionInvalidTransition}
-	}
-	if err := s.checkSubmissionDeadline(ctx, orgID, n.Organization); err != nil {
-		return nil, err
-	}
-
-	// Completeness validation.
-	if err := normalizeSubmissionDetails(ctx, s.committeeRepo, m); err != nil {
-		return nil, err
-	}
-	if err := s.checkSettlementEnabled(ctx, orgID, m.Settlement); err != nil {
-		return nil, err
-	}
-	items, err := s.repo.ListItems(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedSubmitSubmission}
-	}
-	if len(items) == 0 {
-		return nil, &ServerError{Status: statusSubmissionItemsRequired}
-	}
-
-	if err := s.repo.UpdateStatus(ctx, m.ID, model.SubmissionStatusDraft, model.SubmissionStatusPending); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+		// Completeness validation.
+		if err := normalizeSubmissionDetails(ctx, committeeRepo, m); err != nil {
+			return nil, err
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedSubmitSubmission}
-	}
+		if err := s.checkSettlementEnabled(ctx, settingsRepo, orgID, m.SettlementType); err != nil {
+			return nil, err
+		}
+		// Persist the payment account label snapshot resolved by the
+		// normalization above.
+		if m.SettlementType.Valid && m.SettlementType.SubmissionSettlementType == model.SubmissionSettlementTypeCommitteeAccount && m.CommitteePaymentAccountLabel != nil {
+			if err := repo.Update(ctx, m.ID, repository.UpdateSubmissionParams{
+				CommitteePaymentAccountLabel: optional.From(m.CommitteePaymentAccountLabel),
+			}); err != nil {
+				return nil, &ServerError{Err: err, Status: statusFailedSubmitSubmission}
+			}
+		}
+		items, err := repo.ListItems(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedSubmitSubmission}
+		}
+		if len(items) == 0 {
+			return nil, &ServerError{Status: statusSubmissionItemsRequired}
+		}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		if err := repo.UpdateStatus(ctx, m.ID, model.SubmissionStatusDraft, model.SubmissionStatusPending); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedSubmitSubmission}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "submit", m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
 
-	return submissionToProto(n, after), nil
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "submit", m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
 func (s *submissionServiceServer) ApproveSubmission(ctx context.Context, req *gen.ApproveSubmissionRequest) (*gen.Submission, error) {
@@ -936,47 +1392,57 @@ func (s *submissionServiceServer) ApproveSubmission(ctx context.Context, req *ge
 		return nil, authError(err)
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if m.DeletedAt.Valid {
-		return nil, &ServerError{Status: statusSubmissionDeleted}
-	}
-	if m.Status != model.SubmissionStatusPending && m.Status != model.SubmissionStatusFurtherInfoRequired {
-		return nil, &ServerError{Status: statusSubmissionInvalidTransition}
-	}
-
-	// Committee account settlements and income submissions are completed
-	// directly upon approval — no payout/execution step remains.
-	target := model.SubmissionStatusApproved
-	if m.Direction == model.DirectionIncome || m.Settlement == model.SettlementCommitteeAccount {
-		target = model.SubmissionStatusCompleted
-	}
-
-	if err := s.repo.UpdateStatus(ctx, m.ID, m.Status, target); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+		if m.DeletedAt.Valid {
+			return nil, &ServerError{Status: statusSubmissionDeleted}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedApproveSubmission}
-	}
+		if m.Status != model.SubmissionStatusPending && m.Status != model.SubmissionStatusFurtherInfoRequired {
+			return nil, &ServerError{Status: statusSubmissionInvalidTransition}
+		}
 
-	s.recordSystemComment(ctx, m.ID, req.Note, m.Status, target, true)
+		// Misc document collections, income submissions and committee account
+		// settlements are completed directly upon approval — no payout or
+		// execution step remains.
+		target := model.SubmissionStatusApproved
+		isMisc := m.Type == model.SubmissionTypeMisc
+		isIncome := m.Direction.Valid && m.Direction.SubmissionDirection == model.SubmissionDirectionIncome
+		isCommitteeAccount := m.SettlementType.Valid && m.SettlementType.SubmissionSettlementType == model.SubmissionSettlementTypeCommitteeAccount
+		if isMisc || isIncome || isCommitteeAccount {
+			target = model.SubmissionStatusCompleted
+		}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		if err := repo.UpdateStatus(ctx, m.ID, m.Status, target); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedApproveSubmission}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "approve", m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		s.recordSystemComment(ctx, repo, m.ID, req.Note, m.Status, target, true)
 
-	return submissionToProto(n, after), nil
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "approve", m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
 func (s *submissionServiceServer) RejectSubmission(ctx context.Context, req *gen.RejectSubmissionRequest) (*gen.Submission, error) {
@@ -989,46 +1455,52 @@ func (s *submissionServiceServer) RejectSubmission(ctx context.Context, req *gen
 		return nil, authError(err)
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if m.DeletedAt.Valid {
-		return nil, &ServerError{Status: statusSubmissionDeleted}
-	}
-	switch m.Status {
-	case model.SubmissionStatusPending, model.SubmissionStatusFurtherInfoRequired, model.SubmissionStatusApproved:
-	default:
-		return nil, &ServerError{Status: statusSubmissionInvalidTransition}
-	}
-	if req.Reason == "" {
-		return nil, &ServerError{Status: statusReasonRequired}
-	}
-
-	if err := s.repo.UpdateStatus(ctx, m.ID, m.Status, model.SubmissionStatusRejected); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+		if m.DeletedAt.Valid {
+			return nil, &ServerError{Status: statusSubmissionDeleted}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedRejectSubmission}
-	}
+		switch m.Status {
+		case model.SubmissionStatusPending, model.SubmissionStatusFurtherInfoRequired, model.SubmissionStatusApproved:
+		default:
+			return nil, &ServerError{Status: statusSubmissionInvalidTransition}
+		}
+		if req.Reason == "" {
+			return nil, &ServerError{Status: statusReasonRequired}
+		}
 
-	// The rejection reason is visible to the submitter.
-	s.recordSystemComment(ctx, m.ID, req.Reason, m.Status, model.SubmissionStatusRejected, false)
+		if err := repo.UpdateStatus(ctx, m.ID, m.Status, model.SubmissionStatusRejected); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedRejectSubmission}
+		}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		// The rejection reason is visible to the submitter.
+		s.recordSystemComment(ctx, repo, m.ID, req.Reason, m.Status, model.SubmissionStatusRejected, false)
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "reject", m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
 
-	return submissionToProto(n, after), nil
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "reject", m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
 func (s *submissionServiceServer) RequestFurtherInfo(ctx context.Context, req *gen.RequestFurtherInfoRequest) (*gen.Submission, error) {
@@ -1041,44 +1513,50 @@ func (s *submissionServiceServer) RequestFurtherInfo(ctx context.Context, req *g
 		return nil, authError(err)
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if m.DeletedAt.Valid {
-		return nil, &ServerError{Status: statusSubmissionDeleted}
-	}
-	if m.Status != model.SubmissionStatusPending {
-		return nil, &ServerError{Status: statusSubmissionInvalidTransition}
-	}
-	if req.Reason == "" {
-		return nil, &ServerError{Status: statusReasonRequired}
-	}
-
-	if err := s.repo.UpdateStatus(ctx, m.ID, model.SubmissionStatusPending, model.SubmissionStatusFurtherInfoRequired); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+		if m.DeletedAt.Valid {
+			return nil, &ServerError{Status: statusSubmissionDeleted}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedRequestFurtherInfo}
-	}
+		if m.Status != model.SubmissionStatusPending {
+			return nil, &ServerError{Status: statusSubmissionInvalidTransition}
+		}
+		if req.Reason == "" {
+			return nil, &ServerError{Status: statusReasonRequired}
+		}
 
-	// The requested information is visible to the submitter.
-	s.recordSystemComment(ctx, m.ID, req.Reason, m.Status, model.SubmissionStatusFurtherInfoRequired, false)
+		if err := repo.UpdateStatus(ctx, m.ID, model.SubmissionStatusPending, model.SubmissionStatusFurtherInfoRequired); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedRequestFurtherInfo}
+		}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		// The requested information is visible to the submitter.
+		s.recordSystemComment(ctx, repo, m.ID, req.Reason, m.Status, model.SubmissionStatusFurtherInfoRequired, false)
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "requestFurtherInfo", m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
 
-	return submissionToProto(n, after), nil
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "requestFurtherInfo", m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
 func (s *submissionServiceServer) CompleteSubmission(ctx context.Context, req *gen.CompleteSubmissionRequest) (*gen.Submission, error) {
@@ -1091,54 +1569,60 @@ func (s *submissionServiceServer) CompleteSubmission(ctx context.Context, req *g
 		return nil, authError(err)
 	}
 
-	m, orgID, err := s.loadSubmission(ctx, n)
-	if err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Submission, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Submission()
+		audits := newAuditWriter(tx)
+
+		m, orgID, err := s.loadSubmission(ctx, repo, n)
+		if err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
 
-	if m.DeletedAt.Valid {
-		return nil, &ServerError{Status: statusSubmissionDeleted}
-	}
-	if m.Status != model.SubmissionStatusApproved {
-		return nil, &ServerError{Status: statusSubmissionInvalidTransition}
-	}
-
-	params := repository.UpdateSubmissionParams{
-		CompletionPaidDate:         optional.From(protoToDate(req.PaidDate)),
-		CompletionPaymentReference: optional.From(req.PaymentReference),
-	}
-	if err := s.repo.Update(ctx, m.ID, params); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedCompleteSubmission}
-	}
-
-	if err := s.repo.UpdateStatus(ctx, m.ID, model.SubmissionStatusApproved, model.SubmissionStatusCompleted); err != nil {
-		if errors.Is(err, repository.ErrSubmissionNotFound) {
-			return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+		if m.DeletedAt.Valid {
+			return nil, &ServerError{Status: statusSubmissionDeleted}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedCompleteSubmission}
-	}
+		if m.Status != model.SubmissionStatusApproved {
+			return nil, &ServerError{Status: statusSubmissionInvalidTransition}
+		}
 
-	s.recordSystemComment(ctx, m.ID, "", model.SubmissionStatusApproved, model.SubmissionStatusCompleted, true)
+		params := repository.UpdateSubmissionParams{
+			CompletionPaidDate:         optional.From(protoToDate(req.PaidDate)),
+			CompletionPaymentReference: optional.From(req.PaymentReference),
+		}
+		if err := repo.Update(ctx, m.ID, params); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedCompleteSubmission}
+		}
 
-	after, err := s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
-	}
+		if err := repo.UpdateStatus(ctx, m.ID, model.SubmissionStatusApproved, model.SubmissionStatusCompleted); err != nil {
+			if errors.Is(err, repository.ErrSubmissionNotFound) {
+				return nil, &ServerError{Err: err, Status: statusSubmissionInvalidTransition}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedCompleteSubmission}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "complete", m, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		s.recordSystemComment(ctx, repo, m.ID, "", model.SubmissionStatusApproved, model.SubmissionStatusCompleted, true)
 
-	return submissionToProto(n, after), nil
+		after, err := repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetSubmission}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(n.String(), orgID, m.ID), "complete", m, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return submissionToProto(n, after), nil
+	})
 }
 
 // recordSystemComment appends a treasury comment documenting a status
 // transition (or the completion metadata). Comments with empty content are
 // only recorded when they carry a status change.
-func (s *submissionServiceServer) recordSystemComment(ctx context.Context, submissionID uuid.UUID, content string, from, to model.SubmissionStatus, adminOnly bool) {
+func (s *submissionServiceServer) recordSystemComment(ctx context.Context, repo *repository.SubmissionRepository, submissionID uuid.UUID, content string, from, to model.SubmissionStatus, adminOnly bool) {
 	if content == "" && from == to {
 		return
 	}
@@ -1156,5 +1640,5 @@ func (s *submissionServiceServer) recordSystemComment(ctx context.Context, submi
 	}
 	// A missing author (system sweeper) is not representable in the comment
 	// table; the audit log records the system action instead.
-	_ = s.repo.CreateComment(ctx, comment)
+	_ = repo.CreateComment(ctx, comment)
 }

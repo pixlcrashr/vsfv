@@ -13,6 +13,7 @@ import (
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/model/dao"
 	"github.com/pixlcrashr/vsfv/pkg/query/cond"
+	queryorder "github.com/pixlcrashr/vsfv/pkg/query/order"
 	"github.com/theater-improrama/go-utils/optional"
 	"gorm.io/gen/field"
 	"gorm.io/gorm"
@@ -24,10 +25,28 @@ var (
 	ErrTransactionAlreadyExists = errors.New("transaction already exists")
 )
 
+// TransactionOrderFieldMapper maps API order_by field names to database column names.
+var TransactionOrderFieldMapper = queryorder.FieldMapper{
+	"amount":        "amount",
+	"description":   "description",
+	"reference":     "reference",
+	"booked_at":     "booked_at",
+	"bookedAt":      "booked_at",
+	"document_date": "document_date",
+	"documentDate":  "document_date",
+	"create_time":   "created_at",
+	"createTime":    "created_at",
+	"update_time":   "updated_at",
+	"updateTime":    "updated_at",
+}
+
 // ListTransactionsParams drives the List query with keyset pagination.
 type ListTransactionsParams struct {
 	// Cond is an optional abstract condition chain (AND/OR/NOT support).
 	Cond cond.Cond
+	// OrderBy holds explicit sort expressions resolved from the API order_by
+	// parameter. Empty means the default document_date DESC ordering.
+	OrderBy []queryorder.Expr
 	// KeysetValues for keyset pagination cursor.
 	KeysetValues []pagetoken.KeysetValue
 	// PageSize caps the number of rows returned.
@@ -132,9 +151,17 @@ func (r *TransactionRepository) List(ctx context.Context, params ListTransaction
 			db = db.Where(sql, args...)
 		}
 
-		// Apply default ordering if no keyset
+		// Apply ordering if no keyset. The id tiebreaker keeps offset
+		// pagination deterministic when rows share the same sort value.
 		if len(params.KeysetValues) == 0 {
-			db = db.Order("booked_at DESC, id DESC")
+			if len(params.OrderBy) > 0 {
+				for _, expr := range params.OrderBy {
+					db = db.Order(expr.String())
+				}
+			} else {
+				db = db.Order("document_date DESC")
+			}
+			db = db.Order("id DESC")
 		}
 
 		if params.Offset > 0 {
@@ -213,9 +240,25 @@ func (r *TransactionRepository) List(ctx context.Context, params ListTransaction
 		}
 	}
 
-	// Default ordering if no keyset fields
+	// Apply ordering if no keyset fields. The id tiebreaker keeps offset
+	// pagination deterministic when rows share the same sort value.
 	if len(params.KeysetValues) == 0 {
-		t = t.Order(r.q.Transaction_.BookedAt.Desc(), r.q.Transaction_.ID.Desc())
+		if len(params.OrderBy) > 0 {
+			for _, expr := range params.OrderBy {
+				f, ok := r.q.Transaction_.GetFieldByName(expr.Column)
+				if !ok {
+					return nil, fmt.Errorf("unknown order_by field %q", expr.Column)
+				}
+				if expr.Desc {
+					t = t.Order(f.Desc())
+				} else {
+					t = t.Order(f.Asc())
+				}
+			}
+		} else {
+			t = t.Order(r.q.Transaction_.DocumentDate.Desc())
+		}
+		t = t.Order(r.q.Transaction_.ID.Desc())
 	}
 
 	if params.Offset > 0 {

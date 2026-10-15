@@ -41,7 +41,9 @@ type BudgetRevisionServiceClient interface {
 	//	Permission: budgets:read
 	//	Domain: organization-scoped
 	GetBudgetRevision(ctx context.Context, in *GetBudgetRevisionRequest, opts ...grpc.CallOption) (*BudgetRevision, error)
-	// Lists revisions for a budget in reverse chronological order.
+	// Lists revisions for a budget in reverse chronological order. The
+	// wildcard parent form (organizations/{organization}/budgets/-) lists the
+	// revisions of every budget of the organization in a single request.
 	// Authorization:
 	//
 	//	Scope: budgets:read
@@ -148,7 +150,9 @@ type BudgetRevisionServiceServer interface {
 	//	Permission: budgets:read
 	//	Domain: organization-scoped
 	GetBudgetRevision(context.Context, *GetBudgetRevisionRequest) (*BudgetRevision, error)
-	// Lists revisions for a budget in reverse chronological order.
+	// Lists revisions for a budget in reverse chronological order. The
+	// wildcard parent form (organizations/{organization}/budgets/-) lists the
+	// revisions of every budget of the organization in a single request.
 	// Authorization:
 	//
 	//	Scope: budgets:read

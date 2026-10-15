@@ -9,6 +9,7 @@ import (
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -33,26 +35,16 @@ var (
 
 // committeeServiceServer implements gen.CommitteeServiceServer.
 type committeeServiceServer struct {
-	repo           *repository.CommitteeRepository
-	submissionRepo *repository.SubmissionRepository
-	audits         *auditWriter
-	enforcer       *authz.Enforcer
+	db       *gorm.DB
+	enforcer *authz.Enforcer
 }
 
-func newCommitteeServiceServer(repo *repository.CommitteeRepository, submissionRepo *repository.SubmissionRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.CommitteeServiceServer {
-	return &committeeServiceServer{repo: repo, submissionRepo: submissionRepo, audits: audits, enforcer: enforcer}
-}
-
-func CommitteePaymentAccountToProto(m model.CommitteePaymentAccount) *gen.CommitteePaymentAccount {
-	return &gen.CommitteePaymentAccount{
-		Uid:          m.ID.String(),
-		Kind:         gen.PaymentAccountKind(m.Kind),
-		DisplayLabel: m.DisplayLabel,
-	}
+func newCommitteeServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.CommitteeServiceServer {
+	return &committeeServiceServer{db: db, enforcer: enforcer}
 }
 
 func CommitteeToProto(m *model.Committee) *gen.Committee {
-	c := &gen.Committee{
+	return &gen.Committee{
 		Name:                (&gen.CommitteeResourceName{Organization: m.OrganizationID.String(), Committee: m.ID.String()}).String(),
 		Uid:                 m.ID.String(),
 		DisplayName:         m.DisplayName,
@@ -61,10 +53,6 @@ func CommitteeToProto(m *model.Committee) *gen.Committee {
 		CreateTime:          nil,
 		UpdateTime:          nil,
 	}
-	for _, pa := range m.PaymentAccounts {
-		c.PaymentAccounts = append(c.PaymentAccounts, CommitteePaymentAccountToProto(pa))
-	}
-	return c
 }
 
 func (s *committeeServiceServer) GetCommittee(ctx context.Context, req *gen.GetCommitteeRequest) (*gen.Committee, error) {
@@ -82,15 +70,28 @@ func (s *committeeServiceServer) GetCommittee(ctx context.Context, req *gen.GetC
 		return nil, &ServerError{Err: err, Status: statusInvalidCommitteeName}
 	}
 
-	m, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Committee, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Committee()
+		submissionRepo := f.Submission()
 
-	return CommitteeToProto(m), nil
+		m, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
+		}
+
+		c := CommitteeToProto(m)
+		count, err := submissionRepo.CountByCommittee(ctx, id)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
+		}
+		c.IsReferenced = count > 0
+
+		return c, nil
+	})
 }
 
 func (s *committeeServiceServer) ListCommittees(ctx context.Context, req *gen.ListCommitteesRequest) (*gen.ListCommitteesResponse, error) {
@@ -114,26 +115,39 @@ func (s *committeeServiceServer) ListCommittees(ctx context.Context, req *gen.Li
 		return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
 	}
 
-	ms, total, err := s.repo.List(ctx, repository.ListCommitteesParams{
-		Cond:     c,
-		Page:     int(offset/int64(pageSize)) + 1,
-		PageSize: pageSize,
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListCommitteesResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Committee()
+		submissionRepo := f.Submission()
+
+		ms, total, err := repo.List(ctx, repository.ListCommitteesParams{
+			Cond:     c,
+			Page:     int(offset/int64(pageSize)) + 1,
+			PageSize: pageSize,
+		})
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListCommittees}
+		}
+
+		counts, err := submissionRepo.CountByCommittees(ctx, orgIDFromSegment(pn.Organization))
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListCommittees}
+		}
+
+		resp := &gen.ListCommitteesResponse{TotalSize: total}
+		for _, m := range ms {
+			pc := CommitteeToProto(m)
+			pc.IsReferenced = counts[m.ID] > 0
+			resp.Committees = append(resp.Committees, pc)
+		}
+
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
 	})
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListCommittees}
-	}
-
-	resp := &gen.ListCommitteesResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.Committees = append(resp.Committees, CommitteeToProto(m))
-	}
-
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
-
-	return resp, nil
 }
 
 func (s *committeeServiceServer) CreateCommittee(ctx context.Context, req *gen.CreateCommitteeRequest) (*gen.Committee, error) {
@@ -161,28 +175,28 @@ func (s *committeeServiceServer) CreateCommittee(ctx context.Context, req *gen.C
 		DisplayDescription:  req.Committee.DisplayDescription,
 		AllowScopeSelection: req.Committee.AllowScopeSelection,
 	}
-	for _, pa := range req.Committee.PaymentAccounts {
-		params.PaymentAccounts = append(params.PaymentAccounts, model.CommitteePaymentAccount{
-			Kind:         model.PaymentAccountKind(pa.Kind),
-			DisplayLabel: pa.DisplayLabel,
-		})
-	}
 
-	m, err := s.repo.Create(ctx, params)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommitteeAlreadyExists) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeAlreadyExists}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Committee, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Committee()
+		audits := newAuditWriter(tx)
+
+		m, err := repo.Create(ctx, params)
+		if err != nil {
+			if errors.Is(err, repository.ErrCommitteeAlreadyExists) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeAlreadyExists}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedCreateCommittee}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedCreateCommittee}
-	}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		(&gen.CommitteeResourceName{Organization: orgID.String(), Committee: m.ID.String()}).String(), orgID, m.ID,
-	), AuditActionCreate, nil, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			(&gen.CommitteeResourceName{Organization: orgID.String(), Committee: m.ID.String()}).String(), orgID, m.ID,
+		), AuditActionCreate, nil, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	return CommitteeToProto(m), nil
+		return CommitteeToProto(m), nil
+	})
 }
 
 func (s *committeeServiceServer) UpdateCommittee(ctx context.Context, req *gen.UpdateCommitteeRequest) (*gen.Committee, error) {
@@ -204,65 +218,52 @@ func (s *committeeServiceServer) UpdateCommittee(ctx context.Context, req *gen.U
 		return nil, &ServerError{Err: err, Status: statusInvalidCommitteeName}
 	}
 
-	before, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.Committee, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Committee()
+		audits := newAuditWriter(tx)
 
-	mask := req.UpdateMask.GetPaths()
-	params := repository.UpdateCommitteeParams{}
-	if len(mask) == 0 || slices.Contains(mask, "display_name") {
-		params.DisplayName = optional.From(req.Committee.DisplayName)
-	}
-	if len(mask) == 0 || slices.Contains(mask, "display_description") {
-		params.DisplayDescription = optional.From(req.Committee.DisplayDescription)
-	}
-	if len(mask) == 0 || slices.Contains(mask, "allow_scope_selection") {
-		params.AllowScopeSelection = optional.From(req.Committee.AllowScopeSelection)
-	}
-
-	if err := s.repo.Update(ctx, id, params); err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
-		}
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateCommittee}
-	}
-
-	if len(mask) == 0 || slices.Contains(mask, "payment_accounts") {
-		var accounts []model.CommitteePaymentAccount
-		for _, pa := range req.Committee.PaymentAccounts {
-			account := model.CommitteePaymentAccount{
-				Kind:         model.PaymentAccountKind(pa.Kind),
-				DisplayLabel: pa.DisplayLabel,
+		before, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
 			}
-			if paUid, err := uuid.Parse(pa.Uid); err == nil {
-				// Echoed existing account — keep its ID so submission
-				// references stay valid.
-				account.ID = paUid
-			}
-			accounts = append(accounts, account)
+			return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
 		}
-		if err := s.repo.ReplacePaymentAccounts(ctx, id, accounts); err != nil {
+
+		mask := req.UpdateMask.GetPaths()
+		params := repository.UpdateCommitteeParams{}
+		if len(mask) == 0 || slices.Contains(mask, "display_name") {
+			params.DisplayName = optional.From(req.Committee.DisplayName)
+		}
+		if len(mask) == 0 || slices.Contains(mask, "display_description") {
+			params.DisplayDescription = optional.From(req.Committee.DisplayDescription)
+		}
+		if len(mask) == 0 || slices.Contains(mask, "allow_scope_selection") {
+			params.AllowScopeSelection = optional.From(req.Committee.AllowScopeSelection)
+		}
+
+		if err := repo.Update(ctx, id, params); err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+			}
 			return nil, &ServerError{Err: err, Status: statusFailedUpdateCommittee}
 		}
-	}
 
-	after, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
-	}
+		after, err := repo.GetByID(ctx, id)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		(&gen.CommitteeResourceName{Organization: n.Organization, Committee: id.String()}).String(),
-		orgIDFromSegment(n.Organization), id,
-	), AuditActionUpdate, before, after); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			(&gen.CommitteeResourceName{Organization: n.Organization, Committee: id.String()}).String(),
+			orgIDFromSegment(n.Organization), id,
+		), AuditActionUpdate, before, after); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	return CommitteeToProto(after), nil
+		return CommitteeToProto(after), nil
+	})
 }
 
 func (s *committeeServiceServer) DeleteCommittee(ctx context.Context, req *gen.DeleteCommitteeRequest) (*emptypb.Empty, error) {
@@ -280,41 +281,145 @@ func (s *committeeServiceServer) DeleteCommittee(ctx context.Context, req *gen.D
 		return nil, &ServerError{Err: err, Status: statusInvalidCommitteeName}
 	}
 
-	count, err := s.submissionRepo.CountByCommittee(ctx, id)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteCommittee}
-	}
-	if count > 0 {
-		return nil, &ServerError{Status: statusCommitteeInUse}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.Committee()
+		submissionRepo := f.Submission()
+		audits := newAuditWriter(tx)
 
-	before, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+		count, err := submissionRepo.CountByCommittee(ctx, id)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteCommittee}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
-	}
-
-	if err := s.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrCommitteeNotFound) {
-			return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+		if count > 0 {
+			return nil, &ServerError{Status: statusCommitteeInUse}
 		}
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteCommittee}
-	}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		(&gen.CommitteeResourceName{Organization: n.Organization, Committee: id.String()}).String(),
-		orgIDFromSegment(n.Organization), id,
-	), AuditActionDelete, before, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		before, err := repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedGetCommittee}
+		}
 
-	return &emptypb.Empty{}, nil
+		if err := repo.Delete(ctx, id); err != nil {
+			if errors.Is(err, repository.ErrCommitteeNotFound) {
+				return nil, &ServerError{Err: err, Status: statusCommitteeNotFound}
+			}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteCommittee}
+		}
+
+		if err := audits.Record(ctx, orgAuditSubject(
+			(&gen.CommitteeResourceName{Organization: n.Organization, Committee: id.String()}).String(),
+			orgIDFromSegment(n.Organization), id,
+		), AuditActionDelete, before, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
+
+		return &emptypb.Empty{}, nil
+	})
 }
 
 // orgIDFromSegment parses the organization UUID segment of a resource name.
 func orgIDFromSegment(org string) uuid.UUID {
 	id, _ := uuid.Parse(org)
 	return id
+}
+
+// checkListUserCommitteesAuth authorizes ListUserCommittees: another user's
+// committees require committees:read; a user's own committees are also
+// granted to callers holding submissions:create or submissions:update (the
+// submission creation/edit flows pick a committee from the caller's
+// memberships).
+func (s *committeeServiceServer) checkListUserCommitteesAuth(ctx context.Context, orgSegment string, callerUID, requestedUID uuid.UUID) error {
+	if callerUID != requestedUID {
+		return authz.CheckOrg(ctx, s.enforcer, authz.ResourceCommittees, authz.ActionRead, authz.OrgDomain(orgSegment))
+	}
+	for _, check := range []struct{ resource, action string }{
+		{authz.ResourceSubmissions, authz.ActionCreate},
+		{authz.ResourceSubmissions, authz.ActionUpdate},
+		{authz.ResourceCommittees, authz.ActionRead},
+	} {
+		if err := authz.CheckOrg(ctx, s.enforcer, check.resource, check.action, authz.OrgDomain(orgSegment)); err == nil {
+			return nil
+		}
+	}
+	return authz.CheckOrg(ctx, s.enforcer, authz.ResourceSubmissions, authz.ActionCreate, authz.OrgDomain(orgSegment))
+}
+
+// ListUserCommittees implements gen.CommitteeServiceServer.
+func (s *committeeServiceServer) ListUserCommittees(ctx context.Context, req *gen.ListUserCommitteesRequest) (*gen.ListUserCommitteesResponse, error) {
+	var pn gen.OrganizationResourceName
+	if err := pn.UnmarshalString(req.Parent); err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidParent}
+	}
+
+	callerID, ok := authz.UserIDFromContext(ctx)
+	if !ok || callerID == "" {
+		return nil, &ServerError{Err: authz.ErrUnauthenticated, Status: statusUnauthenticated}
+	}
+
+	requestedUserID := callerID
+	if req.User != "" {
+		var un gen.UserResourceName
+		if err := un.UnmarshalString(req.User); err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidUserName}
+		}
+		requestedUserID = un.User
+	}
+
+	callerUID, err := uuid.Parse(callerID)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusPermissionDenied}
+	}
+	requestedUID, err := uuid.Parse(requestedUserID)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidUserName}
+	}
+
+	if err := s.checkListUserCommitteesAuth(ctx, pn.Organization, callerUID, requestedUID); err != nil {
+		return nil, authError(err)
+	}
+
+	orgID, err := uuid.Parse(pn.Organization)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidParent}
+	}
+
+	pageSize := normalizePageSize(req.PageSize)
+	offset, err := pagetoken.Decode(req.PageToken)
+	if err != nil {
+		return nil, &ServerError{Err: err, Status: statusInvalidPageToken}
+	}
+
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListUserCommitteesResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		memberRepo := f.CommitteeMember()
+		submissionRepo := f.Submission()
+
+		cs, total, err := memberRepo.ListCommitteesByUserAndOrganization(ctx, orgID, requestedUID, int(offset/int64(pageSize))+1, pageSize)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListCommittees}
+		}
+
+		counts, err := submissionRepo.CountByCommittees(ctx, orgID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListCommittees}
+		}
+
+		resp := &gen.ListUserCommitteesResponse{TotalSize: total}
+		for _, m := range cs {
+			pc := CommitteeToProto(m)
+			pc.IsReferenced = counts[m.ID] > 0
+			resp.Committees = append(resp.Committees, pc)
+		}
+
+		nextOffset := offset + int64(len(cs))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }

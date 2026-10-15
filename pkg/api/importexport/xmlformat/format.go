@@ -54,6 +54,7 @@ type Account struct {
 	DisplayCode        string    `xml:"displayCode,attr,omitempty"`
 	DisplayDescription string    `xml:"displayDescription,attr,omitempty"`
 	IsContainer        bool      `xml:"isContainer,attr"`
+	InvertSign         bool      `xml:"invertSign,attr"`
 	IsArchived         bool      `xml:"isArchived,attr"`
 	Children           []Account `xml:"children>account"`
 }
@@ -74,11 +75,14 @@ type AccountGroupAssignment struct {
 }
 
 // LedgerAccount represents an account used for double-entry transactions.
+// Type carries the ledger account type used by the budget-plan actual-value
+// computation ("liquidity", "counter", "startAccount"); omitted means an
+// unmarked income/expense-side account.
 type LedgerAccount struct {
 	ID                 string `xml:"id,attr"`
 	CustomID           string `xml:"customId,attr,omitempty"`
 	Code               string `xml:"code,attr"`
-	AccountType        string `xml:"accountType,attr,omitempty"`
+	Type               string `xml:"type,attr,omitempty"`
 	DisplayName        string `xml:"displayName,attr"`
 	DisplayDescription string `xml:"displayDescription,attr,omitempty"`
 }

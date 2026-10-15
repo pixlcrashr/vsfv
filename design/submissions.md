@@ -124,8 +124,20 @@ die XML-Import/Export-Routen funktionieren — der Nachweis lief
     daher der Unterpfad `/download`.
 - Auth über `pkg/api/humax` (gemeinsamer Bearer-Middleware-Primitiv,
   Legacy-Fehlerform `{"error": ...}` für die SPA).
-- Storage: lokales Verzeichnis (`storage.attachments-path`), Keys =
-  UUID + Extension.
+- Storage: globaler `FileStorage` (`pkg/storage`, konfiguriert über
+  `storage.data-path`). Alle Binärdateien liegen in einem gemeinsamen
+  Datenverzeichnis, Dateinamen = UUID, geshardet in Unterverzeichnisse nach
+  den ersten zwei Hex-Zeichen (`data/00/…`, `data/01/…`).
+- Datenmodell: die generische Tabelle `data_items` enthält die Metadaten
+  einer gespeicherten Datei (Name, MIME-Type, Größe, SHA-256-Hash); der
+  Dateiname im Storage ist direkt die UUID des Data-Items.
+  `submission_attachments` ist nur noch die Relation zwischen
+  Submission-Item und Data-Item. Die Data-Item-Tabelle ist intern und wird
+  nicht über die API exportiert – konkrete Use-Cases (z. B. Attachments)
+  kapseln sie hinter ihrer eigenen Abstraktion. Durch die generische Tabelle
+  lassen sich künftig weitere Use-Cases auf denselben Blob-Speicher
+  aufschalten, und eine Tabellen-Datei-Verifikation (Hashes prüfen,
+  fehlende/korrupte Dateien erkennen) kann über `data_items` laufen.
 
 Auch die XML-Import/Export-Routen wurden auf Huma umgestellt
 (identische Pfade/Verhalten, jetzt selbstdokumentierend über `/openapi`).

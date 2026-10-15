@@ -199,6 +199,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 					DisplayCode:        a.DisplayCode,
 					DisplayDescription: a.DisplayDescription,
 					IsContainer:        isContainer,
+					InvertSign:         a.InvertSign,
 					IsArchived:         a.IsArchived,
 				}
 				if err := upsertAudited(ctx, audits, func() audit.Subject {
@@ -246,7 +247,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 			if customID == "" {
 				customID = id.String()
 			}
-			accountType, err := accountTypeFromString(la.AccountType)
+			ledgerAccountType, err := ledgerAccountTypeFromString(la.Type)
 			if err != nil {
 				return fmt.Errorf("ledger account %q: %w", la.ID, err)
 			}
@@ -255,7 +256,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 				CustomID:           customID,
 				OrganizationID:     orgID,
 				Code:               la.Code,
-				AccountType:        accountType,
+				Type:               ledgerAccountType,
 				DisplayName:        la.DisplayName,
 				DisplayDescription: la.DisplayDescription,
 			}
@@ -297,7 +298,7 @@ func ImportDocument(ctx context.Context, db *gorm.DB, orgID uuid.UUID, doc *Docu
 					CustomID:           id.String(),
 					OrganizationID:     orgID,
 					Code:               id.String(),
-					AccountType:        model.AccountTypeUnspecified,
+					Type:               nil,
 					DisplayName:        "",
 					DisplayDescription: "",
 				}

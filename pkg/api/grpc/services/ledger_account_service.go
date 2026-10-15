@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	svcfilter "github.com/pixlcrashr/vsfv/pkg/api/grpc/services/filter"
 	"github.com/pixlcrashr/vsfv/pkg/api/grpc/services/pagetoken"
 	"github.com/pixlcrashr/vsfv/pkg/authz"
+	"github.com/pixlcrashr/vsfv/pkg/db"
 	"github.com/pixlcrashr/vsfv/pkg/db/model"
 	"github.com/pixlcrashr/vsfv/pkg/db/repository"
 	gen "github.com/pixlcrashr/vsfv/pkg/grpc/gen"
@@ -18,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 var (
@@ -29,15 +32,24 @@ var (
 	statusFailedDeleteLedgerAccount = status.New(codes.Internal, "failed to delete ledger account")
 )
 
+// ledgerAccountUpdateMask classifies update mask paths for ledger accounts.
+// The code identifies the account (it comes from the import and has no edit
+// surface), so it is deliberately not mutable: a body that carries it (e.g.
+// the SPA sending code:"") never blanks it.
+var ledgerAccountUpdateMask = newResourceMask(&gen.LedgerAccount{}, []string{
+	"type",
+	"display_name",
+	"display_description",
+})
+
 type ledgerAccountServiceServer struct {
 	gen.UnimplementedLedgerAccountServiceServer
-	repo     *repository.LedgerAccountRepository
-	audits   *auditWriter
+	db       *gorm.DB
 	enforcer *authz.Enforcer
 }
 
-func newLedgerAccountServiceServer(repo *repository.LedgerAccountRepository, audits *auditWriter, enforcer *authz.Enforcer) gen.LedgerAccountServiceServer {
-	return &ledgerAccountServiceServer{repo: repo, audits: audits, enforcer: enforcer}
+func newLedgerAccountServiceServer(db *gorm.DB, enforcer *authz.Enforcer) gen.LedgerAccountServiceServer {
+	return &ledgerAccountServiceServer{db: db, enforcer: enforcer}
 }
 
 func (s *ledgerAccountServiceServer) GetLedgerAccount(ctx context.Context, req *gen.GetLedgerAccountRequest) (*gen.LedgerAccount, error) {
@@ -56,17 +68,22 @@ func (s *ledgerAccountServiceServer) GetLedgerAccount(ctx context.Context, req *
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInLedgerAccountName}
 	}
 
-	// Use CustomID (n.LedgerAccount) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.LedgerAccount)
-	if err != nil {
-		if errors.Is(err, repository.ErrLedgerAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.LedgerAccount, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.LedgerAccount()
+
+		// Use CustomID (n.LedgerAccount) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.LedgerAccount)
+		if err != nil {
+			if errors.Is(err, repository.ErrLedgerAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
-	}
-
-	return LedgerAccountToProto(n.OrganizationResourceName(), m), nil
+		return LedgerAccountToProto(n.OrganizationResourceName(), m), nil
+	})
 }
 
 func (s *ledgerAccountServiceServer) BatchGetLedgerAccounts(ctx context.Context, req *gen.BatchGetLedgerAccountsRequest) (*gen.BatchGetLedgerAccountsResponse, error) {
@@ -94,19 +111,24 @@ func (s *ledgerAccountServiceServer) BatchGetLedgerAccounts(ctx context.Context,
 		customIDs = append(customIDs, n.LedgerAccount)
 	}
 
-	ms, err := s.repo.BatchGetByCustomID(ctx, orgID, customIDs)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedBatchGetLedgerAccounts}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.BatchGetLedgerAccountsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.LedgerAccount()
 
-	resp := &gen.BatchGetLedgerAccountsResponse{}
-	for i, m := range ms {
-		if m == nil {
-			return nil, &ServerError{Err: fmt.Errorf("ledger account not found: %s", req.Names[i]), Status: statusLedgerAccountNotFound}
+		ms, err := repo.BatchGetByCustomID(ctx, orgID, customIDs)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedBatchGetLedgerAccounts}
 		}
-		resp.LedgerAccounts = append(resp.LedgerAccounts, LedgerAccountToProto(pn, m))
-	}
-	return resp, nil
+
+		resp := &gen.BatchGetLedgerAccountsResponse{}
+		for i, m := range ms {
+			if m == nil {
+				return nil, &ServerError{Err: fmt.Errorf("ledger account not found: %s", req.Names[i]), Status: statusLedgerAccountNotFound}
+			}
+			resp.LedgerAccounts = append(resp.LedgerAccounts, LedgerAccountToProto(pn, m))
+		}
+		return resp, nil
+	})
 }
 
 func (s *ledgerAccountServiceServer) ListLedgerAccounts(ctx context.Context, req *gen.ListLedgerAccountsRequest) (*gen.ListLedgerAccountsResponse, error) {
@@ -147,22 +169,27 @@ func (s *ledgerAccountServiceServer) ListLedgerAccounts(ctx context.Context, req
 		OrderBy:  orderExprs,
 	}
 
-	ms, total, err := s.repo.List(ctx, params)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedListLedgerAccounts}
-	}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.ListLedgerAccountsResponse, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.LedgerAccount()
 
-	resp := &gen.ListLedgerAccountsResponse{TotalSize: total}
-	for _, m := range ms {
-		resp.LedgerAccounts = append(resp.LedgerAccounts, LedgerAccountToProto(pn, m))
-	}
+		ms, total, err := repo.List(ctx, params)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedListLedgerAccounts}
+		}
 
-	nextOffset := offset + int64(len(ms))
-	if nextOffset < total {
-		resp.NextPageToken = pagetoken.Encode(nextOffset)
-	}
+		resp := &gen.ListLedgerAccountsResponse{TotalSize: total}
+		for _, m := range ms {
+			resp.LedgerAccounts = append(resp.LedgerAccounts, LedgerAccountToProto(pn, m))
+		}
 
-	return resp, nil
+		nextOffset := offset + int64(len(ms))
+		if nextOffset < total {
+			resp.NextPageToken = pagetoken.Encode(nextOffset)
+		}
+
+		return resp, nil
+	})
 }
 
 func (s *ledgerAccountServiceServer) UpdateLedgerAccount(ctx context.Context, req *gen.UpdateLedgerAccountRequest) (*gen.LedgerAccount, error) {
@@ -185,42 +212,75 @@ func (s *ledgerAccountServiceServer) UpdateLedgerAccount(ctx context.Context, re
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInLedgerAccountName}
 	}
 
-	// Use CustomID (n.LedgerAccount) instead of parsing as UUID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.LedgerAccount)
-	if err != nil {
-		if errors.Is(err, repository.ErrLedgerAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*gen.LedgerAccount, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.LedgerAccount()
+		audits := newAuditWriter(tx)
+
+		// Use CustomID (n.LedgerAccount) instead of parsing as UUID
+		m, err := repo.GetByCustomID(ctx, orgID, n.LedgerAccount)
+		if err != nil {
+			if errors.Is(err, repository.ErrLedgerAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
-	}
+		before := *m
 
-	before := *m
+		mask, err := ledgerAccountUpdateMask.resolve(req.UpdateMask.GetPaths())
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusInvalidUpdateMask}
+		}
+		// An empty mask replaces every mutable field (AIP-134). `code` is not
+		// in the mutable set, so it is never applied from the body.
+		has := func(field string) bool { return len(mask) == 0 || slices.Contains(mask, field) }
 
-	updateParams := repository.UpdateLedgerAccountParams{
-		Code:               optional.From(req.LedgerAccount.Code),
-		AccountType:        optional.From(model.AccountType(req.LedgerAccount.AccountType)),
-		DisplayName:        optional.From(req.LedgerAccount.DisplayName),
-		DisplayDescription: optional.From(req.LedgerAccount.DisplayDescription),
-	}
+		updateParams := repository.UpdateLedgerAccountParams{
+			Type: func() optional.Optional[*model.LedgerAccountType] {
+				if !has("type") {
+					return optional.Empty[*model.LedgerAccountType]()
+				}
+				// UNSPECIFIED (filler) means "absent" and is stored as NULL.
+				if req.LedgerAccount.Type == gen.LedgerAccountType_LEDGER_ACCOUNT_TYPE_UNSPECIFIED {
+					return optional.From((*model.LedgerAccountType)(nil))
+				}
+				v := model.LedgerAccountType(req.LedgerAccount.Type)
+				return optional.From(&v)
+			}(),
+			DisplayName: func() optional.Optional[string] {
+				if !has("display_name") {
+					return optional.Empty[string]()
+				}
+				return optional.From(req.LedgerAccount.DisplayName)
+			}(),
+			DisplayDescription: func() optional.Optional[string] {
+				if !has("display_description") {
+					return optional.Empty[string]()
+				}
+				return optional.From(req.LedgerAccount.DisplayDescription)
+			}(),
+		}
 
-	if err := s.repo.Update(ctx, m.ID, updateParams); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateLedgerAccount}
-	}
+		if err := repo.Update(ctx, m.ID, updateParams); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateLedgerAccount}
+		}
 
-	// Refresh the model after update
-	m, err = s.repo.GetByID(ctx, m.ID)
-	if err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedUpdateLedgerAccount}
-	}
+		// Refresh the model after update
+		m, err = repo.GetByID(ctx, m.ID)
+		if err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedUpdateLedgerAccount}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionUpdate, &before, m); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionUpdate, &before, m); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	return LedgerAccountToProto(n.OrganizationResourceName(), m), nil
+		return LedgerAccountToProto(n.OrganizationResourceName(), m), nil
+	})
 }
 
 func (s *ledgerAccountServiceServer) DeleteLedgerAccount(ctx context.Context, req *gen.DeleteLedgerAccountRequest) (*emptypb.Empty, error) {
@@ -239,29 +299,35 @@ func (s *ledgerAccountServiceServer) DeleteLedgerAccount(ctx context.Context, re
 		return nil, &ServerError{Err: err, Status: statusInvalidOrganizationInLedgerAccountName}
 	}
 
-	// Use CustomID (n.LedgerAccount) to find the account, then delete by actual ID
-	m, err := s.repo.GetByCustomID(ctx, orgID, n.LedgerAccount)
-	if err != nil {
-		if errors.Is(err, repository.ErrLedgerAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+	return db.Transact(ctx, s.db, func(tx *gorm.DB) (*emptypb.Empty, error) {
+		f := repository.NewFactory(tx, s.enforcer)
+		repo := f.LedgerAccount()
+		audits := newAuditWriter(tx)
+
+		// Use CustomID (n.LedgerAccount) to find the account, then delete by actual ID
+		m, err := repo.GetByCustomID(ctx, orgID, n.LedgerAccount)
+		if err != nil {
+			if errors.Is(err, repository.ErrLedgerAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+			}
+
+			return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedGetLedgerAccount}
-	}
+		if err := repo.Delete(ctx, m.ID); err != nil {
+			if errors.Is(err, repository.ErrLedgerAccountNotFound) {
+				return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+			}
 
-	if err := s.repo.Delete(ctx, m.ID); err != nil {
-		if errors.Is(err, repository.ErrLedgerAccountNotFound) {
-			return nil, &ServerError{Err: err, Status: statusLedgerAccountNotFound}
+			return nil, &ServerError{Err: err, Status: statusFailedDeleteLedgerAccount}
 		}
 
-		return nil, &ServerError{Err: err, Status: statusFailedDeleteLedgerAccount}
-	}
+		if err := audits.Record(ctx, orgAuditSubject(
+			n.String(), orgID, m.ID,
+		), AuditActionDelete, m, nil); err != nil {
+			return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
+		}
 
-	if err := s.audits.Record(ctx, orgAuditSubject(
-		n.String(), orgID, m.ID,
-	), AuditActionDelete, m, nil); err != nil {
-		return nil, &ServerError{Err: err, Status: statusFailedRecordAudit}
-	}
-
-	return &emptypb.Empty{}, nil
+		return &emptypb.Empty{}, nil
+	})
 }
